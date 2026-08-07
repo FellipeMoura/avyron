@@ -11,9 +11,19 @@ extends Control
 ##
 ## Teclas: 1-6 golpes · E desperta · C captura · F foge · R reinicia · Esc sai
 
-const LEVEL := 25
+const DEFAULT_LEVEL := 25
 const LOG_LINES := 8
 const BAR_WIDTH := 16
+
+## Emitido quando o jogador sai da tela. Quem abriu decide o que fazer —
+## voltar a cena, destravar a câmera, liberar a criatura para reengajar.
+signal closed(outcome: int)
+
+## Preenchidos por quem abre a tela como overlay. Vazios = sorteio livre, que
+## é o comportamento quando a cena roda sozinha para playtest.
+var player_code := ""
+var enemy_code := ""
+var duel_level := DEFAULT_LEVEL
 
 ## Paleta herdada dos tokens do app web.
 const COL_BONE := "#F2EDE0"
@@ -70,13 +80,18 @@ func _ready() -> void:
 func _start_new_duel() -> void:
 	var codes: Array = _db.creature_codes()
 	codes.sort()
-	var a: String = codes[_rng.randi() % codes.size()]
-	var b: String = codes[_rng.randi() % codes.size()]
-	while b == a:
-		b = codes[_rng.randi() % codes.size()]
 
-	var hero := Combatant.from_bestiary(_db, a, LEVEL)
-	var foe := Combatant.from_bestiary(_db, b, LEVEL)
+	var a := player_code
+	var b := enemy_code
+	if a == "":
+		a = codes[_rng.randi() % codes.size()]
+	if b == "":
+		b = codes[_rng.randi() % codes.size()]
+		while b == a:
+			b = codes[_rng.randi() % codes.size()]
+
+	var hero := Combatant.from_bestiary(_db, a, duel_level)
+	var foe := Combatant.from_bestiary(_db, b, duel_level)
 	battle = Battle.new(_db, [hero], foe)
 	_last_message = "Duelo iniciado. Escolha um golpe."
 	_render()
@@ -88,10 +103,17 @@ func _input(event: InputEvent) -> void:
 	var key := (event as InputEventKey).keycode
 
 	if key == KEY_ESCAPE:
-		get_tree().change_scene_to_file("res://scenes/main.tscn")
+		closed.emit(battle.outcome)
+		# Rodando como cena principal não há quem trate o sinal, então a tela
+		# volta ao mapa por conta própria. Como overlay, quem abriu decide.
+		if get_tree().current_scene == self:
+			get_tree().change_scene_to_file("res://scenes/main.tscn")
 		return
 	if key == KEY_R:
-		_start_new_duel()
+		# Um duelo aberto por encontro tem adversário definido; reiniciar ali
+		# repetiria o mesmo confronto, o que não é o que a tecla promete.
+		if enemy_code == "":
+			_start_new_duel()
 		return
 	if battle.is_over():
 		return

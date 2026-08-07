@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.91",
-  "generatedAt": "2026-08-07T01:54:22.996Z",
+  "dataVersion": "0.93",
+  "generatedAt": "2026-08-07T02:39:41.686Z",
   "source": "https://bestiary.sysnode.com.br",
   "rules": {
     "damage": {
@@ -631,6 +631,7 @@
         "speed": 25,
         "charge": 45,
         "growthRate": 0.03,
+        "sizeMeters": 0.9,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -689,6 +690,7 @@
         "speed": 55,
         "charge": 50,
         "growthRate": 0.034,
+        "sizeMeters": 2.18,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -747,6 +749,7 @@
         "speed": 65,
         "charge": 60,
         "growthRate": 0.031,
+        "sizeMeters": 0.9,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -805,6 +808,7 @@
         "speed": 20,
         "charge": 40,
         "growthRate": 0.029,
+        "sizeMeters": 0.9,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -863,6 +867,7 @@
         "speed": 40,
         "charge": 55,
         "growthRate": 0.03,
+        "sizeMeters": 0.9,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -921,6 +926,7 @@
         "speed": 50,
         "charge": 45,
         "growthRate": 0.032,
+        "sizeMeters": 1.41,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -979,6 +985,7 @@
         "speed": 55,
         "charge": 45,
         "growthRate": 0.036,
+        "sizeMeters": 2.69,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1037,6 +1044,7 @@
         "speed": 30,
         "charge": 40,
         "growthRate": 0.033,
+        "sizeMeters": 2.69,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1095,6 +1103,7 @@
         "speed": 85,
         "charge": 55,
         "growthRate": 0.032,
+        "sizeMeters": 1.98,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -1153,6 +1162,7 @@
         "speed": 50,
         "charge": 50,
         "growthRate": 0.033,
+        "sizeMeters": 1.98,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -1211,6 +1221,7 @@
         "speed": 70,
         "charge": 65,
         "growthRate": 0.03,
+        "sizeMeters": 0.9,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1269,6 +1280,7 @@
         "speed": 35,
         "charge": 40,
         "growthRate": 0.032,
+        "sizeMeters": 2.56,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1327,6 +1339,7 @@
         "speed": 40,
         "charge": 45,
         "growthRate": 0.031,
+        "sizeMeters": 1.79,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1385,6 +1398,7 @@
         "speed": 75,
         "charge": 55,
         "growthRate": 0.031,
+        "sizeMeters": 1,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1443,6 +1457,7 @@
         "speed": 45,
         "charge": 45,
         "growthRate": 0.031,
+        "sizeMeters": 1.51,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1501,6 +1516,7 @@
         "speed": 50,
         "charge": 55,
         "growthRate": 0.036,
+        "sizeMeters": 2.87,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1559,6 +1575,7 @@
         "speed": 35,
         "charge": 45,
         "growthRate": 0.031,
+        "sizeMeters": 2.87,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1617,6 +1634,7 @@
         "speed": 40,
         "charge": 50,
         "growthRate": 0.031,
+        "sizeMeters": 2.18,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -1675,6 +1693,7 @@
         "speed": 30,
         "charge": 40,
         "growthRate": 0.032,
+        "sizeMeters": 2.73,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1733,6 +1752,7 @@
         "speed": 60,
         "charge": 50,
         "growthRate": 0.037,
+        "sizeMeters": 2.87,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1791,6 +1811,7 @@
         "speed": 25,
         "charge": 45,
         "growthRate": 0.034,
+        "sizeMeters": 3.17,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1849,6 +1870,7 @@
         "speed": 25,
         "charge": 40,
         "growthRate": 0.035,
+        "sizeMeters": 2.79,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1907,6 +1929,7 @@
         "speed": 60,
         "charge": 60,
         "growthRate": 0.029,
+        "sizeMeters": 1.28,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -1965,6 +1988,7 @@
         "speed": 70,
         "charge": 60,
         "growthRate": 0.03,
+        "sizeMeters": 1.67,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -2023,6 +2047,7 @@
         "speed": 65,
         "charge": 50,
         "growthRate": 0.031,
+        "sizeMeters": 2.18,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2081,6 +2106,7 @@
         "speed": 45,
         "charge": 50,
         "growthRate": 0.03,
+        "sizeMeters": 1.51,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },

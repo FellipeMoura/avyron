@@ -74,9 +74,11 @@ A versão está fixada em `project.godot` via `config/features`. Não trocar sem
 
 Abra a pasta no Godot 4.7 e dê play.
 
-**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, câmera isométrica travada seguindo com lookahead. `B` abre o duelo.
+**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, câmera isométrica travada seguindo com lookahead.
 
-**Duelo** (`scenes/duel.tscn`) — sorteia duas criaturas nível 25 e deixa você lutar:
+Oito criaturas nascem espalhadas, lidas do bundle: cápsulas escaladas pelo tamanho de jogo e coloridas pelo elemento. Elas patrulham, notam você a 6 m e param para encarar; as agressivas perseguem. **Encostar numa começa o combate ali mesmo** — a câmera aproxima 12,5% e o mundo congela atrás do overlay, sem corte de cena.
+
+**Duelo** (`scenes/duel.tscn`, também abrível sozinho) — sorteia duas criaturas nível 25 e deixa você lutar:
 
 | Tecla | |
 |---|---|
@@ -100,6 +102,7 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_battle.gd   # máquina de turnos
 & $godot --headless --script res://scripts/dev/test_playable.gd # a cena rodando de verdade
 & $godot --headless --script res://scripts/dev/test_duel_screen.gd  # duelo jogado por tecla
+& $godot --headless --script res://scripts/dev/test_encounter.gd    # spawn, encontro, overlay
 ```
 
 `test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.
