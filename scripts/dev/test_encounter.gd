@@ -1,13 +1,14 @@
 extends SceneTree
 
-## Prova o loop de encontro: as criaturas nascem no mapa, o jogador anda até
-## uma, o combate começa in-world e o mundo volta ao normal ao fim.
+## Prova o loop de encontro por clique: as criaturas nascem, o primeiro clique
+## seleciona (destaque + painel de identificação), o segundo clique na mesma
+## criatura inicia o combate in-world, e o mundo volta ao normal ao fim.
 ##
 ##     godot --headless --script res://scripts/dev/test_encounter.gd
 
 const MAX_FRAMES := 3000
 
-var _world: Node3D
+var _world: WorldRoot
 var _spawner: CreatureSpawner
 var _player: CharacterBody3D
 var _target: CreatureActor
@@ -17,10 +18,16 @@ var _failures := 0
 var _checks := 0
 var _size_min := 99.0
 var _size_max := 0.0
+var _actors_before_close := 0
+var _post_close_wait := 0
+var _target2: CreatureActor
+var _target2_code := ""
+var _actors_before_capture := 0
+var _post_capture_wait := 0
 
 
 func _initialize() -> void:
-	_world = load("res://scenes/main.tscn").instantiate()
+	_world = load("res://scenes/main.tscn").instantiate() as WorldRoot
 	root.add_child(_world)
 
 
@@ -43,12 +50,40 @@ func _process(_delta: float) -> bool:
 	match _phase:
 		"spawn":
 			_check_spawn()
-			_phase = "walk"
-		"walk":
-			_walk_to_target()
+			_phase = "first_click"
+		"first_click":
+			_do_first_click()
+			_phase = "second_click"
+		"second_click":
+			_do_second_click()
 		"battle":
 			_check_battle()
+		"post_close":
+			# Espera um par de quadros para o `queue_free` do actor processar
+			# antes de contar. Sem essa folga a asserção corre à frente da
+			# limpeza que o Godot só executa no fim do quadro.
+			_post_close_wait += 1
+			if _post_close_wait >= 3:
+				_check_removal()
+				_phase = "done"
 		"done":
+			_check_true("o mundo descongelou apos vitoria", not root.get_tree().paused)
+			_check_true("o overlay saiu apos vitoria", _world.get("_duel") == null)
+			_pick_target2()
+			_phase = "capture_first_click" if _target2 != null else "finish"
+		"capture_first_click":
+			_do_capture_first_click()
+			_phase = "capture_second_click"
+		"capture_second_click":
+			_do_capture_second_click()
+		"capture_battle":
+			_check_capture_battle()
+		"post_capture":
+			_post_capture_wait += 1
+			if _post_capture_wait >= 3:
+				_check_capture_result()
+				_phase = "finish"
+		"finish":
 			_finish()
 			return true
 
@@ -76,7 +111,8 @@ func _check_spawn() -> void:
 		"de %.2f m a %.2f m" % [_size_min, _size_max])
 	_check_true("ha mais de uma especie", codes.size() > 1, "%d especies" % codes.size())
 
-	# Nenhuma pode nascer em cima do jogador, senão o jogo abre em combate.
+	# Nenhuma pode nascer em cima do jogador — no modelo antigo isso abria o
+	# jogo em combate; agora não abre mais, mas segue sendo um cheiro ruim.
 	var too_close := 0
 	for a in actors:
 		if a.global_position.distance_to(_player.global_position) < 5.0:
@@ -93,35 +129,40 @@ func _check_spawn() -> void:
 	print("  alvo: %s (%s) a %.1f m" % [_target.display_name, _target.creature_code, best])
 
 
-## Move o jogador pela posição, não pela velocidade.
+## Primeiro clique: sem batalha; a criatura deve ficar marcada como selecionada
+## e o painel de identificação deve estar visível.
 ##
-## O `PlayerController` reescreve a velocidade a cada quadro de física a
-## partir do input, então escrevê-la aqui não sobrevive ao quadro seguinte —
-## o corpo freava no lugar. Que a caminhada por input funciona já é assunto
-## do `test_playable`; o que está sendo verificado aqui é a proximidade
-## disparar o encontro.
-func _walk_to_target() -> void:
-	if _target == null or not is_instance_valid(_target):
-		_phase = "done"
-		return
+## Chama o entry point público em vez de sintetizar `InputEventMouseButton` —
+## coordenadas de tela em headless dependem da câmera renderizando, o que não
+## acontece nesse modo. Testar pela API é o contrato do WorldRoot.
+func _do_first_click() -> void:
+	print("primeiro clique:")
+	_world.handle_click_on(_target)
 
-	var to := _target.global_position - _player.global_position
-	to.y = 0.0
-	if _world.get("_duel") != null:
-		print("encontro:")
-		_check_true("o combate comecou ao encostar", true,
-			"a %.1f m de %s" % [to.length(), _target.display_name])
-		_phase = "battle"
-		return
+	_check_true("o alvo ficou selecionado", _target.is_selected())
+	_check_true("o WorldRoot conhece a selecao", _world.selected_actor() == _target)
+	_check_true("nenhum combate comecou no 1o clique",
+		_world.get_node_or_null("DuelLayer") == null)
 
-	var step := minf(0.15, to.length())
-	_player.global_position += to.normalized() * step
+	var info: CreatureInfoPanel = _world.get_node_or_null("HudLayer/CreatureInfoPanel")
+	_check_true("o painel de identificacao apareceu", info != null and info.visible)
+
+
+## Segundo clique na mesma criatura: dispara o combate.
+func _do_second_click() -> void:
+	print("segundo clique:")
+	_world.handle_click_on(_target)
+
+	_check_true("a selecao foi limpa ao engatar", _world.selected_actor() == null)
+	_check_true("o combate comecou", _world.get_node_or_null("DuelLayer") != null,
+		"a %s" % _target.display_name)
+	_phase = "battle"
 
 
 func _check_battle() -> void:
 	var duel: DuelScreen = _world.get("_duel")
 	_check_true("o mundo congelou", root.get_tree().paused)
-	_check_true("o adversario e a criatura encostada",
+	_check_true("o adversario e a criatura clicada",
 		duel.battle.enemy.code == _target.creature_code,
 		"%s" % duel.battle.enemy.display_name)
 	_check_true("o jogador entrou com a criatura inicial",
@@ -129,15 +170,90 @@ func _check_battle() -> void:
 	_check_true("a tela do duelo esta acima do mundo",
 		_world.get_node_or_null("DuelLayer") != null)
 
-	# Fecha o duelo e verifica que o mundo volta.
+	# Força vitória do jogador antes de fechar — o outcome real deste teste é
+	# indeterminado (nenhum turno foi jogado), e o fluxo que queremos exercer
+	# é a remoção da criatura do mapa pós-vitória.
+	_actors_before_close = _spawner.actors().size()
+	duel.battle.outcome = Battle.Outcome.PLAYER_WON
 	duel.closed.emit(duel.battle.outcome)
-	_phase = "done"
+	_phase = "post_close"
+
+
+## Após vitória do jogador, a criatura sai do mapa e um slot de respawn entra
+## na fila. Sem isso, ganhar batalha deixava o mesmo bicho parado no mesmo
+## lugar — o playtest ficava estranho porque a mesma vitória "não valia".
+func _check_removal() -> void:
+	print("pos-vitoria:")
+	_check_true("a criatura derrotada saiu do mapa",
+		_spawner.actors().size() == _actors_before_close - 1,
+		"%d → %d" % [_actors_before_close, _spawner.actors().size()])
+	_check_true("o slot dela virou respawn pendente",
+		_spawner.pending_respawns() == 1,
+		"%d pendentes" % _spawner.pending_respawns())
+
+
+## Segundo alvo: a criatura mais próxima do jogador que ainda está no mapa
+## depois de a primeira ter sido derrotada.
+func _pick_target2() -> void:
+	_target2 = null
+	var best := 1e9
+	for a in _spawner.actors():
+		var d: float = a.global_position.distance_to(_player.global_position)
+		if d < best:
+			best = d
+			_target2 = a
+	if _target2:
+		print("captura: alvo %s (%s) a %.1f m"
+			% [_target2.display_name, _target2.creature_code, best])
+	else:
+		print("captura: nenhum alvo disponivel, pulando fase")
+
+
+func _do_capture_first_click() -> void:
+	print("captura - primeiro clique:")
+	_world.handle_click_on(_target2)
+	_check_true("alvo2 ficou selecionado", _target2.is_selected())
+
+
+func _do_capture_second_click() -> void:
+	print("captura - segundo clique:")
+	_world.handle_click_on(_target2)
+	_check_true("combate comecou para captura",
+		_world.get_node_or_null("DuelLayer") != null)
+	_phase = "capture_battle"
+
+
+func _check_capture_battle() -> void:
+	var duel: DuelScreen = _world.get("_duel")
+	_check_true("mundo congelou para captura", root.get_tree().paused)
+	_actors_before_capture = _spawner.actors().size()
+	# Salva o código antes de emitir closed — depois de queue_free o actor
+	# não pode mais ser acessado com segurança.
+	_target2_code = _target2.creature_code
+	duel.battle.outcome = Battle.Outcome.CAPTURED
+	duel.closed.emit(duel.battle.outcome)
+	_phase = "post_capture"
+
+
+func _check_capture_result() -> void:
+	print("pos-captura:")
+	_check_true("criatura capturada saiu do mapa",
+		_spawner.actors().size() == _actors_before_capture - 1,
+		"%d → %d" % [_actors_before_capture, _spawner.actors().size()])
+	# Captura não agenda respawn — a criatura foi ao time, não voltou ao bioma.
+	# Ainda há 1 pendente da vitória anterior, mas nenhum novo foi adicionado.
+	_check_true("captura nao agendou respawn",
+		_spawner.pending_respawns() == 1,
+		"%d pendentes" % _spawner.pending_respawns())
+	var player_team := _world.team()
+	_check_true("criatura entrou no time",
+		player_team.size() == 1 and player_team[0] == _target2_code,
+		"time: %s" % str(player_team))
+	_check_true("o mundo descongelou apos captura", not root.get_tree().paused)
+	_check_true("o overlay saiu apos captura", _world.get("_duel") == null)
 
 
 func _finish() -> void:
-	_check_true("o mundo descongelou", not root.get_tree().paused)
-	_check_true("o overlay saiu de cena", _world.get("_duel") == null)
-
 	print("")
 	if _failures == 0:
 		print("OK — %d verificacoes passaram" % _checks)

@@ -1,19 +1,38 @@
 class_name DuelScreen
 extends Control
 
-## Tela de duelo para testar o combate na mão.
+## HUD de duelo em quatro painéis de canto, com o mundo 3D visível atrás.
 ##
-## Não é a UI do jogo — é instrumento de playtest. Tudo é texto monoespaçado
-## em um único RichTextLabel, porque o que precisa ser avaliado aqui é o
-## *ritmo* do combate: se cinco rodadas dão espaço tático, se o Despertar
-## chega na hora certa, se a vantagem elemental é sentida. Barra de vida
-## bonita não responde nada disso e atrasaria a resposta.
+## Não é a UI final do jogo — é instrumento de playtest. Continua tudo em texto
+## monoespaçado com BBCode; o que mudou em relação à versão anterior é o
+## enquadramento: nada mais cobre a tela inteira. Cada painel ocupa um canto,
+## deixando o meio livre para o mundo — o que casa com a especificação
+## `escala-e-camera-de-batalha`: "combate no mesmo espaço, sem corte de cena".
+##
+##   top-left     card do adversário   (nome, classe·elemento, HP, carga, awakening)
+##   top-right    card do jogador      (mesmo layout, espelhado no anchor)
+##   bottom-left  log recente          (últimas rodadas + `dados X.YZ`)
+##   bottom-right ações                (golpes 1–6, comandos, mensagem/desfecho)
 ##
 ## Teclas: 1-6 golpes · E desperta · C captura · F foge · R reinicia · Esc sai
 
 const DEFAULT_LEVEL := 25
-const LOG_LINES := 8
+const LOG_LINES := 6
 const BAR_WIDTH := 16
+
+## Fade-in do overlay durante a transição de entrada. Casado com o
+## `IsoCamera.zoom_in_duration` — se um dos dois passar por variação, os dois
+## precisam variar juntos, senão os painéis aparecem fora do ritmo do
+## movimento da câmera.
+const INTRO_FADE_SEC := 0.5
+
+## Padding dos painéis em relação à borda da tela.
+const EDGE_INSET := 16
+## Largura mínima de card e painel de ações — larga o bastante para caber o
+## nome+level+elemento e a lista de golpes sem quebra de linha.
+const CARD_MIN_WIDTH := 320
+const ACTIONS_MIN_WIDTH := 480
+const LOG_MIN_WIDTH := 380
 
 ## Emitido quando o jogador sai da tela. Quem abriu decide o que fazer —
 ## voltar a cena, destravar a câmera, liberar a criatura para reengajar.
@@ -30,11 +49,17 @@ const COL_BONE := "#F2EDE0"
 const COL_MOSS := "#7A8C6B"
 const COL_EMBER := "#C6552F"
 const COL_SLATE := "#6B7280"
+const COL_PANEL_BG := "#0A0B0D"
+const COL_PANEL_BORDER := "#1F2530"
 
 var battle: Battle
-var _label: RichTextLabel
 var _rng := RandomNumberGenerator.new()
 var _last_message := ""
+
+var _enemy_label: RichTextLabel
+var _player_label: RichTextLabel
+var _log_label: RichTextLabel
+var _actions_label: RichTextLabel
 
 ## Resolvido por caminho, não pelo identificador global do autoload.
 ##
@@ -53,24 +78,99 @@ func _ready() -> void:
 
 	_rng.randomize()
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# O root não intercepta o mouse — cliques atravessam para o mundo. Cada
+	# painel individual também é IGNORE, mais abaixo.
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-	var bg := ColorRect.new()
-	bg.color = Color("#0A0B0D")
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
+	# Fade-in coordenado com a transição da câmera. Só faz sentido quando a
+	# tela é aberta como overlay do WorldRoot; rodando solta em playtest, o
+	# fade seria só um estorvo.
+	if get_tree().current_scene != self:
+		modulate.a = 0.0
+		var fade := create_tween()
+		fade.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		fade.tween_property(self, "modulate:a", 1.0, INTRO_FADE_SEC)
 
-	_label = RichTextLabel.new()
-	_label.bbcode_enabled = true
-	_label.scroll_active = false
-	_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_label.offset_left = 24
-	_label.offset_top = 20
-	_label.offset_right = -24
-	_label.offset_bottom = -20
-	_label.add_theme_font_size_override("normal_font_size", 15)
-	add_child(_label)
+	# Grade full-rect com spacers expansíveis — a mesma ideia de flexbox. Cada
+	# canto recebe seu PanelContainer, que auto-dimensiona pelo conteúdo. O
+	# esquema antigo por `set_anchors_preset` + offset manual quebrava para os
+	# cantos direito/inferior: sem esticar offset_left/top, o rect virava
+	# largura zero e o painel sumia. Aqui o container faz o cálculo.
+	var vbox := VBoxContainer.new()
+	vbox.name = "Grid"
+	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.set_anchors_and_offsets_preset(
+		Control.PRESET_FULL_RECT, Control.PRESET_MODE_MINSIZE, EDGE_INSET
+	)
+	add_child(vbox)
+
+	var top_row := _make_row("TopRow")
+	vbox.add_child(top_row)
+	_enemy_label = _add_card(top_row, "EnemyCard", CARD_MIN_WIDTH)
+	_add_spacer(top_row, true)
+	_player_label = _add_card(top_row, "PlayerCard", CARD_MIN_WIDTH)
+
+	_add_spacer(vbox, false)
+
+	var bot_row := _make_row("BottomRow")
+	vbox.add_child(bot_row)
+	_log_label = _add_card(bot_row, "LogPanel", LOG_MIN_WIDTH)
+	_add_spacer(bot_row, true)
+	_actions_label = _add_card(bot_row, "ActionsPanel", ACTIONS_MIN_WIDTH)
 
 	_start_new_duel()
+
+
+func _make_row(row_name: String) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.name = row_name
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return row
+
+
+## Spacer entre dois painéis do mesmo eixo. Empurra os vizinhos para as
+## bordas — é o único jeito de "alinhar à direita" num HBoxContainer.
+func _add_spacer(parent: Container, horizontal: bool) -> void:
+	var spacer := Control.new()
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if horizontal:
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	else:
+		spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	parent.add_child(spacer)
+
+
+## Constrói um card (PanelContainer + RichTextLabel) e o anexa à linha.
+## Devolve o label — quem chama já perdeu o interesse no container.
+func _add_card(parent: Container, node_name: String, min_width: int) -> RichTextLabel:
+	var panel := PanelContainer.new()
+	panel.name = node_name
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.custom_minimum_size = Vector2(min_width, 0)
+	# Não estica: o card fica no tamanho que o conteúdo pedir, deixando o
+	# spacer ao lado engolir o resto do espaço.
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(COL_PANEL_BG, 0.88)
+	style.border_color = Color(COL_PANEL_BORDER)
+	style.set_border_width_all(1)
+	style.set_content_margin_all(12)
+	style.set_corner_radius_all(4)
+	panel.add_theme_stylebox_override("panel", style)
+	parent.add_child(panel)
+
+	var label := RichTextLabel.new()
+	label.name = "Label"
+	label.bbcode_enabled = true
+	label.fit_content = true
+	label.scroll_active = false
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("normal_font_size", 14)
+	panel.add_child(label)
+
+	return label
 
 
 # ---------------------------------------------------------------------------
@@ -157,32 +257,11 @@ func _input(event: InputEvent) -> void:
 func _render() -> void:
 	var hero := battle.player_active()
 	var foe := battle.enemy
-	var out: Array[String] = []
 
-	out.append("[color=%s]AVYRON[/color]  [color=%s]duelo de teste — dados %s[/color]"
-		% [COL_EMBER, COL_SLATE, _db.data_version])
-	out.append("")
-	out.append(_combatant_block(foe, "adversario"))
-	out.append(_combatant_block(hero, "voce"))
-	out.append(_rule())
-
-	if battle.is_over():
-		out.append("")
-		out.append("[color=%s]%s[/color]" % [COL_EMBER, _outcome_text()])
-		out.append("")
-		out.append("[color=%s][R] novo duelo    [Esc] voltar ao mapa[/color]" % COL_SLATE)
-	else:
-		out.append(_ability_list(hero))
-		out.append("")
-		out.append(_command_line(hero))
-
-	if _last_message != "":
-		out.append("[color=%s]%s[/color]" % [COL_EMBER, _last_message])
-
-	out.append(_rule())
-	out.append(_recent_log())
-
-	_label.text = "\n".join(out)
+	_enemy_label.text = _combatant_block(foe, "adversario")
+	_player_label.text = _combatant_block(hero, "voce")
+	_log_label.text = _log_block()
+	_actions_label.text = _actions_block(hero)
 
 
 func _combatant_block(c: Combatant, role: String) -> String:
@@ -191,14 +270,14 @@ func _combatant_block(c: Combatant, role: String) -> String:
 	if c.is_awakened:
 		awakened = "  [color=%s]DESPERTO (%d)[/color]" % [COL_EMBER, c.awakened_rounds_left]
 
-	lines.append("[color=%s]%s[/color]  [b]%s[/b]  Lv%d  %s / %s%s"
-		% [COL_SLATE, role, c.display_name, c.level,
-		   _class_name(c.creature_class), _element_name(c.element), awakened])
-	lines.append("  HP   %s  %d/%d"
+	lines.append("[color=%s]%s[/color]  [b]%s[/b]  Lv%d%s"
+		% [COL_SLATE, role, c.display_name, c.level, awakened])
+	lines.append("[color=%s]%s · %s[/color]"
+		% [COL_SLATE, _class_name(c.creature_class), _element_name(c.element)])
+	lines.append("HP    %s  %d/%d"
 		% [_bar(float(c.hp) / float(c.max_hp), COL_MOSS), c.hp, c.max_hp])
-	lines.append("  Carga%s  %d/100"
+	lines.append("Carga %s  %d/100"
 		% [_bar(c.charge_meter / battle.charge_max(), COL_EMBER), int(c.charge_meter)])
-	lines.append("")
 	return "\n".join(lines)
 
 
@@ -210,6 +289,25 @@ func _bar(ratio: float, color: String) -> String:
 		color, "|".repeat(filled),
 		COL_SLATE, ".".repeat(BAR_WIDTH - filled),
 	]
+
+
+func _actions_block(c: Combatant) -> String:
+	var out: Array[String] = []
+
+	if battle.is_over():
+		out.append("[color=%s]%s[/color]" % [COL_EMBER, _outcome_text()])
+		out.append("")
+		out.append("[color=%s][R] novo duelo    [Esc] voltar ao mapa[/color]" % COL_SLATE)
+	else:
+		out.append(_ability_list(c))
+		out.append("")
+		out.append(_command_line(c))
+
+	if _last_message != "":
+		out.append("")
+		out.append("[color=%s]%s[/color]" % [COL_EMBER, _last_message])
+
+	return "\n".join(out)
 
 
 func _ability_list(c: Combatant) -> String:
@@ -237,7 +335,7 @@ func _ability_list(c: Combatant) -> String:
 		if bool(a["awakeningOnly"]):
 			mark = "[color=%s]*[/color]" % COL_EMBER
 
-		lines.append("  [color=%s][%d][/color] %-20s %-8s %-28s %d usos"
+		lines.append("[color=%s][%d][/color] %-20s %-8s %-28s %d usos"
 			% [COL_BONE, i + 1, str(a["name"]) + mark, element, detail,
 			   c.uses_left(str(a["code"]))])
 	return "\n".join(lines)
@@ -250,8 +348,8 @@ func _command_line(c: Combatant) -> String:
 	else:
 		parts.append("[color=%s][E] despertar (carga %d/100)[/color]"
 			% [COL_SLATE, int(c.charge_meter)])
-	parts.append("[color=%s][C] capturar   [F] fugir   [R] reiniciar   [Esc] mapa[/color]" % COL_SLATE)
-	return "  " + "    ".join(parts)
+	parts.append("[color=%s][C] capturar  [F] fugir  [R] reiniciar  [Esc] mapa[/color]" % COL_SLATE)
+	return "  ".join(parts)
 
 
 func _outcome_text() -> String:
@@ -268,21 +366,20 @@ func _outcome_text() -> String:
 			return ""
 
 
-func _recent_log() -> String:
+## Log com o dataVersion como cabeçalho discreto — permanece rastreável em
+## bug reports sem ocupar espaço nobre da HUD.
+func _log_block() -> String:
 	var lines: Array[String] = []
+	lines.append("[color=%s]log · dados %s[/color]" % [COL_SLATE, _db.data_version])
 	var start := maxi(0, battle.log_events.size() - LOG_LINES)
 	for i in range(start, battle.log_events.size()):
 		var e: Dictionary = battle.log_events[i]
 		var color := COL_SLATE
 		if e["type"] in ["awaken", "revert", "faint", "capture"]:
 			color = COL_EMBER
-		lines.append("  [color=%s]r%d[/color] [color=%s]%s[/color]"
+		lines.append("[color=%s]r%d[/color] [color=%s]%s[/color]"
 			% [COL_SLATE, e["round"], color, str(e.get("text", e["type"]))])
 	return "\n".join(lines)
-
-
-func _rule() -> String:
-	return "[color=%s]%s[/color]" % [COL_SLATE, "-".repeat(72)]
 
 
 func _element_name(code: String) -> String:
@@ -295,3 +392,15 @@ func _element_name(code: String) -> String:
 func _class_name(code: String) -> String:
 	var c := _db.creature_class(code)
 	return str(c.get("name", code))
+
+
+## Concatena o texto puro (sem BBCode) dos quatro painéis. Usado só nos testes
+## headless — a lógica de renderização passou a viver em quatro labels
+## independentes, e sem esse resumão as asserções por conteúdo teriam de
+## andar de painel em painel.
+func debug_text() -> String:
+	var chunks: Array[String] = []
+	for label in [_enemy_label, _player_label, _log_label, _actions_label]:
+		if label:
+			chunks.append(label.get_parsed_text())
+	return "\n".join(chunks)

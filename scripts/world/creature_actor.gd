@@ -26,8 +26,15 @@ const IDLE_MIN := 1.5
 const IDLE_MAX := 4.0
 const PATROL_RADIUS := 6.0
 
-## Distância em que o encontro dispara.
-const ENGAGE_RADIUS := 1.6
+## Coleira até `_home`. Quando a criatura ultrapassa esta distância, o próximo
+## alvo de patrulha vem enviesado de volta em vez de sorteio livre — sem isso
+## ela pode vagar indefinidamente para fora do bioma.
+const HOME_LEASH := 8.0
+
+## Multiplicador de energia da emissão quando a criatura está selecionada.
+## Um valor baixo evita "queimar" a cor do elemento — o realce tem de ser lido
+## como "esta é a selecionada", não como um efeito de luz forte.
+const SELECT_EMISSION_ENERGY := 0.55
 
 signal engaged(actor: CreatureActor)
 
@@ -48,6 +55,8 @@ var _engaged_once := false
 
 var _mesh: MeshInstance3D
 var _collision: CollisionShape3D
+var _material: StandardMaterial3D
+var _selected := false
 
 
 ## Cor por elemento. Placeholder honesto: a paleta final vem da banda
@@ -84,6 +93,34 @@ func _ready() -> void:
 
 
 func _build_body() -> void:
+	var visual := build_capsule_visual(size_meters, element_code)
+	_mesh = visual["mesh"]
+	_material = visual["material"]
+	add_child(_mesh)
+	add_child(visual["nose"])
+
+	var height: float = visual["height"]
+	var radius: float = visual["radius"]
+
+	var shape := CapsuleShape3D.new()
+	shape.height = height
+	shape.radius = radius
+	_collision = CollisionShape3D.new()
+	_collision.name = "Collision"
+	_collision.shape = shape
+	add_child(_collision)
+
+	position.y = height * 0.5
+
+
+## Constrói o visual reutilizável de uma criatura: cápsula colorida pelo
+## elemento, com a marca de frente que deixa ler a direção de encaramento.
+## Devolve um dicionário com os nós e as medidas — o CompanionActor consome o
+## mesmo layout, pra manter a leitura consistente entre selvagem e domesticada.
+##
+## O material com emissão preparada (desligada) já sai daqui, então quem quiser
+## acender o realce depois só precisa de `emission_enabled = true`.
+static func build_capsule_visual(size_meters: float, element_code: String) -> Dictionary:
 	# A cápsula usa o tamanho como ALTURA e deriva o raio dela, para o volume
 	# crescer junto e um Arthropleura não virar um poste fino.
 	var radius := clampf(size_meters * 0.28, 0.15, 1.2)
@@ -96,20 +133,14 @@ func _build_body() -> void:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = ELEMENT_COLORS.get(element_code, Color("#6B7280"))
 	material.roughness = 0.9
+	material.emission = ELEMENT_COLORS.get(element_code, Color("#F2EDE0"))
+	material.emission_energy_multiplier = SELECT_EMISSION_ENERGY
+	material.emission_enabled = false
 	mesh.material = material
 
-	_mesh = MeshInstance3D.new()
-	_mesh.name = "Mesh"
-	_mesh.mesh = mesh
-	add_child(_mesh)
-
-	var shape := CapsuleShape3D.new()
-	shape.height = height
-	shape.radius = radius
-	_collision = CollisionShape3D.new()
-	_collision.name = "Collision"
-	_collision.shape = shape
-	add_child(_collision)
+	var mesh_node := MeshInstance3D.new()
+	mesh_node.name = "Mesh"
+	mesh_node.mesh = mesh
 
 	# Marca de frente, como no jogador — sem ela não dá para ler para onde a
 	# criatura está virada.
@@ -119,9 +150,14 @@ func _build_body() -> void:
 	nose_mesh.size = Vector3(radius * 0.4, radius * 0.4, radius * 0.9)
 	nose.mesh = nose_mesh
 	nose.position = Vector3(0, height * 0.2, -(radius + radius * 0.45))
-	add_child(nose)
 
-	position.y = height * 0.5
+	return {
+		"mesh": mesh_node,
+		"nose": nose,
+		"material": material,
+		"height": height,
+		"radius": radius,
+	}
 
 
 func _physics_process(delta: float) -> void:
@@ -137,6 +173,14 @@ func _physics_process(delta: float) -> void:
 			_timer -= delta
 			if _timer <= 0.0:
 				_enter_patrol()
+			# Zerar X/Z aqui não é redundante: `move_and_slide` devolve a
+			# velocidade AJUSTADA pela resolução de colisão com o chão, e sem
+			# reescrever a cada quadro esse resíduo (~10⁻³) se acumula e vira
+			# a "tremedeira" visível em criaturas em repouso. Os outros
+			# estados não sofrem porque todos sobrescrevem velocity a cada
+			# quadro — PATROL/ENGAGE via `_move_towards`, ALERT via `_brake`.
+			velocity.x = 0.0
+			velocity.z = 0.0
 		State.PATROL:
 			_move_towards(_patrol_target, PATROL_SPEED, delta)
 			if global_position.distance_to(_patrol_target) < 0.6:
@@ -152,16 +196,16 @@ func _physics_process(delta: float) -> void:
 				state = State.ENGAGE
 		State.ENGAGE:
 			_move_towards(_player.global_position, CHASE_SPEED, delta)
+			# Sem esta saída, uma criatura que engajou continua perseguindo
+			# para sempre — mesmo com o jogador do outro lado do mapa. Um
+			# múltiplo generoso do raio de detecção dá pré-luta em fuga
+			# tensa mas evita a "sombra" que persegue infinitamente.
+			if distance > DETECT_RADIUS_OPEN * 2.0:
+				_enter_idle()
 
-	# Encostar sempre inicia o combate, inclusive em ALERT.
-	#
-	# Antes isto só valia em ENGAGE, e o efeito era que criatura de perfil
-	# defensivo — que por design nunca sai de ALERT — era impossível de
-	# enfrentar: ela olhava para o jogador para sempre. Quem não persegue
-	# ainda reage a quem chega perto demais.
-	if state in [State.ALERT, State.ENGAGE] and distance <= ENGAGE_RADIUS and not _engaged_once:
-		_engaged_once = true
-		engaged.emit(self)
+	# Contato não inicia mais combate — o disparo do encontro é por clique.
+	# As agressivas continuam perseguindo por pressão visual; a decisão de
+	# entrar em batalha é sempre do jogador, no `WorldRoot`.
 
 	if state in [State.IDLE, State.PATROL] and distance <= DETECT_RADIUS_OPEN:
 		state = State.ALERT
@@ -181,19 +225,50 @@ func _enter_idle() -> void:
 
 func _enter_patrol() -> void:
 	state = State.PATROL
-	var angle := _rng.randf() * TAU
+	# Ancora o alvo na POSIÇÃO ATUAL, não em `_home`. O esquema antigo pegava
+	# alvo em `_home + offset`, e uma criatura que tivesse drifted para o
+	# extremo oeste do seu círculo podia receber o próximo alvo no extremo
+	# leste — 12 m de distância no lado oposto. Como a criatura já estava
+	# perto do limite de 0.6 m que encerra a patrulha, ela oscilava entre os
+	# dois pontos, o que o usuário via como "presa no mesmo eixo com o bico
+	# variando entre duas direções". Ancorar no `global_position` faz cada
+	# patrulha ser uma perna genuína de caminhada.
+	var away := global_position - _home
+	away.y = 0.0
+	var angle: float
+	if away.length() > HOME_LEASH:
+		# Longe demais: aponta de volta para casa com folga de ±90° para
+		# a direção não ser rígida — a criatura ainda parece explorar, mas
+		# no rumo geral do bioma dela.
+		var back_angle := atan2(-away.z, -away.x)
+		angle = back_angle + _rng.randf_range(-PI * 0.5, PI * 0.5)
+	else:
+		angle = _rng.randf() * TAU
 	var dist := _rng.randf_range(1.5, PATROL_RADIUS)
-	_patrol_target = _home + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
+	_patrol_target = global_position + Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
 
 
 func _move_towards(target: Vector3, speed: float, delta: float) -> void:
 	var dir := target - global_position
 	dir.y = 0.0
-	if dir.length() < 0.05:
+	var distance := dir.length()
+	if distance < 0.05:
+		# Chegou. Zerar explicitamente evita o ping-pong do modelo antigo:
+		# ele apenas retornava, e a velocidade do quadro anterior seguia
+		# aplicada por `move_and_slide`, fazendo a criatura passar reto do
+		# alvo, virar 180° no quadro seguinte para voltar, passar reto de
+		# novo, e assim por diante — o que o usuário via como "bico
+		# alternando entre duas direções sem transição visual".
+		velocity.x = 0.0
+		velocity.z = 0.0
 		return
-	dir = dir.normalized()
-	velocity.x = dir.x * speed
-	velocity.z = dir.z * speed
+	dir = dir / distance
+	# Cap a velocidade para não estourar o alvo neste quadro. Sem isto, uma
+	# criatura correndo (CHASE_SPEED) sempre passa 5–6 cm além do jogador
+	# parado, o que reintroduz o mesmo ping-pong só que na perseguição.
+	var step_speed: float = minf(speed, distance / maxf(delta, 0.0001))
+	velocity.x = dir.x * step_speed
+	velocity.z = dir.z * step_speed
 	_face(dir, delta)
 
 
@@ -214,4 +289,29 @@ func _face(direction: Vector3, delta: float) -> void:
 ## Permite reengajar depois de uma batalha resolvida.
 func reset_engagement() -> void:
 	_engaged_once = false
+	set_selected(false)
 	_enter_idle()
+
+
+## Realce visual da criatura selecionada pelo clique. É um toggle simples de
+## emissão no material — nada de spawnar node novo por seleção. A cor da
+## emissão foi armazenada quando o corpo foi construído.
+func set_selected(selected: bool) -> void:
+	if _material == null or _selected == selected:
+		return
+	_selected = selected
+	_material.emission_enabled = selected
+
+
+func is_selected() -> bool:
+	return _selected
+
+
+## Marca a criatura como já engajada e emite o sinal. Chamado pelo WorldRoot
+## no segundo clique — mantém o contrato de "só uma batalha por criatura até
+## `reset_engagement`".
+func request_engage() -> void:
+	if _engaged_once:
+		return
+	_engaged_once = true
+	engaged.emit(self)

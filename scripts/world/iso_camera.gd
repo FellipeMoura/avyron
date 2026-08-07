@@ -28,6 +28,16 @@ const RIG_DISTANCE := 20.0
 @export var battle_zoom_ratio: float = 0.875   # -12.5%
 @export var boss_zoom_ratio: float = 1.25      # +25%
 
+## Pitch alvo durante a batalha. -18° é mais horizontal que os -30° do mapa —
+## a câmera "abaixa a cabeça" para enquadrar os combatentes mais de lado, dando
+## o corte cinematográfico clássico do início do duelo.
+##
+## O contrato do teste de silhueta (30°/45°) vale para EXPLORAÇÃO — durante a
+## batalha o overlay do duelo ocupa praticamente toda a tela e a projeção do
+## mundo pouco importa; o tilt está aqui pelo *feel* da entrada, não para
+## revelar geometria nova.
+@export var battle_pitch_degrees: float = -18.0
+
 @export var zoom_in_duration: float = 0.5
 @export var zoom_out_duration: float = 0.4
 
@@ -40,7 +50,7 @@ const RIG_DISTANCE := 20.0
 
 var _target: Node3D
 var _lookahead := Vector3.ZERO
-var _size_tween: Tween
+var _transition_tween: Tween
 
 
 func _ready() -> void:
@@ -84,34 +94,44 @@ func _physics_process(delta: float) -> void:
 
 
 ## Posição da câmera para focar um ponto, recuando ao longo do eixo de visão.
+##
+## Usa o `transform.basis` corrente em vez das constantes de propósito: durante
+## a transição de batalha o pitch é tweenado, e se a posição do rig continuasse
+## sendo calculada a partir do ângulo antigo, o alvo escorregava do centro do
+## quadro conforme a câmera tiltava. Como a projeção é ortográfica, a distância
+## em si não altera o zoom aparente — só evita clipping — então basear a
+## posição na orientação corrente é seguro.
 func _rig_position(focus: Vector3) -> Vector3:
-	var basis_ := Basis.from_euler(
-		Vector3(deg_to_rad(PITCH_DEGREES), deg_to_rad(YAW_DEGREES), 0.0)
-	)
 	# -Z é a direção para onde a câmera olha; recuar é ir no sentido oposto.
-	return focus - basis_ * Vector3(0, 0, -RIG_DISTANCE)
+	return focus - transform.basis * Vector3(0, 0, -RIG_DISTANCE)
 
 
 # ---------------------------------------------------------------------------
-# modulações de zoom
+# transição de batalha
 # ---------------------------------------------------------------------------
 
 func enter_battle() -> void:
-	_tween_size(base_size * battle_zoom_ratio, zoom_in_duration)
+	_tween_transition(base_size * battle_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
 
 func enter_boss_battle() -> void:
-	_tween_size(base_size * boss_zoom_ratio, zoom_in_duration)
+	_tween_transition(base_size * boss_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
 
 func exit_battle() -> void:
-	_tween_size(base_size, zoom_out_duration)
+	_tween_transition(base_size, PITCH_DEGREES, zoom_out_duration)
 
 
-func _tween_size(target_size: float, duration: float) -> void:
-	if _size_tween and _size_tween.is_valid():
-		_size_tween.kill()
-	_size_tween = create_tween()
-	_size_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	_size_tween.tween_property(self, "size", target_size, duration)
+## Tween paralelo de zoom (`size`) e pitch (`rotation_degrees:x`). Um único
+## Tween com `set_parallel(true)` garante que as duas propriedades andem
+## juntas, com a mesma easing — a leitura tem de ser de UM movimento, não de
+## dois efeitos concorrentes.
+func _tween_transition(target_size: float, target_pitch: float, duration: float) -> void:
+	if _transition_tween and _transition_tween.is_valid():
+		_transition_tween.kill()
+	_transition_tween = create_tween()
+	_transition_tween.set_parallel(true)
+	_transition_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_transition_tween.tween_property(self, "size", target_size, duration)
+	_transition_tween.tween_property(self, "rotation_degrees:x", target_pitch, duration)
 
 
 # ---------------------------------------------------------------------------

@@ -70,15 +70,53 @@ Especificação legível: documentos `combate`, `carga-e-despertar` e `captura` 
 
 A versão está fixada em `project.godot` via `config/features`. Não trocar sem combinar — dois devs em builds diferentes geram diffs fantasma.
 
+### Instalar
+
+Windows 64, build padrão (não .NET):
+
+- **Download direto (4.7.1):** https://downloads.godotengine.org/?version=4.7.1&flavor=stable&slug=win64.exe.zip&platform=windows.64
+- **Página oficial** (release notes + hashes): https://godotengine.org/download/windows/
+
+O zip contém dois executáveis — descompacte os dois em `%LOCALAPPDATA%\Programs\Godot\`:
+
+| Executável | Para quê |
+|---|---|
+| `Godot_v4.7.1-stable_win64.exe` | abrir o editor e dar play |
+| `Godot_v4.7.1-stable_win64_console.exe` | rodar os testes `--headless` do bloco abaixo |
+
+Sem instalador — é só extrair. O path `%LOCALAPPDATA%\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe` é o que os comandos de teste esperam no `$godot`.
+
 ### Rodar
 
-Abra a pasta no Godot 4.7 e dê play.
+Na primeira vez você precisa importar o projeto — depois é só abrir do Project Manager.
 
-**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, câmera isométrica travada seguindo com lookahead.
+1. **Abrir o editor.** Duplo clique em `Godot_v4.7.1-stable_win64.exe` (o de cima da tabela acima, sem `_console`). Abre o Project Manager com uma lista de projetos.
+2. **Importar este repo.** Botão `Import` → aponte para `c:\code\avyron\project.godot` → `Import & Edit`. Da segunda vez em diante ele já aparece na lista; duplo clique abre.
+3. **Play.** `F5` (ou o botão ▶ no canto superior direito) roda a cena principal definida em `project.godot`, que é o mapa. Para rodar o duelo direto, abra `scenes/duel.tscn` na aba de cenas e aperte `F6` (roda **só** a cena atual).
 
-Oito criaturas nascem espalhadas, lidas do bundle: cápsulas escaladas pelo tamanho de jogo e coloridas pelo elemento. Elas patrulham, notam você a 6 m e param para encarar; as agressivas perseguem. **Encostar numa começa o combate ali mesmo** — a câmera aproxima 12,5% e o mundo congela atrás do overlay, sem corte de cena.
+Se pedir para escolher a Main Scene na primeira execução, aponte para `scenes/main.tscn` — está fixado no `project.godot`, mas versões novas do Godot às vezes perguntam mesmo assim.
 
-**Duelo** (`scenes/duel.tscn`, também abrível sozinho) — sorteia duas criaturas nível 25 e deixa você lutar:
+**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, **F minera**, câmera isométrica travada seguindo com lookahead. A **criatura ativa** do jogador (starter, `CRT-002` por padrão) anda ao lado, atrás e um pouco à direita, com bob leve — puramente visual, sem colisão nem clique.
+
+Oito criaturas selvagens nascem espalhadas, lidas do bundle: cápsulas escaladas pelo tamanho de jogo e coloridas pelo elemento. Elas patrulham, notam você a 6 m e param para encarar; as agressivas perseguem. **O combate é disparado por clique**: o primeiro clique numa criatura seleciona e abre um painel de identificação (nome, classe, elemento, tamanho); o segundo clique na mesma começa a batalha ali mesmo — a câmera aproxima 12,5% e **inclina para -18°** (era -30°) num único movimento, e o overlay do duelo revela por fade sobre o mundo congelado. Sem corte de cena. Clique fora ou aperte `Esc` para desmarcar; afastar-se demais também desseleciona.
+
+Contato físico não faz mais nada: agressivas continuam perseguindo por pressão, mas quem aperta o gatilho é sempre o jogador.
+
+**Ciclo de vida no mapa** — vencer o combate remove o adversário do mapa e joga um slot de respawn na fila do `CreatureSpawner`. Depois de 20–40s, o slot vira uma criatura nova (espécie e posição sorteadas do pool do bioma). Fuga e derrota do jogador liberam a criatura de origem para ser reengajada. **Captura** remove o adversário sem respawn e o armazena no card do jogador (1 slot por enquanto); o painel de time no canto superior direito atualiza em tempo real.
+
+**Mineração** — pressionar `F` em qualquer ponto do mapa coleta um minério sorteado por peso da tabela do bioma atual (cooldown de 3 s). O painel de inventário fica no canto superior esquerdo e lista os materiais acumulados. Ambos os painéis somem durante o combate e voltam ao fechar.
+
+A tabela de minérios vive em `scripts/data/ore_table.gd` e é hardcoded enquanto o bundle não exporta itens; quando exportar, só essa classe muda. Pool atual do PZ-01:
+
+| Código | Nome | Frequência |
+|---|---|---|
+| `ORE-001` | Calcário | 35 % |
+| `ORE-002` | Sílex | 25 % |
+| `ORE-003` | Carvão | 20 % |
+| `ORE-004` | Cobre | 12 % |
+| `ORE-005` | Ferro | 8 % |
+
+**Duelo** (`scenes/duel.tscn`, também abrível sozinho com `F6`) — sorteia duas criaturas nível 25 e deixa você lutar:
 
 | Tecla | |
 |---|---|
@@ -102,12 +140,17 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_battle.gd   # máquina de turnos
 & $godot --headless --script res://scripts/dev/test_playable.gd # a cena rodando de verdade
 & $godot --headless --script res://scripts/dev/test_duel_screen.gd  # duelo jogado por tecla
-& $godot --headless --script res://scripts/dev/test_encounter.gd    # spawn, encontro, overlay
+& $godot --headless --script res://scripts/dev/test_encounter.gd    # spawn, encontro, captura, overlay
+& $godot --headless --script res://scripts/dev/test_mining.gd       # OreTable, inventário, cooldown
 ```
 
 `test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.
 
 `test_data.gd` é o guarda do contrato com o bestiário: se o formato do bundle mudar, se uma fórmula sair do lugar ou se o export deixar passar uma criatura sem stats, estoura ali em vez de virar bug de runtime. Rode depois de todo `game:export`.
+
+`test_encounter.gd` cobre o loop completo de encontro — spawn → clique → batalha → vitória (remoção + respawn) → captura (remoção sem respawn + card do jogador).
+
+`test_mining.gd` cobre a `OreTable` (distribuição, mapa inexistente, nome por código), o `PlayerInventory` (add, quantity, entries ordenado) e o fluxo no `WorldRoot` (minera, cooldown bloqueia segunda chamada, zerar cooldown libera terceira, painel existe na HUD).
 
 `scripts/dev/setup_project.gd` gerou o input map e a cena inicial. É andaime de bootstrap — daqui em diante a edição normal é pelo editor.
 

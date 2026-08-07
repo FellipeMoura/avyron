@@ -36,6 +36,15 @@ func _process(_delta: float) -> bool:
 		_check_true("mostra os dois combatentes",
 			_screen_text().contains("adversario") and _screen_text().contains("voce"))
 		_check_true("mostra a versao dos dados", _screen_text().contains(_db().data_version))
+		# `find_child(_, true, false)` porque os painéis são criados em
+		# script — `owned=true` (padrão) só acha nós com `owner` setado, e
+		# esses vivem só em cenas salvas do editor. O `false` cobre nós
+		# programáticos, que é o caso aqui.
+		_check_true("tem os quatro paineis de canto",
+			_screen.find_child("EnemyCard", true, false) != null
+			and _screen.find_child("PlayerCard", true, false) != null
+			and _screen.find_child("LogPanel", true, false) != null
+			and _screen.find_child("ActionsPanel", true, false) != null)
 		return false
 
 	if _screen.battle.is_over() or _rounds_played >= MAX_ROUNDS:
@@ -93,11 +102,12 @@ func _press(keycode: Key) -> void:
 	_screen._input(ev)
 
 
-## Texto puro, sem as marcações BBCode, para as asserções não dependerem de
-## cor nem de formatação.
+## Concatena o texto puro dos quatro painéis. O DuelScreen expõe o helper
+## de propósito — a navegação por índice de filho quebrou quando a tela virou
+## quatro painéis independentes, e cada asserção sair caçando o label certo
+## era ruído no teste.
 func _screen_text() -> String:
-	var label := _screen.get_child(1) as RichTextLabel
-	return label.get_parsed_text() if label else ""
+	return _screen.debug_text() if _screen else ""
 
 
 func _db() -> BestiaryData:
