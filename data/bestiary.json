@@ -1,7 +1,7 @@
 {
-  "dataVersion": "0.70",
-  "generatedAt": "2026-08-07T00:53:41.456Z",
-  "source": "http://localhost:5101",
+  "dataVersion": "0.90",
+  "generatedAt": "2026-08-07T00:58:00.913Z",
+  "source": "https://bestiary.sysnode.com.br",
   "rules": {
     "damage": {
       "constant": 0.4,
