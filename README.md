@@ -70,6 +70,25 @@ Especificação legível: documentos `combate`, `carga-e-despertar` e `captura` 
 
 A versão está fixada em `project.godot` via `config/features`. Não trocar sem combinar — dois devs em builds diferentes geram diffs fantasma.
 
+### Rodar
+
+Abra a pasta no Godot 4.7 e dê play. A cena principal é `scenes/main.tscn`: chão, um corpo controlável com WASD (shift para correr) e a câmera isométrica travada.
+
+### Testes
+
+Duas suítes headless, sem dependência de editor:
+
+```powershell
+$godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe"
+
+& $godot --headless --script res://scripts/dev/test_data.gd    # contrato de dados + fórmulas
+& $godot --headless --script res://scripts/dev/test_world.gd   # input, câmera, cena
+```
+
+`test_data.gd` é o guarda do contrato com o bestiário: se o formato do bundle mudar, se uma fórmula sair do lugar ou se o export deixar passar uma criatura sem stats, estoura ali em vez de virar bug de runtime. Rode depois de todo `game:export`.
+
+`scripts/dev/setup_project.gd` gerou o input map e a cena inicial. É andaime de bootstrap — daqui em diante a edição normal é pelo editor.
+
 ## Assets 3D
 
 Os modelos servidos pelo app web estão comprimidos com **Draco**, que é otimização de entrega para browser. **Para o jogo, importe o `.glb` mestre sem compressão** — o Godot recomprime no formato dele na importação, e o Draco só adiciona um passo de decodificação e um ponto de falha.

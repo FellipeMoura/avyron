@@ -1,0 +1,157 @@
+class_name CombatMath
+extends RefCounted
+
+## Fórmulas de combate. Funções puras — nada aqui lê estado global, o que as
+## torna testáveis isoladamente.
+##
+## Toda constante vem do bloco `rules` de data/bestiary.json, nunca escrita
+## à mão aqui. Se um número de balanceamento mudar no bestiário, ele chega
+## pelo próximo export e este arquivo não precisa ser tocado. O que está
+## fixo aqui é só a *forma* da aritmética.
+##
+## Especificação legível: documentos `combate`, `carga-e-despertar` e
+## `captura` no bestiário.
+
+
+## Valor efetivo de um stat no nível dado.
+##
+##     valor(nível) = floor(base * (1 + growthRate * (nível - 1)))
+##
+## Um único `growth_rate` escala todos os stats da espécie — uma manopla por
+## criatura em vez de cinco.
+static func stat_at_level(base: int, growth_rate: float, level: int) -> int:
+	return int(floor(float(base) * (1.0 + growth_rate * float(level - 1))))
+
+
+## Multiplicador elemental do atacante contra o defensor.
+##
+## O anel cobre 12 pares; qualquer combinação ausente é neutra. Tratar a
+## ausência como 1.0 (em vez de exigir 36 linhas) é o que mantém a tabela
+## pequena e o ciclo legível.
+static func element_multiplier(
+	attacker_element: String,
+	defender_element: String,
+	advantages: Array,
+	rules: Dictionary
+) -> float:
+	for row in advantages:
+		if row["attacker"] == attacker_element and row["defender"] == defender_element:
+			return float(row["multiplier"])
+	return float(rules["elementNeutralMultiplier"])
+
+
+## Dano de um golpe.
+##
+##     dano = floor((poder * ataque / defesa) * constante * multElemental * variância)
+##
+## `variance` negativo sorteia dentro da faixa das regras. Passe um valor
+## explícito para tornar o cálculo determinístico — é o que os testes fazem.
+##
+## Poder 0 significa movimento de status: não causa dano nenhum, e o trabalho
+## dele acontece pelo `effectCode`.
+static func damage(
+	power: int,
+	attack: int,
+	defense: int,
+	elem_mult: float,
+	rules: Dictionary,
+	variance: float = -1.0
+) -> int:
+	if power <= 0:
+		return 0
+
+	var d: Dictionary = rules["damage"]
+	var v := variance
+	if v < 0.0:
+		v = randf_range(float(d["varianceMin"]), float(d["varianceMax"]))
+
+	var raw := (float(power) * float(attack) / float(defense)) * float(d["constant"]) * elem_mult * v
+	return maxi(int(floor(raw)), int(d["minimum"]))
+
+
+## Pontos de carga ganhos ao SOFRER dano.
+##
+## Enche o dobro do que causar dano enche, e isso é o eixo do balanceamento:
+## se causar dano enchesse mais, quem já está ganhando despertaria primeiro e
+## o Despertar viraria amplificador de vitória em vez de virada de jogo.
+static func charge_from_damage_taken(
+	damage_taken: int,
+	own_max_hp: int,
+	effective_charge: int,
+	rules: Dictionary
+) -> float:
+	return _charge_gain(
+		damage_taken, own_max_hp, effective_charge,
+		float(rules["charge"]["takenMultiplier"]), rules
+	)
+
+
+## Pontos de carga ganhos ao CAUSAR dano. Metade do peso de sofrer.
+static func charge_from_damage_dealt(
+	damage_dealt: int,
+	target_max_hp: int,
+	effective_charge: int,
+	rules: Dictionary
+) -> float:
+	return _charge_gain(
+		damage_dealt, target_max_hp, effective_charge,
+		float(rules["charge"]["dealtMultiplier"]), rules
+	)
+
+
+static func _charge_gain(
+	dmg: int,
+	max_hp: int,
+	effective_charge: int,
+	side_multiplier: float,
+	rules: Dictionary
+) -> float:
+	if max_hp <= 0:
+		return 0.0
+	var c: Dictionary = rules["charge"]
+	var fraction := clampf(float(dmg) / float(max_hp), 0.0, 1.0)
+	var charge_scale := float(effective_charge) / float(c["neutralCharge"])
+	return fraction * float(c["max"]) * side_multiplier * charge_scale
+
+
+## Chance de captura, entre 0 e 1.
+##
+##     chance = (catchRate / 255) * (1 - 2*hp / (3*hpMax)) * bônusItem * multDespertar
+##
+## O termo do HP é o que amarra combate e captura numa decisão só: com vida
+## cheia a chance cai a um terço, com vida quase zerada vai a quase inteira.
+## O resultado é preso entre um piso e um teto — captura nunca é garantida
+## nem impossível.
+static func capture_chance(
+	catch_rate: int,
+	current_hp: int,
+	max_hp: int,
+	rules: Dictionary,
+	item_bonus: float = 1.0,
+	awakened_multiplier: float = 1.0,
+	is_awakened: bool = false
+) -> float:
+	if max_hp <= 0:
+		return 0.0
+
+	var cap: Dictionary = rules["capture"]
+	var hp_term := 1.0 - (2.0 * float(current_hp)) / (3.0 * float(max_hp))
+	var raw := (float(catch_rate) / 255.0) * hp_term * item_bonus
+	if is_awakened:
+		raw *= awakened_multiplier
+
+	return clampf(raw, float(cap["minChance"]), float(cap["maxChance"]))
+
+
+## Quem age primeiro. Devolve > 0 se `a` age antes, < 0 se `b` age antes,
+## 0 no empate — que a chamadora resolve por sorteio.
+##
+## Prioridade domina velocidade: um golpe de prioridade 1 age antes de
+## qualquer coisa, por mais lenta que seja a criatura.
+static func turn_order_compare(
+	a_priority: int, a_speed: int,
+	b_priority: int, b_speed: int
+) -> int:
+	if a_priority != b_priority:
+		return a_priority - b_priority
+	return a_speed - b_speed
