@@ -1,0 +1,22 @@
+# Godot 4+
+.godot/
+/android/
+
+# Imported assets and translations — regenerated on open
+.import/
+*.translation
+
+# Export config often carries local paths and signing keys
+export_presets.cfg
+export.cfg
+/build/
+/exports/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Source art masters live outside the repo until git-lfs is set up.
+# The uncompressed .glb per creature runs 8–27 MB; committing them raw
+# would bloat history permanently. See README.
+/art-source/

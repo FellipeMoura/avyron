@@ -1,0 +1,2125 @@
+{
+  "dataVersion": "0.70",
+  "generatedAt": "2026-08-07T00:53:41.456Z",
+  "source": "http://localhost:5101",
+  "rules": {
+    "damage": {
+      "constant": 0.4,
+      "varianceMin": 0.9,
+      "varianceMax": 1.1,
+      "minimum": 1
+    },
+    "charge": {
+      "max": 100,
+      "takenMultiplier": 1,
+      "dealtMultiplier": 0.5,
+      "neutralCharge": 50
+    },
+    "capture": {
+      "minChance": 0.01,
+      "maxChance": 0.95
+    },
+    "levels": {
+      "min": 1,
+      "max": 50
+    },
+    "elementNeutralMultiplier": 1
+  },
+  "elements": [
+    {
+      "code": "ELE-001",
+      "name": "Fogo"
+    },
+    {
+      "code": "ELE-002",
+      "name": "Agua"
+    },
+    {
+      "code": "ELE-003",
+      "name": "Natureza"
+    },
+    {
+      "code": "ELE-004",
+      "name": "Terra"
+    },
+    {
+      "code": "ELE-005",
+      "name": "Eletricidade"
+    },
+    {
+      "code": "ELE-006",
+      "name": "Gelo"
+    }
+  ],
+  "elementalAdvantages": [
+    {
+      "attacker": "ELE-001",
+      "defender": "ELE-002",
+      "multiplier": 0.5
+    },
+    {
+      "attacker": "ELE-001",
+      "defender": "ELE-003",
+      "multiplier": 2
+    },
+    {
+      "attacker": "ELE-002",
+      "defender": "ELE-001",
+      "multiplier": 2
+    },
+    {
+      "attacker": "ELE-002",
+      "defender": "ELE-005",
+      "multiplier": 0.5
+    },
+    {
+      "attacker": "ELE-003",
+      "defender": "ELE-001",
+      "multiplier": 0.5
+    },
+    {
+      "attacker": "ELE-003",
+      "defender": "ELE-004",
+      "multiplier": 2
+    },
+    {
+      "attacker": "ELE-004",
+      "defender": "ELE-003",
+      "multiplier": 0.5
+    },
+    {
+      "attacker": "ELE-004",
+      "defender": "ELE-006",
+      "multiplier": 2
+    },
+    {
+      "attacker": "ELE-005",
+      "defender": "ELE-002",
+      "multiplier": 2
+    },
+    {
+      "attacker": "ELE-005",
+      "defender": "ELE-006",
+      "multiplier": 0.5
+    },
+    {
+      "attacker": "ELE-006",
+      "defender": "ELE-004",
+      "multiplier": 0.5
+    },
+    {
+      "attacker": "ELE-006",
+      "defender": "ELE-005",
+      "multiplier": 2
+    }
+  ],
+  "classes": [
+    {
+      "code": "CLS-001",
+      "name": "Loricati",
+      "biologicalScope": "Artropodes: insetos, aracnideos, crustaceos, euripterideos"
+    },
+    {
+      "code": "CLS-002",
+      "name": "Theria",
+      "biologicalScope": "Sinapsideos: linhagem que leva aos mamiferos"
+    },
+    {
+      "code": "CLS-003",
+      "name": "Draconis",
+      "biologicalScope": "Sauropsideos: repteis, dinossauros, aves"
+    }
+  ],
+  "maps": [
+    {
+      "code": "PZ-01",
+      "name": "PZ-01",
+      "era": "paleozoic",
+      "sortOrder": 1
+    }
+  ],
+  "biomes": [
+    {
+      "code": "BIO-001",
+      "name": "Mar raso",
+      "predominantElements": "Agua"
+    }
+  ],
+  "abilities": [
+    {
+      "code": "HAB-001",
+      "name": "Brasa",
+      "element": "ELE-001",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 40, precisao 100%.",
+      "awakeningOnly": false,
+      "power": 40,
+      "accuracy": 100,
+      "uses": 25,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-002",
+      "name": "Labareda",
+      "element": "ELE-001",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 65, precisao 95%.",
+      "awakeningOnly": false,
+      "power": 65,
+      "accuracy": 95,
+      "uses": 15,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-003",
+      "name": "Fornalha",
+      "element": "ELE-001",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 90, precisao 90%.",
+      "awakeningOnly": false,
+      "power": 90,
+      "accuracy": 90,
+      "uses": 8,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-004",
+      "name": "Jato",
+      "element": "ELE-002",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 40, precisao 100%.",
+      "awakeningOnly": false,
+      "power": 40,
+      "accuracy": 100,
+      "uses": 25,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-005",
+      "name": "Mare",
+      "element": "ELE-002",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 65, precisao 95%.",
+      "awakeningOnly": false,
+      "power": 65,
+      "accuracy": 95,
+      "uses": 15,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-006",
+      "name": "Ressaca",
+      "element": "ELE-002",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 90, precisao 90%.",
+      "awakeningOnly": false,
+      "power": 90,
+      "accuracy": 90,
+      "uses": 8,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-007",
+      "name": "Esporo",
+      "element": "ELE-003",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 40, precisao 100%.",
+      "awakeningOnly": false,
+      "power": 40,
+      "accuracy": 100,
+      "uses": 25,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-008",
+      "name": "Raiz Viva",
+      "element": "ELE-003",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 65, precisao 95%.",
+      "awakeningOnly": false,
+      "power": 65,
+      "accuracy": 95,
+      "uses": 15,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-009",
+      "name": "Mata Fechada",
+      "element": "ELE-003",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 90, precisao 90%.",
+      "awakeningOnly": false,
+      "power": 90,
+      "accuracy": 90,
+      "uses": 8,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-010",
+      "name": "Seixo",
+      "element": "ELE-004",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 40, precisao 100%.",
+      "awakeningOnly": false,
+      "power": 40,
+      "accuracy": 100,
+      "uses": 25,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-011",
+      "name": "Fenda",
+      "element": "ELE-004",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 65, precisao 95%.",
+      "awakeningOnly": false,
+      "power": 65,
+      "accuracy": 95,
+      "uses": 15,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-012",
+      "name": "Soterrar",
+      "element": "ELE-004",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 90, precisao 90%.",
+      "awakeningOnly": false,
+      "power": 90,
+      "accuracy": 90,
+      "uses": 8,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-013",
+      "name": "Faisca",
+      "element": "ELE-005",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 40, precisao 100%.",
+      "awakeningOnly": false,
+      "power": 40,
+      "accuracy": 100,
+      "uses": 25,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-014",
+      "name": "Descarga",
+      "element": "ELE-005",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 65, precisao 95%.",
+      "awakeningOnly": false,
+      "power": 65,
+      "accuracy": 95,
+      "uses": 15,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-015",
+      "name": "Tempestade Seca",
+      "element": "ELE-005",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 90, precisao 90%.",
+      "awakeningOnly": false,
+      "power": 90,
+      "accuracy": 90,
+      "uses": 8,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-016",
+      "name": "Sopro Gelido",
+      "element": "ELE-006",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 40, precisao 100%.",
+      "awakeningOnly": false,
+      "power": 40,
+      "accuracy": 100,
+      "uses": 25,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-017",
+      "name": "Geada",
+      "element": "ELE-006",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 65, precisao 95%.",
+      "awakeningOnly": false,
+      "power": 65,
+      "accuracy": 95,
+      "uses": 15,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-018",
+      "name": "Nevasca",
+      "element": "ELE-006",
+      "type": "Ataque",
+      "effect": "Dano elemental. Poder 90, precisao 90%.",
+      "awakeningOnly": false,
+      "power": 90,
+      "accuracy": 90,
+      "uses": 8,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-019",
+      "name": "Encouracar",
+      "element": null,
+      "type": "Suporte",
+      "effect": "Aumenta a propria defesa em 30% ate o fim da batalha.",
+      "awakeningOnly": false,
+      "power": 0,
+      "accuracy": 100,
+      "uses": 10,
+      "priority": 0,
+      "effectCode": "buff_defense",
+      "effectValue": 30,
+      "targetSelf": true
+    },
+    {
+      "code": "HAB-020",
+      "name": "Investida Bruta",
+      "element": null,
+      "type": "Suporte",
+      "effect": "Aumenta o proprio ataque em 30% ate o fim da batalha.",
+      "awakeningOnly": false,
+      "power": 0,
+      "accuracy": 100,
+      "uses": 10,
+      "priority": 0,
+      "effectCode": "buff_attack",
+      "effectValue": 30,
+      "targetSelf": true
+    },
+    {
+      "code": "HAB-021",
+      "name": "Rugido Baixo",
+      "element": null,
+      "type": "Suporte",
+      "effect": "Reduz o ataque do alvo em 25%.",
+      "awakeningOnly": false,
+      "power": 0,
+      "accuracy": 90,
+      "uses": 15,
+      "priority": 0,
+      "effectCode": "debuff_attack",
+      "effectValue": 25,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-022",
+      "name": "Trinca",
+      "element": null,
+      "type": "Suporte",
+      "effect": "Reduz a defesa do alvo em 25%.",
+      "awakeningOnly": false,
+      "power": 0,
+      "accuracy": 90,
+      "uses": 15,
+      "priority": 0,
+      "effectCode": "debuff_defense",
+      "effectValue": 25,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-023",
+      "name": "Recompor",
+      "element": null,
+      "type": "Suporte",
+      "effect": "Recupera 30% do HP maximo.",
+      "awakeningOnly": false,
+      "power": 0,
+      "accuracy": 100,
+      "uses": 8,
+      "priority": 0,
+      "effectCode": "heal",
+      "effectValue": 30,
+      "targetSelf": true
+    },
+    {
+      "code": "HAB-024",
+      "name": "Bote",
+      "element": null,
+      "type": "Ataque",
+      "effect": "Ataque rapido e fraco que sempre age primeiro.",
+      "awakeningOnly": false,
+      "power": 35,
+      "accuracy": 100,
+      "uses": 20,
+      "priority": 1,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-025",
+      "name": "Concentrar",
+      "element": null,
+      "type": "Suporte",
+      "effect": "Perde o turno para encher 25 pontos do medidor de carga do Despertar Ancestral.",
+      "awakeningOnly": false,
+      "power": 0,
+      "accuracy": 100,
+      "uses": 10,
+      "priority": 0,
+      "effectCode": "charge_gain",
+      "effectValue": 25,
+      "targetSelf": true
+    },
+    {
+      "code": "HAB-026",
+      "name": "Erupcao Ancestral",
+      "element": "ELE-001",
+      "type": "Despertar",
+      "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
+      "awakeningOnly": true,
+      "power": 120,
+      "accuracy": 90,
+      "uses": 5,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-027",
+      "name": "Diluvio Ancestral",
+      "element": "ELE-002",
+      "type": "Despertar",
+      "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
+      "awakeningOnly": true,
+      "power": 120,
+      "accuracy": 90,
+      "uses": 5,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-028",
+      "name": "Floresta Ancestral",
+      "element": "ELE-003",
+      "type": "Despertar",
+      "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
+      "awakeningOnly": true,
+      "power": 120,
+      "accuracy": 90,
+      "uses": 5,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-029",
+      "name": "Colapso Ancestral",
+      "element": "ELE-004",
+      "type": "Despertar",
+      "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
+      "awakeningOnly": true,
+      "power": 120,
+      "accuracy": 90,
+      "uses": 5,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-030",
+      "name": "Trovao Ancestral",
+      "element": "ELE-005",
+      "type": "Despertar",
+      "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
+      "awakeningOnly": true,
+      "power": 120,
+      "accuracy": 90,
+      "uses": 5,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    },
+    {
+      "code": "HAB-031",
+      "name": "Era Glacial",
+      "element": "ELE-006",
+      "type": "Despertar",
+      "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
+      "awakeningOnly": true,
+      "power": 120,
+      "accuracy": 90,
+      "uses": 5,
+      "priority": 0,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false
+    }
+  ],
+  "creatures": [
+    {
+      "code": "CRT-001",
+      "name": "Trilobita",
+      "baseSpecies": "Trilobita",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": "/models/CRT-001.v2.glb",
+      "stats": {
+        "hp": 50,
+        "attack": 35,
+        "defense": 55,
+        "speed": 25,
+        "charge": 45,
+        "growthRate": 0.03,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 200,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-001",
+        "name": "Isotelus",
+        "type": "swap",
+        "referenceSpecies": "Isotelus"
+      }
+    },
+    {
+      "code": "CRT-002",
+      "name": "Anomalocaris",
+      "baseSpecies": "Anomalocaris",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": "/models/CRT-002.v4.glb",
+      "stats": {
+        "hp": 65,
+        "attack": 70,
+        "defense": 45,
+        "speed": 55,
+        "charge": 50,
+        "growthRate": 0.034,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 90,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-002",
+        "name": "Anomalocaris Prime",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-003",
+      "name": "Opabinia",
+      "baseSpecies": "Opabinia",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": "/models/CRT-003.v4.glb",
+      "stats": {
+        "hp": 50,
+        "attack": 45,
+        "defense": 35,
+        "speed": 65,
+        "charge": 60,
+        "growthRate": 0.031,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 150,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-003",
+        "name": "Opabinia Imperator",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-004",
+      "name": "Wiwaxia",
+      "baseSpecies": "Wiwaxia",
+      "class": "CLS-001",
+      "element": "ELE-004",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 30,
+        "defense": 75,
+        "speed": 20,
+        "charge": 40,
+        "growthRate": 0.029,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 180,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-029",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-004",
+        "name": "Wiwaxia Colossus",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-005",
+      "name": "Hallucigenia",
+      "baseSpecies": "Hallucigenia",
+      "class": "CLS-001",
+      "element": "ELE-003",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 45,
+        "attack": 50,
+        "defense": 45,
+        "speed": 40,
+        "charge": 55,
+        "growthRate": 0.03,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 170,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-005",
+        "name": "Hallucigenia Rex",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-006",
+      "name": "Eurypterus",
+      "baseSpecies": "Eurypterus",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 55,
+        "attack": 55,
+        "defense": 45,
+        "speed": 50,
+        "charge": 45,
+        "growthRate": 0.032,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 140,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-006",
+        "name": "Jaekelopterus",
+        "type": "swap",
+        "referenceSpecies": "Jaekelopterus"
+      }
+    },
+    {
+      "code": "CRT-007",
+      "name": "Jaekelopterus",
+      "baseSpecies": "Jaekelopterus",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 75,
+        "attack": 80,
+        "defense": 55,
+        "speed": 55,
+        "charge": 45,
+        "growthRate": 0.036,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 55,
+        "awakenedMultiplier": 0.35
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-007",
+        "name": "Jaekelopterus Leviathan",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-008",
+      "name": "Arthropleura",
+      "baseSpecies": "Arthropleura",
+      "class": "CLS-001",
+      "element": "ELE-003",
+      "map": "PZ-01",
+      "biome": null,
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 85,
+        "attack": 60,
+        "defense": 70,
+        "speed": 30,
+        "charge": 40,
+        "growthRate": 0.033,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 80,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-008",
+        "name": "Arthropleura Titan",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-009",
+      "name": "Meganeura",
+      "baseSpecies": "Meganeura",
+      "class": "CLS-001",
+      "element": "ELE-003",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "regular",
+      "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
+      "modelUrl": "/models/CRT-009.v1.glb",
+      "stats": {
+        "hp": 45,
+        "attack": 55,
+        "defense": 30,
+        "speed": 85,
+        "charge": 55,
+        "growthRate": 0.032,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 120,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-009",
+        "name": "Meganeuropsis",
+        "type": "swap",
+        "referenceSpecies": "Meganeuropsis"
+      }
+    },
+    {
+      "code": "CRT-010",
+      "name": "Pulmonoscorpius",
+      "baseSpecies": "Pulmonoscorpius",
+      "class": "CLS-001",
+      "element": "ELE-001",
+      "map": "PZ-01",
+      "biome": null,
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 65,
+        "defense": 50,
+        "speed": 50,
+        "charge": 50,
+        "growthRate": 0.033,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 110,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-001",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-002",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-003",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-026",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-010",
+        "name": "Brontoscorpio",
+        "type": "swap",
+        "referenceSpecies": "Brontoscorpio"
+      }
+    },
+    {
+      "code": "CRT-011",
+      "name": "Rhyniognatha",
+      "baseSpecies": "Rhyniognatha",
+      "class": "CLS-001",
+      "element": "ELE-003",
+      "map": "PZ-01",
+      "biome": null,
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 40,
+        "attack": 45,
+        "defense": 35,
+        "speed": 70,
+        "charge": 65,
+        "growthRate": 0.03,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 180,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-011",
+        "name": "Rhyniognatha Monarch",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-013",
+      "name": "Aegirocassis",
+      "baseSpecies": "Aegirocassis",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 90,
+        "attack": 40,
+        "defense": 70,
+        "speed": 35,
+        "charge": 40,
+        "growthRate": 0.032,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 100,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-013",
+        "name": "Aegirocassis Colossus",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-014",
+      "name": "Hurdia",
+      "baseSpecies": "Hurdia",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 50,
+        "defense": 65,
+        "speed": 40,
+        "charge": 45,
+        "growthRate": 0.031,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 130,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-014",
+        "name": "Hurdia Magnus",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-015",
+      "name": "Odaraia",
+      "baseSpecies": "Odaraia",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 45,
+        "attack": 50,
+        "defense": 35,
+        "speed": 75,
+        "charge": 55,
+        "growthRate": 0.031,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 150,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-015",
+        "name": "Odaraia Phantom",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-016",
+      "name": "Ceratiocaris",
+      "baseSpecies": "Ceratiocaris",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": "BIO-001",
+      "role": null,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 55,
+        "attack": 60,
+        "defense": 55,
+        "speed": 45,
+        "charge": 45,
+        "growthRate": 0.031,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 140,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-016",
+        "name": "Ceratiocaris Tyrant",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-017",
+      "name": "Dimetrodon",
+      "baseSpecies": "Dimetrodon",
+      "class": "CLS-002",
+      "element": "ELE-001",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "hero",
+      "silhouetteNote": "Vela dorsal alta e triangular sustentada por espinhos ósseos alongados; corpo quadrupede robusto, cauda longa afinada; cabeça alongada com dentes carniceiros diferenciados. Silhueta dominada pela vela — sinapsídeo comumente confundido com dinossauro.",
+      "modelUrl": "/models/CRT-017.v1.glb",
+      "stats": {
+        "hp": 75,
+        "attack": 75,
+        "defense": 55,
+        "speed": 50,
+        "charge": 55,
+        "growthRate": 0.036,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 60,
+        "awakenedMultiplier": 0.35
+      },
+      "abilities": [
+        {
+          "code": "HAB-001",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-002",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-003",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-026",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-017",
+        "name": "Dimetrodon Solar",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-018",
+      "name": "Edaphosaurus",
+      "baseSpecies": "Edaphosaurus",
+      "class": "CLS-002",
+      "element": "ELE-003",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "regular",
+      "silhouetteNote": "Vela dorsal com travessas ósseas transversais formando padrão de grade sobre os espinhos; corpo quadrupede baixo e denso, cauda curta; cabeça pequena de herbívoro. Contraponto visual ao Dimetrodon — mesma vela, padrão diferente, papel oposto.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 80,
+        "attack": 40,
+        "defense": 65,
+        "speed": 35,
+        "charge": 45,
+        "growthRate": 0.031,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 140,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-018",
+        "name": "Edaphosaurus Florido",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-019",
+      "name": "Lystrosaurus",
+      "baseSpecies": "Lystrosaurus",
+      "class": "CLS-002",
+      "element": "ELE-004",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "regular",
+      "silhouetteNote": "Corpo atarracado e baixo, quatro membros curtos e robustos; cabeça grande com bico córneo curto e um par de presas caniniformes pequenas apontando para baixo; sem crista, sem vela. Silhueta compacta em barril — sobrevivente icônico da extinção Permo-Triássica.",
+      "modelUrl": "/models/CRT-019.v2.glb",
+      "stats": {
+        "hp": 70,
+        "attack": 45,
+        "defense": 60,
+        "speed": 40,
+        "charge": 50,
+        "growthRate": 0.031,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 160,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-029",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-019",
+        "name": "Kannemeyeria",
+        "type": "swap",
+        "referenceSpecies": "Kannemeyeria"
+      }
+    },
+    {
+      "code": "CRT-020",
+      "name": "Moschops",
+      "baseSpecies": "Moschops",
+      "class": "CLS-002",
+      "element": "ELE-004",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "regular",
+      "silhouetteNote": "Cabeça bulbosa com crânio espesso arredondado adaptado a combate de topada; corpo curvado com dorso arqueado tipo urso-tatu, membros curtos; cauda curta. Silhueta corcunda dominante.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 85,
+        "attack": 55,
+        "defense": 60,
+        "speed": 30,
+        "charge": 40,
+        "growthRate": 0.032,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 130,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-029",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-020",
+        "name": "Moschops Ariete",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-021",
+      "name": "Inostrancevia",
+      "baseSpecies": "Inostrancevia",
+      "class": "CLS-002",
+      "element": "ELE-001",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "hero",
+      "silhouetteNote": "Corpo esguio quadrupede tipo grande felino; cabeça alongada com par de caninos superiores enormes que ultrapassam a mandíbula fechada; cauda longa. Silhueta de predador-lâmina — contraste direto com Moschops.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 70,
+        "attack": 85,
+        "defense": 50,
+        "speed": 60,
+        "charge": 50,
+        "growthRate": 0.037,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 50,
+        "awakenedMultiplier": 0.35
+      },
+      "abilities": [
+        {
+          "code": "HAB-001",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-002",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-003",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-026",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-021",
+        "name": "Inostrancevia Algoz",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-022",
+      "name": "Cotylorhynchus",
+      "baseSpecies": "Cotylorhynchus",
+      "class": "CLS-002",
+      "element": "ELE-004",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "hero",
+      "silhouetteNote": "Corpo cilíndrico desproporcionalmente gigantesco em barril; cabeça minúscula em relação ao corpo; membros curtos afastados; cauda curta. Silhueta cômica: pequena cabeça sobre corpo bola — bom mini-boss territorial.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 100,
+        "attack": 45,
+        "defense": 80,
+        "speed": 25,
+        "charge": 45,
+        "growthRate": 0.034,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 70,
+        "awakenedMultiplier": 0.35
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-029",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-022",
+        "name": "Cotylorhynchus Monolito",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-023",
+      "name": "Scutosaurus",
+      "baseSpecies": "Scutosaurus",
+      "class": "CLS-003",
+      "element": "ELE-004",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "hero",
+      "silhouetteNote": "Corpo quadrupede blindado com fileiras de placas ósseas ao longo do dorso e flancos; cabeça larga com espinhos e verrugas ósseas laterais; membros grossos; cauda curta. Silhueta quadrada e couraçada — tanque de área.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 95,
+        "attack": 55,
+        "defense": 85,
+        "speed": 25,
+        "charge": 40,
+        "growthRate": 0.035,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 65,
+        "awakenedMultiplier": 0.35
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-029",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-023",
+        "name": "Scutosaurus Bastiao",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-024",
+      "name": "Hylonomus",
+      "baseSpecies": "Hylonomus",
+      "class": "CLS-003",
+      "element": "ELE-003",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "regular",
+      "silhouetteNote": "Pequeno lagartiforme quadrupede (~20 cm de comprimento total), corpo delgado, cauda longa afinada; cabeça triangular pequena. Silhueta neutra de réptil basal — criatura comum/inicial de mapa.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 40,
+        "attack": 40,
+        "defense": 40,
+        "speed": 60,
+        "charge": 60,
+        "growthRate": 0.029,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 200,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-024",
+        "name": "Paleothyris",
+        "type": "swap",
+        "referenceSpecies": "Paleothyris"
+      }
+    },
+    {
+      "code": "CRT-025",
+      "name": "Petrolacosaurus",
+      "baseSpecies": "Petrolacosaurus",
+      "class": "CLS-003",
+      "element": "ELE-005",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "regular",
+      "silhouetteNote": "Diapsídeo esguio quadrupede com pernas longas relativas ao corpo (adaptação corredora); cauda longa como contrapeso; cabeça pequena com fenestras cranianas visíveis. Silhueta atlética.",
+      "modelUrl": "/models/CRT-025.v1.glb",
+      "stats": {
+        "hp": 45,
+        "attack": 45,
+        "defense": 40,
+        "speed": 70,
+        "charge": 60,
+        "growthRate": 0.03,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 185,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-013",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-014",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-015",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-030",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-025",
+        "name": "Araeoscelis",
+        "type": "swap",
+        "referenceSpecies": "Araeoscelis"
+      }
+    },
+    {
+      "code": "CRT-026",
+      "name": "Mesosaurus",
+      "baseSpecies": "Mesosaurus",
+      "class": "CLS-003",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "regular",
+      "silhouetteNote": "Corpo alongado hidrodinâmico, cauda achatada em remo lateral; membros modificados em nadadeiras; focinho fino e alongado com dentes agulha finos e numerosos. Silhueta aquática — cobre nicho anfíbio.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 55,
+        "attack": 50,
+        "defense": 45,
+        "speed": 65,
+        "charge": 50,
+        "growthRate": 0.031,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 155,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-026",
+        "name": "Mesosaurus Abissal",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-027",
+      "name": "Captorhinus",
+      "baseSpecies": "Captorhinus",
+      "class": "CLS-003",
+      "element": "ELE-004",
+      "map": "PZ-01",
+      "biome": null,
+      "role": "regular",
+      "silhouetteNote": "Quadrupede robusto baixo, corpo denso e musculoso; cabeça larga com maxilares fortes e várias fileiras de dentes; sem cristas nem placas visíveis. Silhueta compacta e discreta — comum forte.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 55,
+        "attack": 50,
+        "defense": 55,
+        "speed": 45,
+        "charge": 50,
+        "growthRate": 0.03,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 175,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-029",
+          "learnLevel": 1
+        }
+      ],
+      "awakening": {
+        "code": "DSP-027",
+        "name": "Moradisaurus",
+        "type": "swap",
+        "referenceSpecies": "Moradisaurus"
+      }
+    }
+  ]
+}
