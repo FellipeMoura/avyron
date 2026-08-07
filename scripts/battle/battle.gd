@@ -251,9 +251,9 @@ func _do_ability(action: BattleAction, is_player: bool) -> void:
 
 
 func _apply_damage(actor: Combatant, target: Combatant, ability: Dictionary) -> void:
-	var ability_element := str(ability.get("element", ""))
 	# Golpe sem elemento não recebe nem sofre multiplicador — utilitários
 	# como Bote batem igual contra qualquer alvo.
+	var ability_element := BestiaryData.ability_element(ability)
 	var elem_mult := 1.0
 	if ability_element != "":
 		elem_mult = db.element_multiplier(ability_element, target.element)
@@ -383,7 +383,7 @@ func choose_action_for(actor: Combatant, target: Combatant) -> BattleAction:
 	for a in options:
 		if str(a["effectCode"]) != "damage":
 			continue
-		var elem := str(a.get("element", ""))
+		var elem := BestiaryData.ability_element(a)
 		var mult := 1.0
 		if elem != "":
 			mult = db.element_multiplier(elem, target.element)

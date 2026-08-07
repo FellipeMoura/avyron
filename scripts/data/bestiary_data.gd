@@ -175,6 +175,19 @@ func stats_at_level(creature_code: String, level: int) -> Dictionary:
 	}
 
 
+## Código do elemento de uma habilidade, ou "" quando ela não tem afinidade.
+##
+## Existe porque `str(null)` em GDScript devolve a string "<null>", e não
+## vazio. Golpes utilitários como Bote têm `element: null` no bundle, então
+## `str(a.get("element", ""))` produzia "<null>" — que passava em qualquer
+## teste de `!= ""` e ia parar na tela e na busca de multiplicador. O dano
+## saía certo por acidente (o código inexistente não casa com nenhum par e
+## cai no neutro), mas era coincidência, não lógica.
+static func ability_element(ability: Dictionary) -> String:
+	var value: Variant = ability.get("element", null)
+	return "" if value == null else str(value)
+
+
 func element_multiplier(attacker_element: String, defender_element: String) -> float:
 	return CombatMath.element_multiplier(attacker_element, defender_element, _advantages, rules)
 

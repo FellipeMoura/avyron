@@ -1,57 +1,59 @@
 [gd_scene format=3]
 
-[ext_resource type="Script" path="res://scripts/world/player_controller.gd" id="1_0wfyh"]
-[ext_resource type="Script" path="res://scripts/world/iso_camera.gd" id="2_sugp2"]
+[ext_resource type="Script" path="res://scripts/world/world_root.gd" id="1_sugp2"]
+[ext_resource type="Script" path="res://scripts/world/player_controller.gd" id="2_jyhfs"]
+[ext_resource type="Script" path="res://scripts/world/iso_camera.gd" id="3_tbgi4"]
 
-[sub_resource type="PlaneMesh" id="PlaneMesh_jyhfs"]
+[sub_resource type="PlaneMesh" id="PlaneMesh_tefeu"]
 size = Vector2(60, 60)
 
-[sub_resource type="BoxShape3D" id="BoxShape3D_tbgi4"]
+[sub_resource type="BoxShape3D" id="BoxShape3D_o6xl0"]
 size = Vector3(60, 0.2, 60)
 
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_tefeu"]
+[sub_resource type="CapsuleMesh" id="CapsuleMesh_tipki"]
 radius = 0.35
 height = 1.8
 
-[sub_resource type="BoxMesh" id="BoxMesh_o6xl0"]
+[sub_resource type="BoxMesh" id="BoxMesh_85g3d"]
 size = Vector3(0.15, 0.15, 0.4)
 
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_tipki"]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_choun"]
 radius = 0.35
 height = 1.8
 
-[node name="Main" type="Node3D" unique_id=756008387]
+[node name="Main" type="Node3D" unique_id=1521987550]
+script = ExtResource("1_sugp2")
 
-[node name="Ground" type="StaticBody3D" parent="." unique_id=2034351989]
+[node name="Ground" type="StaticBody3D" parent="." unique_id=719293790]
 
-[node name="Mesh" type="MeshInstance3D" parent="Ground" unique_id=1332184161]
-mesh = SubResource("PlaneMesh_jyhfs")
+[node name="Mesh" type="MeshInstance3D" parent="Ground" unique_id=907022487]
+mesh = SubResource("PlaneMesh_tefeu")
 
-[node name="Collision" type="CollisionShape3D" parent="Ground" unique_id=137671486]
+[node name="Collision" type="CollisionShape3D" parent="Ground" unique_id=774482344]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
-shape = SubResource("BoxShape3D_tbgi4")
+shape = SubResource("BoxShape3D_o6xl0")
 
-[node name="Player" type="CharacterBody3D" parent="." unique_id=90145]
+[node name="Player" type="CharacterBody3D" parent="." unique_id=1224443601]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-script = ExtResource("1_0wfyh")
+script = ExtResource("2_jyhfs")
 
-[node name="Mesh" type="MeshInstance3D" parent="Player" unique_id=1322885591]
-mesh = SubResource("CapsuleMesh_tefeu")
+[node name="Mesh" type="MeshInstance3D" parent="Player" unique_id=1280034150]
+mesh = SubResource("CapsuleMesh_tipki")
 
-[node name="Facing" type="MeshInstance3D" parent="Player" unique_id=1587889134]
+[node name="Facing" type="MeshInstance3D" parent="Player" unique_id=1472354146]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, -0.4)
-mesh = SubResource("BoxMesh_o6xl0")
+mesh = SubResource("BoxMesh_85g3d")
 
-[node name="Collision" type="CollisionShape3D" parent="Player" unique_id=1934553268]
-shape = SubResource("CapsuleShape3D_tipki")
+[node name="Collision" type="CollisionShape3D" parent="Player" unique_id=1911252243]
+shape = SubResource("CapsuleShape3D_choun")
 
-[node name="IsoCamera" type="Camera3D" parent="." unique_id=300911876]
+[node name="IsoCamera" type="Camera3D" parent="." unique_id=725748541]
 transform = Transform3D(0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, -0.35355338, 0.6123724, 12.247448, 11, 12.247448)
 projection = 1
 size = 12.0
 far = 200.0
-script = ExtResource("2_sugp2")
+script = ExtResource("3_tbgi4")
 target_path = NodePath("../Player")
 
-[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=1839311529]
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=853963808]
 transform = Transform3D(0.70710677, 0.5416752, -0.45451948, 0, 0.64278764, 0.76604444, 0.70710677, -0.5416752, 0.45451948, 0, 0, 0)

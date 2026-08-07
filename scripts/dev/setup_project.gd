@@ -15,6 +15,7 @@ extends SceneTree
 func _init() -> void:
 	_setup_input_map()
 	_build_main_scene()
+	_build_duel_scene()
 	ProjectSettings.set_setting("application/run/main_scene", "res://scenes/main.tscn")
 	# O `*` marca o script como singleton instanciado. `Bestiary` (o autoload)
 	# e `BestiaryData` (o class_name) precisam ser nomes diferentes — o Godot
@@ -79,6 +80,7 @@ func _action(name: String, keycodes: Array, axis: int, axis_value: float) -> voi
 func _build_main_scene() -> void:
 	var root := Node3D.new()
 	root.name = "Main"
+	root.set_script(load("res://scripts/world/world_root.gd"))
 
 	# --- chão ---------------------------------------------------------------
 	var ground := StaticBody3D.new()
@@ -189,4 +191,24 @@ func _build_main_scene() -> void:
 	if save_err != OK:
 		printerr("falha ao salvar a cena: ", save_err)
 
+	root.free()
+
+
+## A tela de duelo é um nó só: o script monta a interface inteira em _ready().
+## Interface construída em código é mais fácil de revisar num diff do que uma
+## árvore de Control serializada, e aqui ela é instrumento de playtest, não
+## a UI final do jogo.
+func _build_duel_scene() -> void:
+	var root := Control.new()
+	root.name = "Duel"
+	root.set_script(load("res://scripts/ui/duel_screen.gd"))
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	var packed := PackedScene.new()
+	if packed.pack(root) != OK:
+		printerr("falha ao empacotar a cena de duelo")
+		root.free()
+		return
+	if ResourceSaver.save(packed, "res://scenes/duel.tscn") != OK:
+		printerr("falha ao salvar a cena de duelo")
 	root.free()

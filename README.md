@@ -72,7 +72,21 @@ A versão está fixada em `project.godot` via `config/features`. Não trocar sem
 
 ### Rodar
 
-Abra a pasta no Godot 4.7 e dê play. A cena principal é `scenes/main.tscn`: chão, um corpo controlável com WASD (shift para correr) e a câmera isométrica travada.
+Abra a pasta no Godot 4.7 e dê play.
+
+**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, câmera isométrica travada seguindo com lookahead. `B` abre o duelo.
+
+**Duelo** (`scenes/duel.tscn`) — sorteia duas criaturas nível 25 e deixa você lutar:
+
+| Tecla | |
+|---|---|
+| `1`–`6` | usar golpe |
+| `E` | Despertar Ancestral (quando a carga enche) |
+| `C` / `F` | capturar / fugir |
+| `R` | novo duelo |
+| `Esc` | voltar ao mapa |
+
+É instrumento de playtest, não a UI do jogo: texto puro, porque o que precisa ser avaliado é o *ritmo* — se cinco rodadas dão espaço tático, se o Despertar chega na hora certa, se a vantagem elemental é sentida.
 
 ### Testes
 
@@ -85,6 +99,7 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_world.gd    # input, câmera, cena
 & $godot --headless --script res://scripts/dev/test_battle.gd   # máquina de turnos
 & $godot --headless --script res://scripts/dev/test_playable.gd # a cena rodando de verdade
+& $godot --headless --script res://scripts/dev/test_duel_screen.gd  # duelo jogado por tecla
 ```
 
 `test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.

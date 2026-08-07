@@ -116,6 +116,14 @@ func _test_element_ring(db: BestiaryData) -> void:
 			strong_ok = false
 	_check_true("anel fechado nos 6 pares", strong_ok)
 
+	# Golpes utilitários não têm elemento. `str(null)` em GDScript devolve
+	# "<null>", então ler o campo cru passaria despercebido em qualquer
+	# checagem de string vazia.
+	_check("golpe sem elemento devolve vazio",
+		BestiaryData.ability_element(db.ability("HAB-024")), "")
+	_check("golpe elemental devolve o codigo",
+		BestiaryData.ability_element(db.ability("HAB-001")), "ELE-001")
+
 
 func _test_damage(db: BestiaryData) -> void:
 	print("dano:")
