@@ -20,32 +20,32 @@ size = Vector3(0.15, 0.15, 0.4)
 radius = 0.35
 height = 1.8
 
-[node name="Main" type="Node3D" unique_id=159694043]
+[node name="Main" type="Node3D" unique_id=756008387]
 
-[node name="Ground" type="StaticBody3D" parent="." unique_id=570237383]
+[node name="Ground" type="StaticBody3D" parent="." unique_id=2034351989]
 
-[node name="Mesh" type="MeshInstance3D" parent="Ground" unique_id=2064919101]
+[node name="Mesh" type="MeshInstance3D" parent="Ground" unique_id=1332184161]
 mesh = SubResource("PlaneMesh_jyhfs")
 
-[node name="Collision" type="CollisionShape3D" parent="Ground" unique_id=2027598204]
+[node name="Collision" type="CollisionShape3D" parent="Ground" unique_id=137671486]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 shape = SubResource("BoxShape3D_tbgi4")
 
-[node name="Player" type="CharacterBody3D" parent="." unique_id=532546617]
+[node name="Player" type="CharacterBody3D" parent="." unique_id=90145]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
 script = ExtResource("1_0wfyh")
 
-[node name="Mesh" type="MeshInstance3D" parent="Player" unique_id=452957166]
+[node name="Mesh" type="MeshInstance3D" parent="Player" unique_id=1322885591]
 mesh = SubResource("CapsuleMesh_tefeu")
 
-[node name="Facing" type="MeshInstance3D" parent="Player" unique_id=521691615]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, 0.4)
+[node name="Facing" type="MeshInstance3D" parent="Player" unique_id=1587889134]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.4, -0.4)
 mesh = SubResource("BoxMesh_o6xl0")
 
-[node name="Collision" type="CollisionShape3D" parent="Player" unique_id=1806145170]
+[node name="Collision" type="CollisionShape3D" parent="Player" unique_id=1934553268]
 shape = SubResource("CapsuleShape3D_tipki")
 
-[node name="IsoCamera" type="Camera3D" parent="." unique_id=770626381]
+[node name="IsoCamera" type="Camera3D" parent="." unique_id=300911876]
 transform = Transform3D(0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, -0.35355338, 0.6123724, 12.247448, 11, 12.247448)
 projection = 1
 size = 12.0
@@ -53,5 +53,5 @@ far = 200.0
 script = ExtResource("2_sugp2")
 target_path = NodePath("../Player")
 
-[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=607127275]
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=1839311529]
 transform = Transform3D(0.70710677, 0.5416752, -0.45451948, 0, 0.64278764, 0.76604444, 0.70710677, -0.5416752, 0.45451948, 0, 0, 0)

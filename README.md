@@ -84,7 +84,10 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_data.gd     # contrato de dados + fórmulas
 & $godot --headless --script res://scripts/dev/test_world.gd    # input, câmera, cena
 & $godot --headless --script res://scripts/dev/test_battle.gd   # máquina de turnos
+& $godot --headless --script res://scripts/dev/test_playable.gd # a cena rodando de verdade
 ```
+
+`test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.
 
 `test_data.gd` é o guarda do contrato com o bestiário: se o formato do bundle mudar, se uma fórmula sair do lugar ou se o export deixar passar uma criatura sem stats, estoura ali em vez de virar bug de runtime. Rode depois de todo `game:export`.
 

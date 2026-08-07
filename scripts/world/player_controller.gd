@@ -56,7 +56,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _face_direction(direction: Vector3, delta: float) -> void:
-	var target_yaw := atan2(direction.x, direction.z)
+	# No Godot a frente de um nó é -Z, não +Z. `atan2(x, z)` alinharia o eixo
+	# +Z com a direção, deixando o corpo andando de costas — foi exatamente o
+	# que aconteceu até o teste de cena pegar. Negar as duas componentes
+	# alinha -Z, que é a frente de verdade.
+	var target_yaw := atan2(-direction.x, -direction.z)
 	rotation.y = lerp_angle(rotation.y, target_yaw, clampf(turn_speed * delta, 0.0, 1.0))
 
 

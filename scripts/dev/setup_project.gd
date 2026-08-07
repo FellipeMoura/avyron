@@ -123,13 +123,13 @@ func _build_main_scene() -> void:
 	player_mesh.owner = root
 
 	# Nariz para dar leitura de direção — sem isso não dá para ver o corpo
-	# girar para encarar o movimento.
+	# girar para encarar o movimento. Em -Z, que é a frente no Godot.
 	var nose := MeshInstance3D.new()
 	nose.name = "Facing"
 	var nose_mesh := BoxMesh.new()
 	nose_mesh.size = Vector3(0.15, 0.15, 0.4)
 	nose.mesh = nose_mesh
-	nose.position = Vector3(0, 0.4, 0.4)
+	nose.position = Vector3(0, 0.4, -0.4)
 	player.add_child(nose)
 	nose.owner = root
 
