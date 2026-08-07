@@ -119,26 +119,61 @@ func _test_element_ring(db: BestiaryData) -> void:
 
 func _test_damage(db: BestiaryData) -> void:
 	print("dano:")
-	# (65 * 85 / 50) * 0.4 * 2.0 * 1.0 = 88.4 -> 88
-	_check("poder 65, atk 85, def 50, x2", CombatMath.damage(65, 85, 50, 2.0, db.rules, 1.0), 88)
+
+	# O esperado é derivado das regras do bundle, não fixado num número.
+	# Balancear é mudar as constantes; se o teste travasse o resultado, todo
+	# ajuste legítimo quebraria a suíte e ninguém confiaria mais nela. O que
+	# precisa ser guardado é a FORMA da conta.
+	var k := float(db.rules["damage"]["constant"])
+	var expected := int(floor((65.0 * 85.0 / 50.0) * k * 2.0 * 1.0))
+	_check("poder 65, atk 85, def 50, x2 (constante %.2f)" % k,
+		CombatMath.damage(65, 85, 50, 2.0, db.rules, 1.0), expected)
+
+	# Dobrar o poder dobra o dano; dobrar a defesa o corta pela metade.
+	var base := CombatMath.damage(60, 100, 50, 1.0, db.rules, 1.0)
+	_check_true("dano escala linear com o poder",
+		absi(CombatMath.damage(120, 100, 50, 1.0, db.rules, 1.0) - base * 2) <= 1,
+		"%d -> %d" % [base, CombatMath.damage(120, 100, 50, 1.0, db.rules, 1.0)])
+	_check_true("dano cai pela metade com o dobro da defesa",
+		absi(CombatMath.damage(60, 100, 100, 1.0, db.rules, 1.0) - base / 2) <= 1)
+
 	# Movimento de status não causa dano.
 	_check("poder 0 (status)", CombatMath.damage(0, 85, 50, 1.0, db.rules, 1.0), 0)
-	# Piso: mesmo o golpe mais fraco contra a defesa mais alta tira 1.
-	_check("piso de dano", CombatMath.damage(1, 1, 999, 0.5, db.rules, 1.0), 1)
+	# Piso: mesmo o golpe mais fraco contra a defesa mais alta tira o mínimo.
+	_check("piso de dano", CombatMath.damage(1, 1, 999, 0.5, db.rules, 1.0),
+		int(db.rules["damage"]["minimum"]))
 
 
 func _test_charge(db: BestiaryData) -> void:
 	print("carga do Despertar:")
-	var taken := CombatMath.charge_from_damage_taken(20, 100, 50, db.rules)
-	var dealt := CombatMath.charge_from_damage_dealt(20, 100, 50, db.rules)
-	_check("sofrer 20 de 100 HP, carga 50", taken, 20.0)
-	_check("causar 20 de 100 HP, carga 50", dealt, 10.0)
-	_check_true("sofrer enche o dobro de causar", is_equal_approx(taken, dealt * 2.0),
+	var c: Dictionary = db.rules["charge"]
+	var neutral := int(c["neutralCharge"])
+
+	# Como no dano, o esperado sai das regras: uma criatura de carga neutra
+	# que sofre 20% do próprio HP ganha 20% do medidor vezes o peso do lado.
+	var taken := CombatMath.charge_from_damage_taken(20, 100, neutral, db.rules)
+	var dealt := CombatMath.charge_from_damage_dealt(20, 100, neutral, db.rules)
+	_check("sofrer 20%% do HP com carga neutra", taken,
+		0.2 * float(c["max"]) * float(c["takenMultiplier"]))
+	_check("causar 20%% do HP do alvo", dealt,
+		0.2 * float(c["max"]) * float(c["dealtMultiplier"]))
+
+	# O invariante de design: apanhar precisa encher mais que bater, senão
+	# quem está ganhando desperta primeiro e o Despertar vira amplificador de
+	# vitória em vez de virada de jogo.
+	_check_true("sofrer enche mais que causar", taken > dealt,
 		"%.1f vs %.1f" % [taken, dealt])
 
-	# Carga acima de 50 enche proporcionalmente mais rápido.
-	var high := CombatMath.charge_from_damage_taken(20, 100, 75, db.rules)
-	_check_true("carga 75 enche mais que carga 50", high > taken, "%.1f vs %.1f" % [high, taken])
+	# Carga acima da neutra enche proporcionalmente mais rápido.
+	var high := CombatMath.charge_from_damage_taken(20, 100, neutral + 25, db.rules)
+	_check_true("carga acima da neutra enche mais", high > taken,
+		"%.1f vs %.1f" % [high, taken])
+
+	# Sanidade de tuning: uma criatura neutra não deve precisar sofrer mais
+	# que o próprio HP para despertar — se precisar, ela morre antes.
+	var hp_needed := float(c["max"]) / (float(c["takenMultiplier"]) * float(c["max"])) * 100.0
+	_check_true("desperta antes de morrer", hp_needed < 100.0,
+		"precisa sofrer %.0f%% do HP maximo" % hp_needed)
 
 
 func _test_capture(db: BestiaryData) -> void:

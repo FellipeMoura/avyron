@@ -1,18 +1,18 @@
 {
-  "dataVersion": "0.90",
-  "generatedAt": "2026-08-07T00:58:00.913Z",
+  "dataVersion": "0.91",
+  "generatedAt": "2026-08-07T01:54:22.996Z",
   "source": "https://bestiary.sysnode.com.br",
   "rules": {
     "damage": {
-      "constant": 0.4,
+      "constant": 0.22,
       "varianceMin": 0.9,
       "varianceMax": 1.1,
       "minimum": 1
     },
     "charge": {
       "max": 100,
-      "takenMultiplier": 1,
-      "dealtMultiplier": 0.5,
+      "takenMultiplier": 3,
+      "dealtMultiplier": 1.5,
       "neutralCharge": 50
     },
     "capture": {
