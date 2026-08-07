@@ -81,13 +81,25 @@ Duas suítes headless, sem dependência de editor:
 ```powershell
 $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe"
 
-& $godot --headless --script res://scripts/dev/test_data.gd    # contrato de dados + fórmulas
-& $godot --headless --script res://scripts/dev/test_world.gd   # input, câmera, cena
+& $godot --headless --script res://scripts/dev/test_data.gd     # contrato de dados + fórmulas
+& $godot --headless --script res://scripts/dev/test_world.gd    # input, câmera, cena
+& $godot --headless --script res://scripts/dev/test_battle.gd   # máquina de turnos
 ```
 
 `test_data.gd` é o guarda do contrato com o bestiário: se o formato do bundle mudar, se uma fórmula sair do lugar ou se o export deixar passar uma criatura sem stats, estoura ali em vez de virar bug de runtime. Rode depois de todo `game:export`.
 
 `scripts/dev/setup_project.gd` gerou o input map e a cena inicial. É andaime de bootstrap — daqui em diante a edição normal é pelo editor.
+
+### Sonda de balanceamento
+
+```powershell
+& $godot --headless --script res://scripts/dev/balance_probe.gd
+& $godot --headless --script res://scripts/dev/balance_probe.gd -- 0.22 3 3.0
+```
+
+Simula o elenco inteiro lutando contra si mesmo (2.600 batalhas) e reporta taxa de vitória por criatura, duração média e quanto o Despertar Ancestral realmente vira o jogo. Não falha nem afirma nada — é leitura, para tuning sair de números em vez de impressão.
+
+Os três argumentos opcionais sobrescrevem, nesta ordem: constante de dano, duração do Despertar, escala de enchimento da carga. Servem para medir o efeito de uma mudança **antes** de gravá-la no bestiário.
 
 ## Assets 3D
 
