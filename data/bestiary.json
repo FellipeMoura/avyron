@@ -1,7 +1,7 @@
 {
-  "dataVersion": "0.93",
-  "generatedAt": "2026-08-07T02:39:41.686Z",
-  "source": "https://bestiary.sysnode.com.br",
+  "dataVersion": "0.104",
+  "generatedAt": "2026-08-09T22:28:50.207Z",
+  "source": "http://localhost:5101",
   "rules": {
     "damage": {
       "constant": 0.22,
@@ -117,17 +117,42 @@
     {
       "code": "CLS-001",
       "name": "Loricati",
-      "biologicalScope": "Artropodes: insetos, aracnideos, crustaceos, euripterideos"
+      "biologicalScope": "Artropodes: insetos, aracnideos, crustaceos, euripterideos",
+      "workFunction": {
+        "speedModifier": 1,
+        "preferredOres": [
+          "fossilAmber",
+          "stone",
+          "iron"
+        ],
+        "role": "excavator"
+      }
     },
     {
       "code": "CLS-002",
       "name": "Theria",
-      "biologicalScope": "Sinapsideos: linhagem que leva aos mamiferos"
+      "biologicalScope": "Sinapsideos: linhagem que leva aos mamiferos",
+      "workFunction": {
+        "speedModifier": 1.1,
+        "preferredOres": [
+          "coal",
+          "copper"
+        ],
+        "role": "burrower"
+      }
     },
     {
       "code": "CLS-003",
       "name": "Draconis",
-      "biologicalScope": "Sauropsideos: repteis, dinossauros, aves"
+      "biologicalScope": "Sauropsideos: repteis, dinossauros, aves",
+      "workFunction": {
+        "speedModifier": 0.9,
+        "preferredOres": [
+          "elementalCrystal",
+          "silver"
+        ],
+        "role": "prospector"
+      }
     }
   ],
   "maps": [
@@ -2147,5 +2172,606 @@
         "referenceSpecies": "Moradisaurus"
       }
     }
-  ]
+  ],
+  "items": [
+    {
+      "code": "ITM-001",
+      "name": "Pedra",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Mineral basico de construcao",
+      "value": 5,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-002",
+      "name": "Ferro",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Mineral estrutural de construcao e ferramentas",
+      "value": 12,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-003",
+      "name": "Carvao",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Combustivel; nao serve como moeda de troca com o comerciante",
+      "value": 14,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-004",
+      "name": "Cobre",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Moeda de troca cotidiana com o comerciante (food de HP e itens de baixo valor)",
+      "value": 20,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-005",
+      "name": "Prata",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Moeda premium; troca por cards com o comerciante",
+      "value": 60,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-006",
+      "name": "Ambar Fossil",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Mineral raro; troca por cards e flavor tematico; forte conexao com Loricati (ambar preserva insetos)",
+      "value": 30,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-007",
+      "name": "Cristal Elemental — Fogo",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Vinculado ao elemento Fogo (ELE-001); material para Despertar Ancestral e habilidades",
+      "value": 150,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-008",
+      "name": "Cristal Elemental — Agua",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Vinculado ao elemento Agua (ELE-002); material para Despertar Ancestral e habilidades",
+      "value": 150,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-009",
+      "name": "Cristal Elemental — Natureza",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Vinculado ao elemento Natureza (ELE-003); material para Despertar Ancestral e habilidades",
+      "value": 150,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-010",
+      "name": "Cristal Elemental — Terra",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Vinculado ao elemento Terra (ELE-004); material para Despertar Ancestral e habilidades",
+      "value": 150,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-011",
+      "name": "Cristal Elemental — Eletricidade",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Vinculado ao elemento Eletricidade (ELE-005); material para Despertar Ancestral e habilidades",
+      "value": 150,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-012",
+      "name": "Cristal Elemental — Gelo",
+      "category": "mineral",
+      "effect": null,
+      "notes": "Vinculado ao elemento Gelo (ELE-006); material para Despertar Ancestral e habilidades",
+      "value": 150,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-013",
+      "name": "Resina Comum",
+      "category": "capture",
+      "effect": "Aumenta a chance de captura em metade.",
+      "notes": null,
+      "value": 60,
+      "effectCode": "capture_bonus",
+      "effectValue": 1.5
+    },
+    {
+      "code": "ITM-014",
+      "name": "Resina Densa",
+      "category": "capture",
+      "effect": "Aumenta bastante a chance de captura.",
+      "notes": null,
+      "value": 180,
+      "effectCode": "capture_bonus",
+      "effectValue": 2.5
+    },
+    {
+      "code": "ITM-015",
+      "name": "Resina Ancestral",
+      "category": "capture",
+      "effect": "Quadruplica a chance de captura.",
+      "notes": null,
+      "value": 500,
+      "effectCode": "capture_bonus",
+      "effectValue": 4
+    },
+    {
+      "code": "ITM-016",
+      "name": "Emplastro de Limo",
+      "category": "heal",
+      "effect": "Recupera parte do vigor da criatura.",
+      "notes": null,
+      "value": 80,
+      "effectCode": "heal_percent",
+      "effectValue": 30
+    },
+    {
+      "code": "ITM-017",
+      "name": "Emplastro Espesso",
+      "category": "heal",
+      "effect": "Recupera boa parte do vigor da criatura.",
+      "notes": null,
+      "value": 220,
+      "effectCode": "heal_percent",
+      "effectValue": 70
+    },
+    {
+      "code": "ITM-018",
+      "name": "Seiva Primordial",
+      "category": "heal",
+      "effect": "Restaura o vigor por completo.",
+      "notes": null,
+      "value": 600,
+      "effectCode": "heal_percent",
+      "effectValue": 100
+    }
+  ],
+  "economy": {
+    "currencyName": "Óbolo",
+    "currencyNamePlural": "Óbolos",
+    "startingCurrency": 120,
+    "sellRatio": 0.4
+  },
+  "merchants": [
+    {
+      "code": "NPC-001",
+      "name": "Curador Sarn",
+      "faction": "Guilda dos Curadores",
+      "map": "PZ-01",
+      "notes": "Trata dos achados e de quem os traz. Compra mineral bruto, vende resina de captura e emplastro.",
+      "offers": [
+        {
+          "itemCode": "ITM-013",
+          "price": 60
+        },
+        {
+          "itemCode": "ITM-014",
+          "price": 180
+        },
+        {
+          "itemCode": "ITM-015",
+          "price": 500
+        },
+        {
+          "itemCode": "ITM-016",
+          "price": 80
+        },
+        {
+          "itemCode": "ITM-017",
+          "price": 220
+        },
+        {
+          "itemCode": "ITM-018",
+          "price": 600
+        }
+      ]
+    }
+  ],
+  "mining": {
+    "items": [
+      {
+        "code": "ITM-001",
+        "name": "Pedra",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Mineral basico de construcao"
+      },
+      {
+        "code": "ITM-002",
+        "name": "Ferro",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Mineral estrutural de construcao e ferramentas"
+      },
+      {
+        "code": "ITM-003",
+        "name": "Carvao",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Combustivel; nao serve como moeda de troca com o comerciante"
+      },
+      {
+        "code": "ITM-004",
+        "name": "Cobre",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Moeda de troca cotidiana com o comerciante (food de HP e itens de baixo valor)"
+      },
+      {
+        "code": "ITM-005",
+        "name": "Prata",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Moeda premium; troca por cards com o comerciante"
+      },
+      {
+        "code": "ITM-006",
+        "name": "Ambar Fossil",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Mineral raro; troca por cards e flavor tematico; forte conexao com Loricati (ambar preserva insetos)"
+      },
+      {
+        "code": "ITM-007",
+        "name": "Cristal Elemental — Fogo",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Vinculado ao elemento Fogo (ELE-001); material para Despertar Ancestral e habilidades"
+      },
+      {
+        "code": "ITM-008",
+        "name": "Cristal Elemental — Agua",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Vinculado ao elemento Agua (ELE-002); material para Despertar Ancestral e habilidades"
+      },
+      {
+        "code": "ITM-009",
+        "name": "Cristal Elemental — Natureza",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Vinculado ao elemento Natureza (ELE-003); material para Despertar Ancestral e habilidades"
+      },
+      {
+        "code": "ITM-010",
+        "name": "Cristal Elemental — Terra",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Vinculado ao elemento Terra (ELE-004); material para Despertar Ancestral e habilidades"
+      },
+      {
+        "code": "ITM-011",
+        "name": "Cristal Elemental — Eletricidade",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Vinculado ao elemento Eletricidade (ELE-005); material para Despertar Ancestral e habilidades"
+      },
+      {
+        "code": "ITM-012",
+        "name": "Cristal Elemental — Gelo",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Vinculado ao elemento Gelo (ELE-006); material para Despertar Ancestral e habilidades"
+      }
+    ],
+    "rates": [
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-001",
+        "weight": 0.25
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-002",
+        "weight": 0.2
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-003",
+        "weight": 0.1
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-004",
+        "weight": 0.09
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-005",
+        "weight": 0.03
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-006",
+        "weight": 0.3
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-007",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-008",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-009",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-010",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-011",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-012",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-001",
+        "weight": 0.15
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-002",
+        "weight": 0.1
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-003",
+        "weight": 0.35
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-004",
+        "weight": 0.3
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-005",
+        "weight": 0.04
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-006",
+        "weight": 0.03
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-007",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-008",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-009",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-010",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-011",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-012",
+        "weight": 0.003
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-001",
+        "weight": 0.1
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-002",
+        "weight": 0.1
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-003",
+        "weight": 0.03
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-004",
+        "weight": 0.05
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-005",
+        "weight": 0.2
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-006",
+        "weight": 0.03
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-007",
+        "weight": 0.07
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-008",
+        "weight": 0.07
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-009",
+        "weight": 0.07
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-010",
+        "weight": 0.07
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-011",
+        "weight": 0.07
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-012",
+        "weight": 0.07
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-001",
+        "weight": 0.38
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-002",
+        "weight": 0.2
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-003",
+        "weight": 0.05
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-004",
+        "weight": 0.15
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-005",
+        "weight": 0.05
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-006",
+        "weight": 0.1
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-008",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-009",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-010",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-001",
+        "itemCode": "ITM-012",
+        "weight": 0.005
+      }
+    ]
+  }
 }

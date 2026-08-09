@@ -14,7 +14,15 @@ extends Control
 ##   bottom-left  log recente          (últimas rodadas + `dados X.YZ`)
 ##   bottom-right ações                (golpes 1–6, comandos, mensagem/desfecho)
 ##
-## Teclas: 1-6 golpes · E desperta · C captura · F foge · R reinicia · Esc sai
+## Teclas: 1-6 golpes · S troca · E desperta · C captura · F foge · R reinicia
+##         Esc sai
+##
+## ## Dois modos de tecla numérica
+##
+## `1`–`6` significam "golpe" normalmente e "slot do time" quando a lista do
+## time está na tela — que acontece por escolha (`S`) ou por obrigação (a
+## ativa caiu e há reserva de pé). O painel de ações troca de conteúdo junto,
+## então o número nunca fica ambíguo para quem está olhando.
 
 const DEFAULT_LEVEL := 25
 const LOG_LINES := 6
@@ -44,6 +52,19 @@ var player_code := ""
 var enemy_code := ""
 var duel_level := DEFAULT_LEVEL
 
+## O time do jogador vindo do mundo: `[{code, hp}]` na ordem dos slots, mais
+## quem começa em campo. Vazio faz a tela cair no `player_code` sozinho, que é
+## como ela roda em playtest (`F6`) — sem mundo, não há time.
+##
+## O HP chega de fora porque **persiste entre batalhas**: quem entra ferido
+## entra ferido, e é `PlayerRoster` quem guarda isso entre um encontro e outro.
+var player_party: Array = []
+var player_active_index := 0
+
+## Inventário do jogador, para a resina de captura. Null em playtest solto —
+## sem mundo não há bolsa, e `C` cai direto na captura sem item.
+var inventory: PlayerInventory
+
 ## Paleta herdada dos tokens do app web.
 const COL_BONE := "#F2EDE0"
 const COL_MOSS := "#7A8C6B"
@@ -55,6 +76,19 @@ const COL_PANEL_BORDER := "#1F2530"
 var battle: Battle
 var _rng := RandomNumberGenerator.new()
 var _last_message := ""
+
+## Lista do time aberta por escolha do jogador. A obrigatória — quando a ativa
+## cai — não usa este campo: ela é derivada de `battle.needs_replacement()`,
+## porque um estado que o jogador não pode desligar não deve ser guardado num
+## booleano que alguém pode esquecer de sincronizar.
+var _switch_mode := false
+
+## Lista de resinas aberta pelo `C`. Como o modo de troca, muda o significado
+## das teclas numéricas — e o painel de ações muda junto, então o número nunca
+## fica ambíguo.
+var _capture_mode := false
+## Códigos na ordem desenhada; "" na posição 0 significa capturar sem item.
+var _capture_rows: Array[String] = []
 
 var _enemy_label: RichTextLabel
 var _player_label: RichTextLabel
@@ -181,20 +215,51 @@ func _start_new_duel() -> void:
 	var codes: Array = _db.creature_codes()
 	codes.sort()
 
-	var a := player_code
+	var party := _build_party(codes)
+	var first := party[0] as Combatant
+
 	var b := enemy_code
-	if a == "":
-		a = codes[_rng.randi() % codes.size()]
 	if b == "":
 		b = codes[_rng.randi() % codes.size()]
-		while b == a:
+		while b == first.code and codes.size() > 1:
 			b = codes[_rng.randi() % codes.size()]
 
-	var hero := Combatant.from_bestiary(_db, a, duel_level)
 	var foe := Combatant.from_bestiary(_db, b, duel_level)
-	battle = Battle.new(_db, [hero], foe)
+	battle = Battle.new(_db, party, foe)
+
+	# Entrar com a criatura desmaiada travaria a luta na substituição no
+	# primeiro quadro. Quem está caída fica no banco, e o mundo já barra o
+	# encontro quando ninguém pode entrar.
+	var start := clampi(player_active_index, 0, party.size() - 1)
+	if party[start].is_fainted():
+		var living := battle.living_party_indices()
+		start = int(living[0]) if not living.is_empty() else start
+	battle.player_active_index = start
+
+	_switch_mode = false
 	_last_message = "Duelo iniciado. Escolha um golpe."
 	_render()
+
+
+## Monta os combatentes do jogador. Com time, aplica o HP que veio do mundo;
+## sem time, cai no duelo solto de playtest com uma criatura só.
+func _build_party(codes: Array) -> Array:
+	var party: Array = []
+
+	for entry in player_party:
+		var c := Combatant.from_bestiary(_db, str(entry.get("code", "")), duel_level)
+		if c == null:
+			continue
+		c.hp = clampi(int(entry.get("hp", c.max_hp)), 0, c.max_hp)
+		party.append(c)
+
+	if party.is_empty():
+		var a := player_code
+		if a == "":
+			a = codes[_rng.randi() % codes.size()]
+		party.append(Combatant.from_bestiary(_db, a, duel_level))
+
+	return party
 
 
 func _input(event: InputEvent) -> void:
@@ -218,6 +283,30 @@ func _input(event: InputEvent) -> void:
 	if battle.is_over():
 		return
 
+	# A ativa caiu e há reserva de pé: a rodada não anda até alguém entrar.
+	# Nenhuma outra tecla responde — deixar capturar ou fugir daqui seria jogar
+	# com a criatura desmaiada ainda em campo.
+	if battle.needs_replacement():
+		if key >= KEY_1 and key <= KEY_9:
+			_pick_replacement(key - KEY_1)
+		return
+
+	if key == KEY_S:
+		_capture_mode = false
+		_toggle_switch_mode()
+		return
+
+	if key == KEY_C:
+		# Segundo `C` com a lista aberta cancela — a mesma tecla que abre
+		# fecha, como o `S` da troca.
+		if _capture_mode:
+			_capture_mode = false
+			_last_message = ""
+			_render()
+		else:
+			_open_capture_menu()
+		return
+
 	# Despertar não consome o turno, então não dispara a rodada.
 	if key == KEY_E:
 		if battle.activate_awakening(true):
@@ -229,16 +318,10 @@ func _input(event: InputEvent) -> void:
 
 	var action: BattleAction = null
 	if key >= KEY_1 and key <= KEY_9:
-		var index := key - KEY_1
-		var options := battle.player_active().available_abilities()
-		if index < options.size():
-			action = BattleAction.use_ability(str(options[index]["code"]))
-		else:
-			_last_message = "Nao existe golpe nessa posicao."
+		action = _numeric_action(key - KEY_1)
+		if action == null:
 			_render()
 			return
-	elif key == KEY_C:
-		action = BattleAction.capture()
 	elif key == KEY_F:
 		action = BattleAction.flee()
 
@@ -246,7 +329,126 @@ func _input(event: InputEvent) -> void:
 		return
 
 	_last_message = ""
+	_switch_mode = false
+	_capture_mode = false
 	battle.resolve_round(action, battle.choose_enemy_action())
+	# A rodada que derruba a ativa muda o assunto da tela. Uma dica escrita
+	# para o menu de troca ("trocar custa a rodada") sobrevivendo até aqui
+	# passaria a mentir — substituir quem caiu é de graça.
+	if battle.needs_replacement():
+		_last_message = ""
+	_render()
+
+
+## O número vale como slot do time quando a lista está aberta, e como golpe no
+## resto do tempo. Devolve null quando não há o que fazer na posição — a
+## mensagem já foi escrita, cabe ao chamador redesenhar.
+func _numeric_action(index: int) -> BattleAction:
+	if _capture_mode:
+		if index >= _capture_rows.size():
+			_last_message = "Nao ha nada nessa posicao."
+			return null
+		var code := _capture_rows[index]
+		if code == "":
+			return BattleAction.capture()
+		# Consome antes de lançar: a resina se gasta no arremesso, dê certo ou
+		# não. Devolver em caso de falha faria tentar de novo custar nada, e a
+		# escolha entre resina cara e barata deixaria de existir.
+		if not inventory.remove(code):
+			_last_message = "Voce nao tem %s." % _db.item_name(code)
+			return null
+		return BattleAction.capture(_db.item_effect_value(code))
+
+	if _switch_mode:
+		if index >= battle.player_party.size():
+			_last_message = "Nao existe slot nessa posicao."
+			return null
+		var target: Combatant = battle.player_party[index]
+		if target.is_fainted():
+			_last_message = "%s esta fora de combate." % target.display_name
+			return null
+		if index == battle.player_active_index:
+			_last_message = "%s ja esta em campo." % target.display_name
+			return null
+		return BattleAction.switch_to(index)
+
+	var options := battle.player_active().available_abilities()
+	if index >= options.size():
+		_last_message = "Nao existe golpe nessa posicao."
+		return null
+	return BattleAction.use_ability(str(options[index]["code"]))
+
+
+## Abre a lista de resinas. Sem inventário ou sem nenhuma resina, captura na
+## hora e sem item — obrigar a passar por um menu de uma opção só seria
+## cerimônia.
+func _open_capture_menu() -> void:
+	_capture_rows = _held_capture_items()
+	if _capture_rows.size() <= 1:
+		_last_message = ""
+		_switch_mode = false
+		battle.resolve_round(BattleAction.capture(), battle.choose_enemy_action())
+		if battle.needs_replacement():
+			_last_message = ""
+		_render()
+		return
+
+	_switch_mode = false
+	_capture_mode = true
+	_last_message = "Capturar consome a rodada."
+	_render()
+
+
+## Resinas em mãos, ordenadas do bônus menor para o maior. A posição 0 é
+## sempre "sem resina", para a captura básica continuar a um toque.
+func _held_capture_items() -> Array[String]:
+	var out: Array[String] = [""]
+	if inventory == null or _db == null:
+		return out
+	for entry in inventory.entries():
+		var code := str(entry["code"])
+		if _db.item_effect_code(code) == "capture_bonus":
+			out.append(code)
+	out.sort_custom(func(a, b):
+		if a == "":
+			return true
+		if b == "":
+			return false
+		return _db.item_effect_value(a) < _db.item_effect_value(b))
+	return out
+
+
+func _capture_list() -> String:
+	var lines: Array[String] = []
+	for i in _capture_rows.size():
+		var code := _capture_rows[i]
+		if code == "":
+			lines.append("[color=%s][%d][/color] %-22s [color=%s]sem resina — chance base[/color]"
+				% [COL_BONE, i + 1, "a mao", COL_SLATE])
+			continue
+		lines.append("[color=%s][%d][/color] %-22s [color=%s]x%.1f[/color]  [color=%s]x%d em maos[/color]"
+			% [COL_BONE, i + 1, _db.item_name(code), COL_MOSS,
+			   _db.item_effect_value(code), COL_SLATE, inventory.quantity(code)])
+	return "\n".join(lines)
+
+
+func _toggle_switch_mode() -> void:
+	if battle.player_party.size() < 2:
+		_last_message = "Voce nao tem reserva."
+		_render()
+		return
+	_switch_mode = not _switch_mode
+	_last_message = "Trocar custa a rodada." if _switch_mode else ""
+	_render()
+
+
+func _pick_replacement(index: int) -> void:
+	if index >= battle.player_party.size():
+		_last_message = "Nao existe slot nessa posicao."
+	elif battle.player_party[index].is_fainted():
+		_last_message = "%s tambem esta fora de combate." % battle.player_party[index].display_name
+	elif battle.replace_active(index):
+		_last_message = ""
 	_render()
 
 
@@ -298,6 +500,23 @@ func _actions_block(c: Combatant) -> String:
 		out.append("[color=%s]%s[/color]" % [COL_EMBER, _outcome_text()])
 		out.append("")
 		out.append("[color=%s][R] novo duelo    [Esc] voltar ao mapa[/color]" % COL_SLATE)
+	elif battle.needs_replacement():
+		out.append("[color=%s]%s caiu. Quem entra?[/color]" % [COL_EMBER, c.display_name])
+		out.append("")
+		out.append(_party_list())
+	elif _capture_mode:
+		out.append("[color=%s]capturar %s — resina se gasta no arremesso[/color]"
+			% [COL_SLATE, battle.enemy.display_name])
+		out.append("")
+		out.append(_capture_list())
+		out.append("")
+		out.append("[color=%s][C] cancelar[/color]" % COL_SLATE)
+	elif _switch_mode:
+		out.append("[color=%s]trocar — a rodada e gasta e o adversario ataca[/color]" % COL_SLATE)
+		out.append("")
+		out.append(_party_list())
+		out.append("")
+		out.append("[color=%s][S] cancelar[/color]" % COL_SLATE)
 	else:
 		out.append(_ability_list(c))
 		out.append("")
@@ -341,6 +560,38 @@ func _ability_list(c: Combatant) -> String:
 	return "\n".join(lines)
 
 
+## O time em campo e no banco, com HP. É a leitura que decide a troca — sem os
+## números aqui, escolher a reserva seria chute.
+func _party_list() -> String:
+	var lines: Array[String] = []
+	for i in battle.player_party.size():
+		var m: Combatant = battle.player_party[i]
+		var in_field := i == battle.player_active_index
+		var down := m.is_fainted()
+
+		var marker := "  "
+		if in_field:
+			marker = "[color=%s]●[/color] " % COL_EMBER
+
+		var color := COL_BONE
+		var suffix := ""
+		if down:
+			color = COL_SLATE
+			suffix = "  [color=%s]caida[/color]" % COL_SLATE
+		elif in_field:
+			suffix = "  [color=%s]em campo[/color]" % COL_SLATE
+
+		lines.append("[color=%s][%d][/color] %s%-20s %s  %s %d/%d%s" % [
+			COL_BONE, i + 1, marker, m.display_name,
+			_element_name(m.element), _bar(m.hp_ratio(), COL_MOSS),
+			m.hp, m.max_hp, suffix,
+		])
+		# Recolore a linha inteira de quem está caída sem repetir a montagem.
+		if down:
+			lines[-1] = "[color=%s]%s[/color]" % [color, lines[-1]]
+	return "\n".join(lines)
+
+
 func _command_line(c: Combatant) -> String:
 	var parts: Array[String] = []
 	if c.can_awaken(battle.charge_max()):
@@ -348,6 +599,10 @@ func _command_line(c: Combatant) -> String:
 	else:
 		parts.append("[color=%s][E] despertar (carga %d/100)[/color]"
 			% [COL_SLATE, int(c.charge_meter)])
+
+	if battle.player_party.size() > 1:
+		parts.append("[color=%s][S] trocar (%d de pe)[/color]"
+			% [COL_SLATE, battle.living_party_indices().size()])
 	parts.append("[color=%s][C] capturar  [F] fugir  [R] reiniciar  [Esc] mapa[/color]" % COL_SLATE)
 	return "  ".join(parts)
 
@@ -357,6 +612,8 @@ func _outcome_text() -> String:
 		Battle.Outcome.PLAYER_WON:
 			return "Voce venceu em %d rodadas." % battle.round_number
 		Battle.Outcome.PLAYER_LOST:
+			if battle.player_party.size() > 1:
+				return "Seu time inteiro caiu em %d rodadas." % battle.round_number
 			return "Sua criatura foi derrotada em %d rodadas." % battle.round_number
 		Battle.Outcome.CAPTURED:
 			return "%s foi capturada!" % battle.enemy.display_name

@@ -35,6 +35,7 @@ func _init() -> void:
 	_test_known_abilities(db)
 	_test_turn_order()
 	_test_contract_integrity(db)
+	_test_mining_contract(db)
 
 	db.free()
 
@@ -254,3 +255,46 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 	# Despertar é opcional no schema, mas a meta do elenco é cobertura 1:1.
 	_check_true("cobertura de Despertar 1:1", no_awakening.is_empty(),
 		"sem despertar: %s" % str(no_awakening) if not no_awakening.is_empty() else "26 de 26")
+
+
+## O bloco `mining` é opcional para `load_bundle` — o jogo sobe sem ele com um
+## aviso, porque combate não depende de minério. Aqui não é opcional: um export
+## sem mineração é um export velho, e é este teste que tem de dizer isso em vez
+## de o jogador descobrir que `F` não faz nada.
+func _test_mining_contract(db: BestiaryData) -> void:
+	print("contrato de mineracao:")
+	_check_true("bloco mining presente", db.has_mining(),
+		"%d minerais" % db.mineral_codes().size())
+	if not db.has_mining():
+		return
+
+	var unnamed: Array = []
+	for code in db.mineral_codes():
+		if db.mineral_name(str(code)) == str(code):
+			unnamed.append(code)
+	_check("minerais sem nome", unnamed.size(), 0)
+
+	# Toda classe do elenco precisa de pesos: sem eles, a criatura ativa dessa
+	# classe minera pelo bioma puro e o perfil de trabalho vira decoração.
+	var classes_seen := {}
+	for code in db.creature_codes():
+		classes_seen[str(db.creature(str(code)).get("class", ""))] = true
+
+	var no_weights: Array = []
+	var no_profile: Array = []
+	for class_code: String in classes_seen:
+		if db.class_mining_weights(class_code).is_empty():
+			no_weights.append(class_code)
+		if db.class_work_function(class_code).is_empty():
+			no_profile.append(class_code)
+	_check("classes sem pesos de minerio", no_weights.size(), 0)
+	_check("classes sem perfil de trabalho", no_profile.size(), 0)
+
+	# Peso que aponta para um mineral inexistente é o tipo de furo que o
+	# export não pega e que some numa distribuição normalizada.
+	var orphan := 0
+	for class_code: String in classes_seen:
+		for item_code: String in db.class_mining_weights(class_code):
+			if db.mineral(item_code).is_empty():
+				orphan += 1
+	_check("pesos apontando para mineral inexistente", orphan, 0)

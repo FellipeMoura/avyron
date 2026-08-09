@@ -22,6 +22,13 @@ extends Node3D
 ## Contato físico com a criatura não faz mais nada: a decisão de entrar em
 ## combate é sempre do jogador. Criaturas agressivas continuam perseguindo,
 ## por pressão visual, mas quem aperta o gatilho é o mouse.
+##
+## ## A criatura ativa amarra os três sistemas
+##
+## Quem está à frente no `PlayerRoster` é a mesma criatura em toda parte: anda
+## ao lado do jogador, entra no duelo, e — pela **classe** dela — decide o que
+## a mineração produz e em que ritmo. Trocar a ativa pela janela do time (`T`)
+## não é ajuste de menu: muda o que sai do chão no próximo `F`.
 
 const DUEL_SCENE := "res://scenes/duel.tscn"
 
@@ -34,9 +41,18 @@ const CLICK_RAY_LENGTH := 60.0
 ## não ser mais o assunto imediato.
 const DESELECT_DISTANCE := 15.0
 
-## Criatura do jogador enquanto não existe time montado por captura.
+## Criatura com que o jogador começa. Vira o slot 0 do time; as capturas
+## entram como reserva atrás dela.
 @export var starter_code := "CRT-002"
 @export var encounter_level := 10
+
+## Onde o jogador está. O mapa escolhe o elenco selvagem; o bioma é metade da
+## fórmula de mineração — a outra metade é a classe da criatura ativa.
+##
+## Fica em `@export` em vez de derivado do bundle porque `maps` não carrega a
+## junção mapa↔bioma no export. Quando carregar, isto vira consulta.
+@export var map_code := "PZ-01"
+@export var biome_code := "BIO-001"
 
 var _camera: IsoCamera
 var _player: Node3D
@@ -48,15 +64,24 @@ var _info: CreatureInfoPanel
 var _hint: Label
 var _db: BestiaryData
 var _companion: CompanionActor
-var _team: Array[String] = []
-var _team_panel: PlayerTeamPanel
+var _roster: PlayerRoster
+var _active_panel: ActiveCreaturePanel
+var _roster_window: RosterWindow
 var _inventory: PlayerInventory
 var _inventory_panel: InventoryPanel
 var _mine_rng := RandomNumberGenerator.new()
 var _mine_cooldown := 0.0
 var _mine_label: Label
+var _merchants: Array[MerchantActor] = []
+var _shop: MerchantScreen
 
-## Segundos entre minerações consecutivas.
+## Onde o comerciante fica. Posição de cena, não de bestiário: o catálogo diz
+## quem existe e em que mapa, o layout do mundo diz onde. Quando houver
+## vilarejo modelado, isto vira um marcador na cena.
+const MERCHANT_SPOT := Vector3(6.0, 0.0, -6.0)
+
+## Segundos entre minerações consecutivas, antes do perfil de trabalho da
+## classe ativa. Theria (×1.1) espera menos, Draconis (×0.9) espera mais.
 const MINE_COOLDOWN_SEC := 3.0
 
 
@@ -72,11 +97,24 @@ func _ready() -> void:
 		_camera.process_mode = Node.PROCESS_MODE_ALWAYS
 
 	_inventory = PlayerInventory.new()
+	# A bolsa inicial vem do bestiário, não de uma constante daqui: quanto o
+	# jogador começa com é decisão de balanceamento, e balanceamento é PATCH
+	# versionado.
+	if _db:
+		_inventory.add_currency(_db.starting_currency())
 	_mine_rng.randomize()
+
+	# O time precisa existir antes da companheira e da HUD: quem anda ao lado
+	# do jogador é a ativa dele, não o `starter_code` solto.
+	_roster = PlayerRoster.new()
+	_roster.setup(_db, encounter_level, starter_code)
 
 	_spawner = CreatureSpawner.new()
 	_spawner.name = "CreatureSpawner"
 	_spawner.level = encounter_level
+	# O mapa é do mundo, não do spawner: quem povoa e quem minera têm de
+	# concordar sobre onde o jogador está.
+	_spawner.map_code = map_code
 	add_child(_spawner)
 	_spawner.creature_engaged.connect(_on_creature_engaged)
 	# Mantém o hint em sincronia sem precisar polling: qualquer mudança de
@@ -85,8 +123,26 @@ func _ready() -> void:
 	_spawner.population_changed.connect(_update_hint)
 
 	_spawn_companion()
+	_spawn_merchants()
 	_build_hud()
 	_update_hint()
+
+
+## Instancia os comerciantes que o bestiário coloca neste mapa. Zero é estado
+## normal — um mapa sem comerciante é um mapa sem comerciante, não um erro.
+func _spawn_merchants() -> void:
+	if _db == null:
+		return
+	var spot := MERCHANT_SPOT
+	for data in _db.merchants_in_map(map_code):
+		var actor := MerchantActor.create(data, spot)
+		actor.name = "Merchant_%s" % str(data.get("code", ""))
+		actor.engaged.connect(_on_merchant_engaged)
+		add_child(actor)
+		_merchants.append(actor)
+		# Segundo comerciante no mesmo mapa fica ao lado do primeiro em vez de
+		# dentro dele. Provisório até haver vilarejo com posições próprias.
+		spot += Vector3(2.5, 0.0, 0.0)
 
 
 func _spawn_companion() -> void:
@@ -94,7 +150,7 @@ func _spawn_companion() -> void:
 	# como resolver o código do starter em cor/tamanho.
 	if _player == null or _db == null:
 		return
-	_companion = CompanionActor.create(_db, starter_code, _player)
+	_companion = CompanionActor.create(_db, _roster.active(), _player)
 	if _companion == null:
 		return
 	_companion.name = "Companion"
@@ -104,6 +160,13 @@ func _spawn_companion() -> void:
 func _process(delta: float) -> void:
 	if _mine_cooldown > 0.0:
 		_mine_cooldown = maxf(0.0, _mine_cooldown - delta)
+
+	# O time se recupera com o tempo de mapa. Não precisa de trava para não
+	# curar durante o combate: o mundo fica pausado, e um nó pausado não
+	# processa. É a mesma razão de a câmera precisar de PROCESS_MODE_ALWAYS
+	# logo acima — aqui o comportamento padrão é justamente o desejado.
+	if _roster:
+		_roster.regenerate(delta)
 
 	# Solta a seleção quando o jogador vagou para longe. Sem isto, um alvo
 	# esquecido do outro lado do mapa continua brilhando e o painel fica
@@ -139,16 +202,29 @@ func _build_hud() -> void:
 	_info.name = "CreatureInfoPanel"
 	layer.add_child(_info)
 
-	_team_panel = PlayerTeamPanel.new()
-	_team_panel.name = "TeamPanel"
-	layer.add_child(_team_panel)
-	if _db:
-		_team_panel.setup(_db)
+	_active_panel = ActiveCreaturePanel.new()
+	_active_panel.name = "ActiveCreaturePanel"
+	layer.add_child(_active_panel)
+
+	_roster_window = RosterWindow.new()
+	_roster_window.name = "RosterWindow"
+	_roster_window.activate_requested.connect(activate_slot)
+	layer.add_child(_roster_window)
 
 	_inventory_panel = InventoryPanel.new()
 	_inventory_panel.name = "InventoryPanel"
 	layer.add_child(_inventory_panel)
 	_inventory.changed.connect(_on_inventory_changed)
+
+	if _db:
+		_active_panel.setup(_db, biome_code)
+		_roster_window.setup(_db)
+		_inventory_panel.setup(_db)
+	# Uma assinatura só mantém os dois painéis de time em dia — captura e troca
+	# de ativa passam pelo mesmo sinal, então nenhum caminho pode esquecer de
+	# redesenhar.
+	_roster.changed.connect(_on_roster_changed)
+	_on_roster_changed()
 
 	_mine_label = Label.new()
 	_mine_label.name = "MineLabel"
@@ -166,7 +242,7 @@ func _update_hint() -> void:
 	if _hint == null:
 		return
 	var count := _spawner.actors().size() if _spawner else 0
-	_hint.text = "WASD anda · Shift corre · clique numa criatura para ver, clique de novo para lutar   (%d no mapa)" % count
+	_hint.text = "WASD anda · Shift corre · F minera · T time · clique numa criatura para ver, clique de novo para lutar   (%d no mapa)" % count
 
 
 # ---------------------------------------------------------------------------
@@ -174,20 +250,16 @@ func _update_hint() -> void:
 # ---------------------------------------------------------------------------
 
 func _unhandled_input(event: InputEvent) -> void:
-	# Durante a batalha o overlay processa em separado — nada aqui responde.
-	if _duel != null:
+	# Durante a batalha ou a loja o overlay processa em separado — nada aqui
+	# responde. Sem isto, `F` mineraria no meio de uma negociação.
+	if _duel != null or _shop != null:
 		return
 
 	if event is InputEventKey:
 		var key := event as InputEventKey
 		if not key.pressed or key.echo:
 			return
-		if key.keycode == KEY_ESCAPE and _selected != null:
-			_clear_selection()
-			get_viewport().set_input_as_handled()
-		elif key.keycode == KEY_F:
-			trigger_mine()
-			get_viewport().set_input_as_handled()
+		_handle_key(key.keycode)
 		return
 
 	if not (event is InputEventMouseButton):
@@ -196,16 +268,71 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not mb.pressed or mb.button_index != MOUSE_BUTTON_LEFT:
 		return
 
+	# Clique que cai *sobre* a janela do time nem chega aqui — ela é o único
+	# Control da HUD que para o evento. O que chega é clique no mundo com a
+	# janela aberta, e selecionar uma criatura escondida atrás dela seria
+	# acidente puro.
+	if _roster_open():
+		get_viewport().set_input_as_handled()
+		return
+
 	handle_click_at(mb.position)
 	get_viewport().set_input_as_handled()
+
+
+func _handle_key(keycode: Key) -> void:
+	if keycode == KEY_T:
+		toggle_roster_window()
+	elif keycode == KEY_ESCAPE:
+		# A janela aberta tem prioridade sobre a seleção: `Esc` fecha o que
+		# está por cima, que é a leitura que qualquer um espera.
+		if _roster_open():
+			_roster_window.close()
+		elif _selected != null:
+			_clear_selection()
+		else:
+			return
+	# Limitado por MAX_SLOTS, não por KEY_9: o rodapé da janela promete
+	# "1–6", e uma tecla que aceita mais do que o texto diz é ruído.
+	elif _roster_open() and keycode >= KEY_1 and keycode < KEY_1 + PlayerRoster.MAX_SLOTS:
+		activate_slot(keycode - KEY_1)
+	elif keycode == KEY_F and not _roster_open():
+		trigger_mine()
+	else:
+		return
+	get_viewport().set_input_as_handled()
+
+
+func _roster_open() -> bool:
+	return _roster_window != null and _roster_window.is_open()
 
 
 ## Ponto de entrada do clique. Público porque os testes headless disparam
 ## seleção e engate sem passar por evento de mouse — mais estável do que
 ## sintetizar `InputEventMouseButton` com coordenadas de tela.
 func handle_click_at(screen_pos: Vector2) -> void:
-	var actor := _pick_actor(screen_pos)
-	handle_click_on(actor)
+	var hit := _pick_body(screen_pos)
+
+	# Comerciante e criatura respondem ao mesmo gesto, mas não ao mesmo
+	# fluxo: criatura tem seleção e segundo clique, comerciante abre direto —
+	# não há decisão de "vale a pena entrar?" a ser tomada antes de olhar a
+	# vitrine.
+	if hit is MerchantActor:
+		handle_click_on_merchant(hit as MerchantActor)
+		return
+	handle_click_on(hit as CreatureActor)
+
+
+## Abre a loja, se o jogador estiver perto o bastante. Público pela mesma
+## razão dos outros pontos de entrada: teste headless não sintetiza mouse.
+func handle_click_on_merchant(actor: MerchantActor) -> void:
+	if actor == null or _shop != null or _duel != null:
+		return
+	if _player and actor.flat_distance_to(_player.global_position) > MerchantActor.INTERACT_RANGE:
+		_show_mine_msg("%s esta longe demais." % actor.display_name)
+		return
+	_clear_selection()
+	actor.request_engage()
 
 
 func handle_click_on(actor: CreatureActor) -> void:
@@ -221,7 +348,11 @@ func handle_click_on(actor: CreatureActor) -> void:
 		_select(actor)
 
 
-func _pick_actor(screen_pos: Vector2) -> CreatureActor:
+## Devolve o corpo clicado — criatura, comerciante, ou null. Quem decide o que
+## fazer com ele é `handle_click_at`; misturar as duas responsabilidades aqui
+## foi o que fez esta função ter tipo de retorno fechado antes de existir mais
+## de um tipo de coisa clicável.
+func _pick_body(screen_pos: Vector2) -> Node3D:
 	if _camera == null:
 		return null
 	var from := _camera.project_ray_origin(screen_pos)
@@ -238,8 +369,8 @@ func _pick_actor(screen_pos: Vector2) -> CreatureActor:
 	if hit.is_empty():
 		return null
 	var collider: Object = hit.get("collider")
-	if collider is CreatureActor:
-		return collider as CreatureActor
+	if collider is CreatureActor or collider is MerchantActor:
+		return collider as Node3D
 	return null
 
 
@@ -264,12 +395,73 @@ func selected_actor() -> CreatureActor:
 	return _selected
 
 
-func team() -> Array[String]:
-	return _team
+func roster() -> PlayerRoster:
+	return _roster
 
 
 func inventory() -> PlayerInventory:
 	return _inventory
+
+
+# ---------------------------------------------------------------------------
+# time
+# ---------------------------------------------------------------------------
+
+## Abre/fecha a janela do time. Público pelo mesmo motivo que `handle_click_on`
+## e `trigger_mine`: os testes headless exercitam o fluxo pela API, não
+## sintetizando tecla.
+func toggle_roster_window() -> void:
+	if _roster_window == null or _duel != null:
+		return
+	_roster_window.toggle()
+	if _roster_window.is_open():
+		# A seleção pendurada atrás da janela não teria como ser cancelada por
+		# clique enquanto ela estivesse aberta.
+		_clear_selection()
+		_refresh_roster_window()
+
+
+## Manda a criatura do slot à frente. Ignora silenciosamente slot vazio ou o
+## da própria ativa — os dois são cliques sem consequência, não erros.
+func activate_slot(index: int) -> void:
+	if _roster == null or not _roster.set_active(index):
+		return
+	_show_mine_msg("À frente: %s" % _creature_name(_roster.active()))
+
+
+## Reconstrói tudo que depende de quem está à frente. É o único ponto que sabe
+## que trocar a ativa mexe em três coisas — companheira, painel e janela.
+func _on_roster_changed() -> void:
+	var active := _roster.active()
+
+	if _companion and is_instance_valid(_companion) and _db and active != "" \
+			and _companion.creature_code != active:
+		_companion.set_creature(_db, active)
+
+	if _active_panel:
+		var i := _roster.active_index()
+		_active_panel.refresh(active, encounter_level, _roster.size(),
+			_roster.hp_at(i), _roster.max_hp_at(i))
+	_refresh_roster_window()
+
+
+func _refresh_roster_window() -> void:
+	if _roster_window and _roster_window.is_open():
+		_roster_window.refresh(_roster, encounter_level)
+
+
+func _creature_name(code: String) -> String:
+	if _db == null or code == "":
+		return code
+	return str(_db.creature(code).get("name", code))
+
+
+## Classe da criatura ativa — a entrada da fórmula de mineração. "" quando não
+## há ativa, o que faz `MiningTable` cair no peso do bioma sozinho.
+func _active_class_code() -> String:
+	if _db == null or _roster == null:
+		return ""
+	return str(_db.creature(_roster.active()).get("class", ""))
 
 
 # ---------------------------------------------------------------------------
@@ -278,18 +470,28 @@ func inventory() -> PlayerInventory:
 
 ## Ponto de entrada da tecla F. Público para os testes headless dispararem
 ## sem sintetizar InputEventKey.
+##
+## O que sai daqui é decidido por dois fatores do bundle: o bioma em que o
+## jogador está e a classe da criatura que ele tem à frente. Nada de tabela
+## local — trocar a ativa muda o resultado, e é para ser sentido.
 func trigger_mine() -> void:
-	if _duel != null:
-		return  # não minera durante combate
+	if _duel != null or _shop != null:
+		return  # não minera durante combate nem negociação
 	if _mine_cooldown > 0.0:
 		_show_mine_msg("Aguardando... (%.1fs)" % _mine_cooldown)
 		return
-	var ore := OreTable.sample(_mine_rng, "PZ-01")
-	if ore.is_empty():
+
+	var class_code := _active_class_code()
+	var mineral := MiningTable.sample(_mine_rng, _db, class_code, biome_code)
+	if mineral.is_empty():
+		# Bundle exportado antes do módulo de mineração, ou bioma sem taxas
+		# cadastradas. Dizer isso é melhor que uma tecla que não faz nada.
+		_show_mine_msg("Nada para minerar aqui.")
 		return
-	_inventory.add(str(ore["code"]))
-	_mine_cooldown = MINE_COOLDOWN_SEC
-	_show_mine_msg("Coletou: %s" % str(ore["name"]))
+
+	_inventory.add(str(mineral["code"]))
+	_mine_cooldown = MINE_COOLDOWN_SEC / MiningTable.speed_modifier(_db, class_code)
+	_show_mine_msg("Coletou: %s" % str(mineral["name"]))
 
 
 func _show_mine_msg(text: String) -> void:
@@ -306,7 +508,71 @@ func _show_mine_msg(text: String) -> void:
 
 func _on_inventory_changed() -> void:
 	if _inventory_panel:
-		_inventory_panel.refresh(_inventory.entries())
+		_inventory_panel.refresh(_inventory.entries(), _inventory.currency)
+
+
+# ---------------------------------------------------------------------------
+# comércio
+# ---------------------------------------------------------------------------
+
+func _on_merchant_engaged(actor: MerchantActor) -> void:
+	if _shop != null or _duel != null:
+		return
+
+	_hide_world_hud()
+
+	_shop = MerchantScreen.new()
+	_shop.name = "MerchantScreen"
+	_shop.closed.connect(_on_shop_closed)
+
+	var layer := CanvasLayer.new()
+	layer.name = "ShopLayer"
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	layer.add_child(_shop)
+	add_child(layer)
+
+	# `setup` depois de entrar na árvore: o `_ready` é quem constrói o label,
+	# e `setup` desenha nele.
+	_shop.setup(_db, _inventory, actor.merchant_code)
+
+	# Sem zoom de câmera aqui, ao contrário do combate. A aproximação existe
+	# para o duelo porque o que importa vira o corpo das duas criaturas; numa
+	# negociação o que importa é a tabela, e mexer na câmera seria movimento
+	# sem função.
+	get_tree().paused = true
+
+
+func _on_shop_closed() -> void:
+	get_tree().paused = false
+	var layer := get_node_or_null("ShopLayer")
+	if layer:
+		layer.queue_free()
+	_shop = null
+	_show_world_hud()
+
+
+## Esconde a HUD de exploração. Sem isto o hint de WASD e os painéis vazam
+## atrás do overlay — ruído puro enquanto a atenção está em outra coisa.
+func _hide_world_hud() -> void:
+	if _hint:
+		_hint.visible = false
+	if _active_panel:
+		_active_panel.visible = false
+	if _roster_window:
+		_roster_window.close()
+	if _inventory_panel:
+		_inventory_panel.visible = false
+	if _mine_label:
+		_mine_label.hide()
+
+
+func _show_world_hud() -> void:
+	if _hint:
+		_hint.visible = true
+	if _active_panel:
+		_active_panel.visible = true
+	if _inventory_panel:
+		_inventory_panel.visible = true
 
 
 # ---------------------------------------------------------------------------
@@ -317,25 +583,33 @@ func _on_creature_engaged(actor: CreatureActor) -> void:
 	if _duel != null:
 		return  # já há um combate em curso
 
+	# Time inteiro caído: não há com quem lutar. Abrir o duelo aqui daria uma
+	# tela travada na substituição, sem ninguém para escolher. A saída é
+	# esperar a recuperação — que é justamente o custo que o HP persistente
+	# existe para cobrar.
+	if _roster.alive_count() == 0:
+		_clear_selection()
+		actor.reset_engagement()
+		_show_mine_msg("Nenhuma criatura de pe. Espere se recuperarem.")
+		return
+
 	_engaged_actor = actor
 	_clear_selection()
 
-	# Sem esconder o hint da HUD do mundo aqui, ele vaza atrás dos painéis do
-	# duelo — o WASD do mapa fica no rodapé enquanto o combate acontece, o que
-	# é ruído puro. O HudLayer inteiro apaga; o painel de identificação já
-	# tinha sido escondido pelo `_clear_selection`.
-	if _hint:
-		_hint.visible = false
-	if _team_panel:
-		_team_panel.visible = false
-	if _inventory_panel:
-		_inventory_panel.visible = false
-	if _mine_label:
-		_mine_label.hide()
+	# O painel de identificação já tinha sido escondido pelo `_clear_selection`.
+	_hide_world_hud()
 
 	var packed: PackedScene = load(DUEL_SCENE)
 	_duel = packed.instantiate() as DuelScreen
-	_duel.player_code = starter_code
+	# O time inteiro entra, com o HP com que cada uma saiu do último combate.
+	# `player_code` continua preenchido só como rede: se o time chegar vazio, a
+	# tela ainda sabe com quem lutar.
+	_duel.player_code = _roster.active()
+	_duel.player_party = _roster.to_party()
+	_duel.player_active_index = _roster.active_index()
+	# A mesma instância, não uma cópia: a resina gasta na batalha tem de sumir
+	# da bolsa que o mapa desenha.
+	_duel.inventory = _inventory
 	_duel.enemy_code = actor.creature_code
 	_duel.duel_level = encounter_level
 	_duel.closed.connect(_on_duel_closed)
@@ -359,6 +633,17 @@ func _on_duel_closed(outcome: int) -> void:
 	if _camera:
 		_camera.exit_battle()
 
+	# Lido **antes** de soltar o overlay: depois do `queue_free` a batalha vai
+	# junto, e com ela o HP de todo mundo.
+	var fought: Battle = _duel.battle if _duel else null
+	var captured_hp := -1
+	if fought:
+		# Quem terminou a luta em campo passa a ser a ativa do mundo. Sem isto,
+		# a criatura que o jogador colocou para segurar o combate voltaria para
+		# a reserva sozinha assim que o overlay fechasse.
+		_roster.absorb_party(fought.player_party, fought.player_active_index)
+		captured_hp = fought.enemy.hp
+
 	var layer := get_node_or_null("DuelLayer")
 	if layer:
 		layer.queue_free()
@@ -371,20 +656,25 @@ func _on_duel_closed(outcome: int) -> void:
 		if outcome == Battle.Outcome.PLAYER_WON:
 			_spawner.remove_actor(_engaged_actor)
 		elif outcome == Battle.Outcome.CAPTURED:
-			_team.append(_engaged_actor.creature_code)
-			_spawner.remove_actor(_engaged_actor, false)
-			if _team_panel:
-				_team_panel.refresh(_team)
+			# Entra com o HP com que foi capturada — enfraquecer para capturar
+			# tem preço, e ele é pago depois, esperando ela se recuperar.
+			# Time cheio: a criatura não some do mapa. Engolir a captura em
+			# silêncio seria perder o bicho e a batalha juntos.
+			if _roster.add(_engaged_actor.creature_code, captured_hp):
+				_spawner.remove_actor(_engaged_actor, false)
+			else:
+				_engaged_actor.reset_engagement()
+				_show_mine_msg("Time cheio (%d/%d) — a captura escapou."
+					% [_roster.size(), PlayerRoster.MAX_SLOTS])
 		else:
 			_engaged_actor.reset_engagement()
 	_engaged_actor = null
 
-	if _hint:
-		_hint.visible = true
-	if _team_panel:
-		_team_panel.visible = true
-	if _inventory_panel:
-		_inventory_panel.visible = true
+	if outcome == Battle.Outcome.PLAYER_LOST:
+		_show_mine_msg("Seu time caiu. Recuperando %d%% por minuto."
+			% int(PlayerRoster.REGEN_FRACTION_PER_MINUTE * 100.0))
+
+	_show_world_hud()
 	# `_update_hint` também dispara via `population_changed` do spawner quando
 	# a remoção ocorre, mas chamar aqui garante o texto certo mesmo nos
 	# desfechos que não mexem na população.

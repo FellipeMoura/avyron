@@ -245,10 +245,16 @@ func _check_capture_result() -> void:
 	_check_true("captura nao agendou respawn",
 		_spawner.pending_respawns() == 1,
 		"%d pendentes" % _spawner.pending_respawns())
-	var player_team := _world.team()
-	_check_true("criatura entrou no time",
-		player_team.size() == 1 and player_team[0] == _target2_code,
-		"time: %s" % str(player_team))
+	# A capturada entra como **reserva**: quem estava à frente continua à
+	# frente. Trocar a ativa é decisão do jogador, não efeito colateral da
+	# captura — senão uma criatura recém-pega, sem contexto nenhum, assumiria
+	# a exploração e o perfil de mineração no meio do mapa.
+	var roster := _world.roster()
+	_check("o time cresceu para 2", roster.size(), 2)
+	_check("a inicial continua a frente", roster.active(), _world.starter_code)
+	_check_true("a capturada entrou como reserva",
+		roster.reserves().size() == 1 and roster.reserves()[0] == _target2_code,
+		"reservas: %s" % str(roster.reserves()))
 	_check_true("o mundo descongelou apos captura", not root.get_tree().paused)
 	_check_true("o overlay saiu apos captura", _world.get("_duel") == null)
 

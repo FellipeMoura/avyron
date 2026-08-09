@@ -79,6 +79,28 @@ func living_party_indices() -> Array:
 	return out
 
 
+## Põe em campo quem substitui a ativa desmaiada.
+##
+## **Não** é a ação de troca. `_do_switch` custa a rodada e disputa prioridade,
+## porque recuar uma criatura de pé é uma jogada; isto acontece *entre*
+## rodadas e é de graça, porque o jogador não escolheu perder a criatura —
+## cobrar um turno por ela seria punir duas vezes o mesmo golpe.
+##
+## Precisa existir separado por um motivo mecânico, não só de design:
+## `resolve_round` pula o ator que está desmaiado, então uma ação de troca
+## emitida pela ativa caída nunca chegaria a executar.
+func replace_active(index: int) -> bool:
+	if not needs_replacement():
+		return false
+	if index < 0 or index >= player_party.size() or player_party[index].is_fainted():
+		return false
+	player_active_index = index
+	_log("switch", player_party[index], {
+		"text": "%s entra no lugar" % player_party[index].display_name
+	})
+	return true
+
+
 # ---------------------------------------------------------------------------
 # Despertar Ancestral — fora do turno
 # ---------------------------------------------------------------------------
