@@ -113,6 +113,20 @@ func _build_body() -> void:
 	position.y = height * 0.5
 
 
+## Raio do corpo, derivado do tamanho de jogo.
+##
+## A cápsula usa o tamanho como ALTURA e tira o raio dele, para o volume crescer
+## junto e um Arthropleura não virar um poste fino.
+##
+## Está separado do `build_capsule_visual` porque o afastamento de duelo precisa
+## saber onde a **borda** de cada corpo está, e não só desenhá-lo: dois bichos
+## de 2,5 m parados à mesma distância central que dois trilobitas ficariam
+## encostados. Duas derivações do raio em lugares diferentes discordariam no dia
+## em que uma delas mudasse.
+static func capsule_radius(size_meters: float) -> float:
+	return clampf(size_meters * 0.28, 0.15, 1.2)
+
+
 ## Constrói o visual reutilizável de uma criatura: cápsula colorida pelo
 ## elemento, com a marca de frente que deixa ler a direção de encaramento.
 ## Devolve um dicionário com os nós e as medidas — o CompanionActor consome o
@@ -121,9 +135,7 @@ func _build_body() -> void:
 ## O material com emissão preparada (desligada) já sai daqui, então quem quiser
 ## acender o realce depois só precisa de `emission_enabled = true`.
 static func build_capsule_visual(size_meters: float, element_code: String) -> Dictionary:
-	# A cápsula usa o tamanho como ALTURA e deriva o raio dela, para o volume
-	# crescer junto e um Arthropleura não virar um poste fino.
-	var radius := clampf(size_meters * 0.28, 0.15, 1.2)
+	var radius := capsule_radius(size_meters)
 	var height := maxf(size_meters, radius * 2.0 + 0.01)
 
 	var mesh := CapsuleMesh.new()

@@ -8,6 +8,11 @@ extends Camera3D
 ## criatura é a projeção do modelo vista de 30°/45°. Abrir a câmera para
 ## outros ângulos invalida o teste de silhueta de todo o bestiário.
 ##
+## O **zoom**, ao contrário do ângulo, é ajustável — num lugar só. Batalha e
+## chefe são proporções do mesmo `base_size`, então mexer nele move os três
+## juntos, que é o comportamento desejado: são enquadramentos do mesmo rig,
+## nunca cortes para outra câmera.
+##
 ## Especificação: documentos `camera-e-perspectiva` e
 ## `escala-e-camera-de-batalha` no bestiário.
 
@@ -20,11 +25,20 @@ const YAW_DEGREES := 45.0
 ## ortográfica, isto não muda o tamanho aparente — só evita clipping.
 const RIG_DISTANCE := 20.0
 
-## Tamanho ortográfico padrão. Este é o número que controla o zoom aparente.
-@export var base_size: float = 12.0
+## Tamanho ortográfico padrão. Este é o número que controla o zoom aparente, e
+## é o inverso dele: tamanho maior enquadra mais mundo, ou seja, **menos** zoom.
+##
+## Era 12,0. O zoom caiu para 70% do que era — 12 / 0,7 — para caber mais mapa
+## na tela.
+@export var base_size: float = 17.15
 
 ## Modulações permitidas. Combate aproxima; chefe afasta. São modulações do
 ## mesmo enquadramento, nunca corte para outra câmera.
+##
+## São **proporções de `base_size`**, de propósito: mexer no zoom geral move a
+## batalha junto, e é assim que tem de ser — o duelo é o mesmo enquadramento um
+## pouco mais fechado, não uma segunda câmera com vida própria. Quem ajustar o
+## `base_size` está ajustando os três.
 @export var battle_zoom_ratio: float = 0.875   # -12.5%
 @export var boss_zoom_ratio: float = 1.25      # +25%
 

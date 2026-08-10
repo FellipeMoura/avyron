@@ -8,16 +8,16 @@ Atualizado em: bundle `dataVersion 0.104`.
 
 ## Pendências imediatas
 
-### 1. Emplastro não é consumível
+### 1. Item de cura em combate
 
-`ITM-016`, `ITM-017` e `ITM-018` são compráveis, vendíveis e precificados, com `effectCode = heal_percent` no bundle. **Nada os consome.** As resinas de captura já funcionam (`C` no duelo); a cura ficou pela metade.
+**A metade do mapa está feita.** `ITM-016`/`017`/`018` se usam pela janela do time (`I` → alvo → item), consomem a bolsa e curam de verdade. `ItemEffects` é a classe de fórmula, `PlayerRoster.heal_at` aplica, `WorldRoot.use_item_on_slot` arbitra, `test_items.gd` prende. O laço econômico fechou: comprar cura é comprar tempo contra os 10 %/min de regeneração.
 
-O gancho de captura já existia em `BattleAction.capture(bonus)`; o de cura **não existe** — `BattleAction.Kind` tem `ABILITY`, `SWITCH`, `CAPTURE`, `FLEE`. Dois caminhos:
+Falta o uso **em combate**, que é o que o jogador do gênero espera. Exige `Kind.ITEM` em `BattleAction` e `_do_item` em `Battle`, ~40 linhas seguindo o padrão de `_do_capture`, mais um menu no `DuelScreen` espelhando o das resinas. A aritmética já está pronta e é reusável inteira — `ItemEffects.heal_amount` não sabe se quem chama é o mapa ou a batalha.
 
-- **Usar no mapa**, pela janela do time (`T`): escolhe a criatura, escolhe o item, cura. Não toca em `Battle`. Interage bem com o HP persistente — comprar cura passa a ser comprar tempo contra os 10 %/min de regeneração.
-- **Usar em combate**: exige `Kind.ITEM` em `BattleAction` e `_do_item` em `Battle`, ~40 linhas seguindo o padrão que já existe. É o uso clássico do gênero.
+Duas decisões a tomar quando isso for feito, e nenhuma delas é óbvia:
 
-O primeiro é menor e já entrega o laço econômico completo. O segundo é o que o jogador vai esperar.
+- **Usar item gasta o turno?** Se sim, é uma jogada e o adversário ataca no intervalo — mesma economia da troca. Se não, cura vira dominante e o duelo trava em quem tem mais emplastro.
+- **A recusa de cura nula vale em combate?** No mapa ela vale (`use_item_on_slot` mede antes de consumir). Em combate, recusar depois que o turno já foi escolhido é pior que gastar — o certo é a lista não oferecer alvo cheio, como a janela do mapa já faz.
 
 ### 2. Nginx ainda devolve 502 em produção
 
@@ -60,6 +60,26 @@ git lfs migrate import --include="*.glb" --everything
 
 O `avyron` já está protegido — `.gitattributes` com filtros LFS entrou antes do primeiro asset.
 
+### 4. A câmera de batalha enquadra o domador, não o confronto
+
+`BattleStaging` põe os dois combatentes frente a frente e o domador atrás da própria criatura. A composição está certa; quem não a mostra é a câmera, que segue o `Player` — e o `Player` agora é uma das **pontas** dela, não o centro.
+
+A conta, com os valores atuais:
+
+| | |
+|---|---|
+| domador → companheira | 6,5 m |
+| companheira → adversário | 8,9 m |
+| adversário → centro do quadro | **15,4 m** |
+| meia-altura do enquadramento (size 15,01) | 7,5 m |
+| meia-largura a 16:9 | 13,35 m |
+
+Abrir o `base_size` para 17,15 levou a batalha junto e trouxe o adversário de volta para dentro do quadro, mas por pouco e **dependendo do ângulo**: ao longo do eixo de visão a projeção comprime a distância por `sin(18°)` e 15,4 m viram 4,7 m, com folga; perpendicular a ele não há compressão nenhuma, e 15,4 m disputam com 13,35 m. Num confronto atravessado na tela o adversário encosta na borda.
+
+A correção é apontar a câmera para o **ponto médio dos dois combatentes** enquanto a batalha dura. `IsoCamera.set_target` já existe, e o ponto médio é exatamente o que a correção simétrica da encenação preserva — ele não se move, então seria um alvo estável, não um que persegue. Corta os 15,4 m pela metade e elimina a dependência do ângulo.
+
+O que trava a decisão não é a implementação, é o contrato: a câmera hoje tem **um** alvo e o lookahead lê a velocidade dele (`_target is CharacterBody3D`). Um ponto médio não é um nó, então ou `set_target` passa a aceitar uma posição, ou nasce um nó-âncora que a encenação move. O segundo é mais feio e não muda o `_physics_process`; o primeiro é mais limpo e mexe no lookahead.
+
 ---
 
 ## O caminho maior
@@ -97,8 +117,12 @@ Números escolhidos com raciocínio mas sem playtest. Todos ajustáveis por `PAT
 | Regeneração de HP | 10 %/min | `PlayerRoster.REGEN_FRACTION_PER_MINUTE` — **em código**, é o único que não veio do bestiário |
 | Renda de mineração | ~98 óbolos/min no PZ-01 com Loricati | derivado de `item_stats.value` × `mining_rates` |
 | Resina Comum | 60 óbolos ≈ 40 s de mineração | `item_stats` |
+| Emplastro de Limo | 80 óbolos por 30 % do HP ≈ 3 min de regeneração comprados | `item_stats` |
+| Seiva Primordial | 600 óbolos por 100 % ≈ 10 min comprados, a 2,25× o preço por ponto | `item_stats` |
 | Resina Ancestral | 500 óbolos ≈ 5 min | `item_stats` |
 | Margem do comerciante | `sellRatio` 0.4 | `economy_rules` |
 | Distância do companheiro | 2,6 m parado / 3,6 m correndo | `CompanionActor.FOLLOW_DISTANCE` — apresentação, fica em código |
 
 A regeneração é a primeira que eu mexeria depois de jogar: seis criaturas se recuperando em paralelo pode tornar a espera irrelevante, ou o contrário — ficar parado olhando a HUD.
+
+E agora ela não se mexe sozinha. Com a cura comprável, `REGEN_FRACTION_PER_MINUTE` é o denominador do preço de todo emplastro: acelerar a regeneração desvaloriza a prateleira inteira de uma vez, e o inverso torna a Seiva Primordial barata. Os dois números se ajustam juntos ou o comerciante fica com estoque parado. Vale notar a assimetria de propósito: por ponto percentual de HP, o Limo sai a 2,67 óbolos, o Espesso a 3,14 e a Seiva a 6,00 — o item caro compra *conveniência de um clique só*, não HP mais barato. A janela mostra o desperdício em ember justamente porque essa curva pune usar o caro cedo.

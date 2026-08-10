@@ -198,6 +198,43 @@ func set_hp_at(index: int, value: int) -> void:
 	changed.emit()
 
 
+## Recupera HP de um membro. Devolve quanto entrou **de fato** — zero quando
+## não havia o que curar.
+##
+## O retorno é o que deixa o chamador decidir se o item se gasta. Um emplastro
+## consumido numa criatura já cheia é o jogador perdendo 80 óbolos num clique,
+## e quem sabe que a cura foi nula é este método; um `void` obrigaria cada
+## chamador a refazer a conta de HP faltante antes de chamar, e um deles
+## esqueceria.
+##
+## Curar uma criatura caída é permitido, pela mesma razão que ela regenera
+## sozinha (ver `regenerate`): desmaiar é interdição temporária, não um estado
+## que precise de item específico para sair.
+func heal_at(index: int, amount: int) -> int:
+	if index < 0 or index >= _members.size() or amount <= 0:
+		return 0
+	var current := int(_members[index]["hp"])
+	var missing := max_hp_at(index) - current
+	var healed := mini(amount, missing)
+	if healed <= 0:
+		return 0
+	_members[index]["hp"] = current + healed
+	# Mesma razão do `set_hp_at`: quem acabou de ser curado não deve carregar
+	# resto fracionário de antes da cura.
+	_members[index]["accum"] = 0.0
+	changed.emit()
+	return healed
+
+
+## Quanto de HP falta para o membro encher. Zero para índice inválido — quem
+## pergunta é a lista de itens, e um slot vazio simplesmente não tem o que
+## curar.
+func missing_hp_at(index: int) -> int:
+	if index < 0 or index >= _members.size():
+		return 0
+	return maxi(0, max_hp_at(index) - int(_members[index]["hp"]))
+
+
 func alive_count() -> int:
 	var n := 0
 	for i in _members.size():

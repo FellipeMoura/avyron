@@ -20,23 +20,27 @@ O bestiário **roda local** desde a versão 0.104. O deploy em produção foi ap
 
 4. **A frente de um nó é `-Z`.** Para encarar uma direção: `atan2(-dir.x, -dir.z)`. Usar `atan2(x, z)` alinha `+Z` e o corpo anda de costas — já aconteceu, e foi o teste de cena jogável que pegou.
 
+5. **Encarar e afastar são medidas no plano.** Os corpos apoiam o Y em regras diferentes — `CreatureActor` sobe meia cápsula, `CompanionActor` fica em `GROUND_Y` com o mesh deslocado — então qualquer produto escalar ou distância entre dois deles mede o desnível junto se não achatar antes. O sintoma é um valor quase certo (`dot 0.913` em vez de `1.0`), que lê como imprecisão de giro e é geometria de outra dimensão.
+
 ## Como o código se divide
 
 ```
-scripts/data/     bundle e fórmulas puras (BestiaryData, CombatMath, MiningTable)
+scripts/data/     bundle e fórmulas puras (BestiaryData, CombatMath, MiningTable, ItemEffects)
 scripts/battle/   máquina de turnos (Battle, Combatant, BattleAction) — sem nós, sem sinais
 scripts/world/    mapa, atores, jogador, time, inventário
 scripts/ui/       telas e painéis
 scripts/dev/      suítes headless e sondas
 ```
 
-A separação que importa: **`data/` indexa e calcula, não decide.** `BestiaryData` só busca no bundle; `CombatMath` e `MiningTable` só aplicam fórmula. Quem decide é `battle/` e `world/`. Quando surgir um sistema novo com números, ele segue esse par — um índice em `BestiaryData`, uma classe de fórmula ao lado de `CombatMath`.
+A separação que importa: **`data/` indexa e calcula, não decide.** `BestiaryData` só busca no bundle; `CombatMath`, `MiningTable` e `ItemEffects` só aplicam fórmula. Quem decide é `battle/` e `world/`. Quando surgir um sistema novo com números, ele segue esse par — um índice em `BestiaryData`, uma classe de fórmula ao lado de `CombatMath`. `ItemEffects` é o exemplo mais recente disso.
+
+Cuidado com `effectValue`: é uma coluna só servindo códigos de efeito que a interpretam de formas diferentes — `heal_percent` guarda pontos percentuais (30, 70, 100), `capture_bonus` guarda multiplicador cru (1.5, 2.5, 4.0). Ler o campo sem olhar o `effectCode` ao lado dá um número plausível e errado.
 
 `Battle` é `RefCounted` puro de propósito: sem nós, sem sinais, sem árvore de cena. É o que torna 2.600 batalhas simuláveis em segundos na sonda de balanceamento e o que deixa a apresentação livre para consumir os eventos no ritmo que quiser.
 
 ## Testes
 
-Dez suítes headless, todas em `scripts/dev/`. Rodam sem editor. O padrão:
+Doze suítes headless, todas em `scripts/dev/`. Rodam sem editor. O padrão:
 
 ```gdscript
 extends SceneTree

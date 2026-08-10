@@ -4,6 +4,8 @@ Jogo 3D de coleção de criaturas com tema paleontológico, em Godot.
 
 Câmera isométrica ortográfica **travada em 30° de inclinação e 45° de azimute**. Exploração em tempo real, **combate por turnos** (1v1 com troca livre, disputado no mesmo espaço do mapa, sem corte para arena).
 
+O ângulo é travado; o **zoom** não. `IsoCamera.base_size` (17,15) é a única manopla — batalha e chefe são proporções dele (`×0,875` e `×1,25`), de propósito: o duelo é o mesmo enquadramento um pouco mais fechado, não uma segunda câmera com vida própria. Mexer no `base_size` move os três juntos.
+
 ## Onde vive o design
 
 Este repositório é o **jogo**. O catálogo de criaturas, a bíblia de design e todos os números de balanceamento vivem em outro lugar:
@@ -124,6 +126,36 @@ Oito criaturas selvagens nascem espalhadas, lidas do bundle: cápsulas escaladas
 
 Contato físico não faz mais nada: agressivas continuam perseguindo por pressão, mas quem aperta o gatilho é sempre o jogador.
 
+### A encenação do confronto
+
+Como o combate acontece no mesmo espaço, o par que aparece na luta é o par que a exploração deixou ali: a companheira atrás do domador e a selvagem onde a perseguição parou — de costas, colados ou a oito metros. `BattleStaging` corrige isso enquanto o duelo dura: os dois se **encaram** e convergem para a distância de duelo, aproximando-se se estiverem longe e afastando-se se estiverem perto demais. O **domador** entra na composição atrás da própria criatura, virado para o adversário junto com ela.
+
+```
+distância = (raio(a) + raio(b) + 0,8 + (tamanho_a + tamanho_b) × 0,35) × 2,5
+            limitada a [2,5 ; 17,5] m
+
+domador   = (raio(criatura) + raio(jogador) + 1,2) × 3, atrás dela no eixo
+```
+
+Somar os **raios** é o que faz a conta funcionar em escala real: o vão que se vê é sempre o mesmo, seja o par dois trilobitas de 15 cm ou dois Arthropleura de 2,5 m. Medir de centro a centro sem eles daria bichos grandes sobrepostos com o número que separa dois pequenos. A parcela proporcional existe pela razão inversa — um par gigante precisa de mais ar entre os corpos para a mesma leitura de "frente a frente".
+
+O `× 2,5` do par e o `× 3` do domador são **enquadramento, não geometria**. A soma dos raios mais a folga dá o ponto em que dois corpos apenas se livram — correto e cenicamente errado: lido de cima, em projeção ortográfica, um par nessa distância parece agarrado. Os multiplicadores abrem o vão até a leitura certa, e foram escolhidos olhando a cena. Os dois multiplicam o resultado **inteiro**, e os limites acompanham: aplicá-los só à folga faria o par grande crescer proporcionalmente menos que o pequeno, o oposto do que a distância precisa fazer.
+
+**Consequência de enquadramento:** a câmera segue o `Player`, que está numa das pontas da composição. Com o par a ~8,9 m e o domador 6,5 m atrás da própria criatura, o adversário fica a ~15,4 m do centro do quadro. O `base_size` aberto para 17,15 levou a batalha junto (15,01), e com isso o adversário voltou para dentro do enquadramento — mas por pouco, e depende de para onde o eixo do confronto aponta: ao longo do eixo de visão a projeção comprime a distância por `sin(18°)`, e 15,4 m viram 4,7 m contra 7,5 m de meia-altura, com folga; perpendicular a ele não há compressão, e 15,4 m disputam com 13,35 m de meia-largura a 16:9. Ou seja, num confronto atravessado na tela o adversário ainda encosta na borda.
+
+A correção definitiva é apontar a câmera para o **ponto médio dos dois combatentes** enquanto a batalha dura — `IsoCamera.set_target` já existe, e o ponto médio é justamente o que a correção simétrica da encenação preserva, então seria um alvo estável. Cortaria os 15,4 m pela metade e tiraria a dependência do ângulo. Ainda não foi decidido.
+
+O raio do jogador é lido da forma de colisão em `main.tscn`, não de uma constante — duas medidas do mesmo corpo discordariam no dia em que uma delas mudasse.
+
+Quatro decisões que o teste prende:
+
+- **Pode mexer na posição direto porque o mundo está pausado.** Nó pausado não processa, então a máquina de estados da `CreatureActor` e a trilha da `CompanionActor` estão as duas congeladas; `BattleStaging` roda com `PROCESS_MODE_ALWAYS`, como a câmera, e tem controle exclusivo dos dois corpos. É o que dispensa física, colisão e trava de prioridade. A encenação é liberada **antes** de o mundo voltar a andar, senão perseguição e trilha disputariam o mesmo `global_position` com ela.
+- **A correção é metade para cada um.** O ponto médio não se move, então a briga acontece onde eles se encontraram em vez de escorregar para o lado do mais lento — e nenhum dos dois faz todo o trabalho, que é o que faria a cena ler como "um foge" em vez de "os dois se medem".
+- **O domador fica de fora dessa simetria.** O posto dele é *derivado* da posição da criatura, não negociado com ninguém: puxá-lo para o cálculo faria o ponto do encontro escorregar na direção de quem está só assistindo. Ele também anda mais rápido que os combatentes (3,0 contra 2,0 m/s) — a marca dele está presa a um corpo que também se move, e com o mesmo ritmo ele nunca a alcançaria; com o recuo em 6,5 m isso deixou de ser detalhe.
+- **Só o yaw e o plano.** Os três corpos apoiam o Y em regras próprias — a selvagem sobe meia cápsula, a companheira fica no chão com o mesh deslocado, o domador fica no centro da própria cápsula — e escrever altura ali desfaria as três.
+
+Uma zona morta de 12 cm em torno da distância ideal impede o tremor a dois, pelo mesmo motivo que `CompanionActor.STOP_DISTANCE` existe. E o eixo do confronto é lembrado de um quadro para o outro: dois corpos exatamente sobrepostos não têm direção entre si, e sem essa memória o afastamento escolheria um rumo diferente a cada quadro.
+
 **Ciclo de vida no mapa** — vencer o combate remove o adversário do mapa e joga um slot de respawn na fila do `CreatureSpawner`. Depois de 20–40s, o slot vira uma criatura nova (espécie e posição sorteadas do pool do bioma). Fuga e derrota do jogador liberam a criatura de origem para ser reengajada. **Captura** remove o adversário sem respawn e o põe no time como reserva.
 
 ## Time e mineração
@@ -131,6 +163,8 @@ Contato físico não faz mais nada: agressivas continuam perseguindo por pressã
 **A criatura ativa amarra os três sistemas.** Quem está à frente no time é a mesma criatura em toda parte: anda ao lado do jogador, entra no duelo, e — pela **classe** dela — decide o que a mineração produz e em que ritmo. Trocar quem vai à frente não é ajuste de menu; muda o que sai do chão no próximo `F`.
 
 **Time** (`T`) — a janela lista a ativa e as reservas com status (HP atual, ATQ/DEF/VEL e perfil de mineração). Clique numa reserva, ou `1`–`6`, para mandá-la à frente. É a única peça de HUD do mapa que aceita clique — todo o resto usa `MOUSE_FILTER_IGNORE` para não roubar o clique de seleção de criatura. Não pausa o jogo.
+
+**Curar** (`I`, dentro da janela) — ver [Itens de cura](#itens-de-cura), abaixo.
 
 Seis slots. A capturada entra como **reserva**: quem estava à frente continua à frente, porque uma criatura recém-pega assumindo a exploração e o perfil de mineração no meio do mapa seria efeito colateral, não decisão. Com o time cheio a captura escapa e a criatura volta ao mapa, em vez de sumir em silêncio.
 
@@ -207,6 +241,36 @@ As **resinas** de captura entram no duelo pelo `C`: com resina em mãos ele abre
 
 O gancho `item_bonus` já existia em `BattleAction.capture()` desde a primeira versão da batalha, e nunca teve dado alimentando ele. Só faltava o item.
 
+### Itens de cura
+
+Os **emplastros** (`ITM-016`/`017`/`018`) se usam **no mapa**, pela janela do time. `I` entra no modo de cura, e a janela vira uma máquina de três estados:
+
+```
+lista ──I──▶ escolher alvo ──criatura──▶ escolher item ──usa──▶ escolher alvo
+  ◀───Esc────────┘                ◀────────Esc───────────┘
+```
+
+Escolher o alvo primeiro é o que a janela já é — uma lista de criaturas com o HP de cada uma — então o gesto natural é apontar o ferido e depois o remédio. Depois do uso ela volta a **escolher alvo**, não à lista: curar seis criaturas depois de um tombo não deve custar um `I` por criatura.
+
+```
+cura = floor(hpMáximo × effectValue / 100)      # heal_percent, com piso de 1
+cura = effectValue                              # heal_flat
+```
+
+`heal_percent` traz **pontos percentuais** (30, 70, 100). É a mesma coluna `effectValue` em que `capture_bonus` guarda multiplicador cru (1.5, 2.5, 4.0) — quem interpreta o número é sempre o `effectCode` ao lado, e ler o campo sozinho é o erro que transformaria o emplastro barato em cura infinita.
+
+Decisões que o teste prende:
+
+- **Cura nula não consome o item.** Alvo cheio é recusado antes de a bolsa ser tocada, e a lista de alvos apaga quem não tem ferimento. É o oposto da resina, que se gasta no arremesso — lá o risco é o preço; aqui a cura é determinística, e gastar sem efeito seria só perder óbolos por um clique.
+- **A lista mostra o efetivo, não o nominal.** `+100%` numa criatura a que faltam 12 HP restaura 12, e a linha diz `restaura 12 (desperdicia 92)`. Sem esse número o jogador queima a Seiva Primordial de 600 óbolos num arranhão.
+- **Ordenado do fraco para o forte**, como o menu de resinas: a tecla `1` cai sempre no item barato, então o gesto rápido nunca é o caro.
+- **Caída pode ser curada** — mesma regra da regeneração por tempo: desmaiar é interdição temporária.
+- **O filtro é por `effectCode`, não por categoria.** Categoria é como o bestiário organiza a vitrine; efeito é o que o jogo executa. Item de outra categoria que cure entra na lista sem ela saber que ele existe.
+
+A janela não cura nem consome nada: ela emite `item_use_requested(slot, código)` e o `WorldRoot` — que é quem tem a bolsa **e** o time — mede, recusa, consome e aplica, nessa ordem.
+
+Em combate ainda não se usa item. `BattleAction.Kind` continua com `ABILITY`, `SWITCH`, `CAPTURE`, `FLEE`; um `Kind.ITEM` com `_do_item` em `Battle` é o passo seguinte, e reaproveita `ItemEffects` inteiro.
+
 **Duelo** (`scenes/duel.tscn`) — aberto pelo encontro, entra com **o time inteiro**. Abrível sozinho com `F6` para playtest, e aí sorteia uma criatura só, porque sem mundo não há time.
 
 | Tecla | |
@@ -230,7 +294,7 @@ Derrota só acontece quando **o time inteiro** cai.
 
 ### Testes
 
-Duas suítes headless, sem dependência de editor:
+Doze suítes headless, sem dependência de editor:
 
 ```powershell
 $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe"
@@ -245,6 +309,8 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_team.gd         # HP persistente, regen, time em combate
 & $godot --headless --script res://scripts/dev/test_companion.gd    # a companheira segue, nao acompanha
 & $godot --headless --script res://scripts/dev/test_merchant.gd     # o laço da economia
+& $godot --headless --script res://scripts/dev/test_items.gd        # cura: formula, janela, bolsa
+& $godot --headless --script res://scripts/dev/test_staging.gd      # os dois se encaram no duelo
 ```
 
 `test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.
@@ -266,6 +332,12 @@ Também prende o "tudo ou nada" das duas pontas: sem saldo, nem a bolsa nem o in
 `test_companion.gd` separa "seguir" de "estar preso". A diferença é fácil de descrever e fácil de perder de vista, então o teste prende cada metade: não parte no mesmo quadro do comando, não orbita quando o jogador gira parado, não corta a diagonal na curva, e se orienta pela própria marcha em vez de copiar a do jogador. O "jogador" ali é um `Node3D` movido à mão em passos fixos — sem física nem input, porque o atraso de largada é da ordem de um oitavo de segundo e o jitter do motor esconderia justamente essa margem.
 
 `test_team.gd` responde "uma expedição custa alguma coisa?". Não testa `hp = hp - dano`; testa a cadeia inteira — sair ferido de uma batalha, entrar ferido na próxima, e a espera no mapa sendo o único jeito de desfazer isso. Inclui a armadilha da regeneração fracionária: 10% de 84 HP por minuto dá 0,023 HP por quadro a 60 fps, e sem acumulador a cura inteira desaparece no arredondamento. O teste roda o mesmo minuto em passo de segundo e em passo de quadro e exige que os dois cheguem ao mesmo lugar.
+
+`test_items.gd` responde "comprar cura serve para alguma coisa?". Antes dele os emplastros eram compráveis, vendíveis e precificados, e **nada os consumia** — o laço econômico terminava numa vitrine. A asserção que mais importa também é negativa: **cura nula não consome o item**, medida nos dois níveis (o `WorldRoot` recusa antes de tocar na bolsa, e a lista de alvos já apaga quem está cheio). Prende também que `30` em `heal_percent` são trinta por cento e não trinta vezes, e que uma resina na bolsa não aparece na lista de cura.
+
+`test_staging.gd` responde "a imagem mostra o que o overlay narra?". A asserção que mais importa é a da **simetria**: o ponto médio entre os dois não pode escorregar, porque é onde eles se encontraram — se um dia um dos lados passar a fazer todo o trabalho, é ela que pega. A do domador é a mesma medida por outro lado: montar a cena **com** e **sem** ele e exigir que o ponto do encontro caia no mesmo lugar. A segunda é a única que prova fiação em vez de geometria: uma fase inteira do teste espera **quadros reais do motor**, sem chamar `step`, com o mundo pausado. Sem ela, `PROCESS_MODE_ALWAYS` poderia cair e todo o resto continuaria verde.
+
+Ela também prende que o encaramento é medido **no plano**: a bancada põe os dois corpos em alturas diferentes de propósito (companheira no chão, selvagem meia cápsula acima), e um produto escalar em 3D mediria a inclinação entre eles em vez do encaramento — foi exatamente assim que a primeira versão do teste falhou com `dot 0.913`, que é o cosseno de 1,4 m de desnível e não um erro de yaw.
 
 `scripts/dev/setup_project.gd` gerou o input map e a cena inicial. É andaime de bootstrap — daqui em diante a edição normal é pelo editor.
 

@@ -23,6 +23,11 @@ extends Node3D
 ## combate é sempre do jogador. Criaturas agressivas continuam perseguindo,
 ## por pressão visual, mas quem aperta o gatilho é o mouse.
 ##
+## Ao engatar, `BattleStaging` põe a companheira e a selvagem frente a frente,
+## à distância de duelo. Sem isso o combate abriria com o par exatamente como a
+## exploração o deixou — de costas, colados ou a oito metros — e o overlay
+## narraria um confronto que a imagem não mostra.
+##
 ## ## A criatura ativa amarra os três sistemas
 ##
 ## Quem está à frente no `PlayerRoster` é a mesma criatura em toda parte: anda
@@ -74,6 +79,7 @@ var _mine_cooldown := 0.0
 var _mine_label: Label
 var _merchants: Array[MerchantActor] = []
 var _shop: MerchantScreen
+var _staging: BattleStaging
 
 ## Onde o comerciante fica. Posição de cena, não de bestiário: o catálogo diz
 ## quem existe e em que mapa, o layout do mundo diz onde. Quando houver
@@ -209,6 +215,7 @@ func _build_hud() -> void:
 	_roster_window = RosterWindow.new()
 	_roster_window.name = "RosterWindow"
 	_roster_window.activate_requested.connect(activate_slot)
+	_roster_window.item_use_requested.connect(use_item_on_slot)
 	layer.add_child(_roster_window)
 
 	_inventory_panel = InventoryPanel.new()
@@ -218,7 +225,10 @@ func _build_hud() -> void:
 
 	if _db:
 		_active_panel.setup(_db, biome_code)
-		_roster_window.setup(_db)
+		# A janela precisa da bolsa para listar o que há de cura. A mesma
+		# instância, não uma cópia — o que ela desenha tem de ser o que o
+		# comerciante acabou de vender.
+		_roster_window.setup(_db, _inventory)
 		_inventory_panel.setup(_db)
 	# Uma assinatura só mantém os dois painéis de time em dia — captura e troca
 	# de ativa passam pelo mesmo sinal, então nenhum caminho pode esquecer de
@@ -285,17 +295,24 @@ func _handle_key(keycode: Key) -> void:
 		toggle_roster_window()
 	elif keycode == KEY_ESCAPE:
 		# A janela aberta tem prioridade sobre a seleção: `Esc` fecha o que
-		# está por cima, que é a leitura que qualquer um espera.
+		# está por cima, que é a leitura que qualquer um espera. Dentro da
+		# janela ela volta um passo antes de fechar — sair da escolha de item
+		# direto para o mapa perderia o contexto de uma tecla só.
 		if _roster_open():
-			_roster_window.close()
+			if not _roster_window.back():
+				_roster_window.close()
 		elif _selected != null:
 			_clear_selection()
 		else:
 			return
+	elif keycode == KEY_I and _roster_open():
+		open_item_menu()
 	# Limitado por MAX_SLOTS, não por KEY_9: o rodapé da janela promete
-	# "1–6", e uma tecla que aceita mais do que o texto diz é ruído.
+	# "1–6", e uma tecla que aceita mais do que o texto diz é ruído. O que a
+	# linha *significa* depende do modo, e quem sabe disso é a janela — aqui só
+	# se traduz tecla em índice.
 	elif _roster_open() and keycode >= KEY_1 and keycode < KEY_1 + PlayerRoster.MAX_SLOTS:
-		activate_slot(keycode - KEY_1)
+		_roster_window.choose_row(keycode - KEY_1)
 	elif keycode == KEY_F and not _roster_open():
 		trigger_mine()
 	else:
@@ -403,6 +420,12 @@ func inventory() -> PlayerInventory:
 	return _inventory
 
 
+## A encenação do duelo corrente, ou null fora dele. Público para os testes
+## headless medirem a convergência sem depender do `_process` do motor.
+func staging() -> BattleStaging:
+	return _staging
+
+
 # ---------------------------------------------------------------------------
 # time
 # ---------------------------------------------------------------------------
@@ -427,6 +450,53 @@ func activate_slot(index: int) -> void:
 	if _roster == null or not _roster.set_active(index):
 		return
 	_show_mine_msg("À frente: %s" % _creature_name(_roster.active()))
+
+
+## Abre a escolha de item de cura dentro da janela do time. Público pela mesma
+## razão dos outros pontos de entrada: teste headless não sintetiza tecla.
+##
+## A recusa é falada. Uma tecla que não faz nada quando a bolsa está vazia é
+## indistinguível de uma tecla quebrada, e o jogador testaria as duas hipóteses
+## antes de concluir que precisa comprar emplastro.
+func open_item_menu() -> void:
+	if _roster_window == null or not _roster_open():
+		return
+	if not _roster_window.open_item_mode():
+		_show_mine_msg("Nenhum item de cura na bolsa.")
+
+
+## Usa um item de cura numa criatura do time. É o dono da bolsa **e** do time
+## que faz as duas metades, na ordem em que uma depende da outra: mede a cura,
+## recusa se ela for nula, consome, aplica.
+##
+## Consumir por último é o oposto do que a resina de captura faz — lá o item se
+## gasta no arremesso, dê certo ou não, porque o risco é o preço. Aqui não há
+## risco: a cura é determinística, então gastar sem efeito seria só perder
+## óbolos por um clique.
+func use_item_on_slot(index: int, item_code: String) -> void:
+	if _roster == null or _inventory == null or _db == null or item_code == "":
+		return
+	if index < 0 or index >= _roster.size():
+		return
+
+	var effect := _db.item_effect_code(item_code)
+	if not ItemEffects.is_heal(effect):
+		return
+	if not _inventory.has(item_code):
+		_show_mine_msg("Voce nao tem %s." % _db.item_name(item_code))
+		return
+
+	var amount := ItemEffects.heal_amount(
+		effect, _db.item_effect_value(item_code), _roster.max_hp_at(index))
+	if _roster.missing_hp_at(index) <= 0 or amount <= 0:
+		_show_mine_msg("%s nao tem o que curar." % _creature_name(_roster.code_at(index)))
+		return
+
+	if not _inventory.remove(item_code):
+		return
+	var healed := _roster.heal_at(index, amount)
+	_show_mine_msg("%s: %s recuperou %d de HP."
+		% [_db.item_name(item_code), _creature_name(_roster.code_at(index)), healed])
 
 
 ## Reconstrói tudo que depende de quem está à frente. É o único ponto que sabe
@@ -509,6 +579,10 @@ func _show_mine_msg(text: String) -> void:
 func _on_inventory_changed() -> void:
 	if _inventory_panel:
 		_inventory_panel.refresh(_inventory.entries(), _inventory.currency)
+	# A janela do time lista quantidade de item e some com a lista quando a
+	# última cura acaba. Sem isto, comprar emplastro com a janela aberta a
+	# deixaria dizendo que a bolsa está vazia.
+	_refresh_roster_window()
 
 
 # ---------------------------------------------------------------------------
@@ -622,14 +696,59 @@ func _on_creature_engaged(actor: CreatureActor) -> void:
 	layer.add_child(_duel)
 	add_child(layer)
 
+	_begin_staging(actor)
+
 	if _camera:
 		_camera.enter_battle()
 	# Congela exploração e IA; o overlay segue processando.
 	get_tree().paused = true
 
 
+## Põe a companheira e a criatura selvagem frente a frente enquanto o duelo
+## dura. Quem luta pelo jogador é a **ativa**, então é o corpo dela que encena —
+## o domador fica onde estava, assistindo.
+##
+## Silenciosamente não faz nada quando falta um dos dois lados: em playtest de
+## cena solta pode não haver companheira, e um duelo sem encenação continua
+## sendo um duelo.
+func _begin_staging(actor: CreatureActor) -> void:
+	_end_staging()
+	if _companion == null or not is_instance_valid(_companion) or actor == null:
+		return
+	_staging = BattleStaging.create(
+		_companion, _companion.size_meters, actor, actor.size_meters)
+	# O domador entra na composição atrás da própria criatura. Sem jogador a
+	# encenação segue valendo para o par que luta.
+	if _player:
+		_staging.set_trainer(_player, _player_radius())
+	add_child(_staging)
+
+
+## Raio do corpo do jogador, lido da cena. Vem da forma de colisão, e não de
+## uma constante aqui, porque a cápsula do `Player` vive em `main.tscn` — duas
+## medidas do mesmo corpo discordariam no dia em que uma delas mudasse.
+##
+## O padrão só entra se a cena não tiver forma de cápsula, o que hoje não
+## acontece: é rede para playtest de cena montada à mão.
+func _player_radius(default_radius: float = 0.35) -> float:
+	var collision := _player.get_node_or_null("Collision") as CollisionShape3D
+	if collision and collision.shape is CapsuleShape3D:
+		return (collision.shape as CapsuleShape3D).radius
+	return default_radius
+
+
+func _end_staging() -> void:
+	if _staging and is_instance_valid(_staging):
+		_staging.queue_free()
+	_staging = null
+
+
 func _on_duel_closed(outcome: int) -> void:
 	get_tree().paused = false
+	# A encenação sai antes de o mundo voltar a andar. Deixá-la viva um quadro
+	# a mais poria a perseguição da criatura e a trilha da companheira
+	# disputando o mesmo `global_position` com ela.
+	_end_staging()
 	if _camera:
 		_camera.exit_battle()
 

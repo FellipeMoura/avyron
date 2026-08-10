@@ -50,7 +50,7 @@ shape = SubResource("CapsuleShape3D_choun")
 [node name="IsoCamera" type="Camera3D" parent="." unique_id=725748541]
 transform = Transform3D(0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, -0.35355338, 0.6123724, 12.247448, 11, 12.247448)
 projection = 1
-size = 12.0
+size = 17.15
 far = 200.0
 script = ExtResource("3_tbgi4")
 target_path = NodePath("../Player")
