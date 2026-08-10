@@ -22,7 +22,13 @@ const SWITCH_PRIORITY := 6
 var kind: Kind
 var ability_code: String = ""
 var switch_to_index: int = -1
-var item_bonus: float = 1.0
+
+## Só preenchidos em `Kind.CAPTURE`. A chamadora resolve o relicário equipado
+## antes de montar a ação — `Battle` não conhece `PlayerRelic`, só recebe os
+## três primitivos que `RelicMath.capture_chance` precisa.
+var relic_rate: float = 0.0
+var relic_element: String = ""
+var relic_class: String = ""
 
 
 static func use_ability(code: String) -> BattleAction:
@@ -39,12 +45,15 @@ static func switch_to(party_index: int) -> BattleAction:
 	return a
 
 
-## Capturar consome o turno, como um golpe. `bonus` é o multiplicador do item
-## usado — 1.0 para o básico.
-static func capture(bonus: float = 1.0) -> BattleAction:
+## Capturar consome o turno, como um golpe. Os três valores vêm do relicário
+## equipado no momento em que o jogador aperta a tecla — sem eles (relicário
+## nulo) a chamadora nem deve montar esta ação.
+static func capture(rate: float, element: String, class_code: String) -> BattleAction:
 	var a := BattleAction.new()
 	a.kind = Kind.CAPTURE
-	a.item_bonus = bonus
+	a.relic_rate = rate
+	a.relic_element = element
+	a.relic_class = class_code
 	return a
 
 

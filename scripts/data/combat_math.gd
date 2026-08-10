@@ -114,33 +114,11 @@ static func _charge_gain(
 	return fraction * float(c["max"]) * side_multiplier * charge_scale
 
 
-## Chance de captura, entre 0 e 1.
-##
-##     chance = (catchRate / 255) * (1 - 2*hp / (3*hpMax)) * bônusItem * multDespertar
-##
-## O termo do HP é o que amarra combate e captura numa decisão só: com vida
-## cheia a chance cai a um terço, com vida quase zerada vai a quase inteira.
-## O resultado é preso entre um piso e um teto — captura nunca é garantida
-## nem impossível.
-static func capture_chance(
-	catch_rate: int,
-	current_hp: int,
-	max_hp: int,
-	rules: Dictionary,
-	item_bonus: float = 1.0,
-	awakened_multiplier: float = 1.0,
-	is_awakened: bool = false
-) -> float:
-	if max_hp <= 0:
-		return 0.0
-
-	var cap: Dictionary = rules["capture"]
-	var hp_term := 1.0 - (2.0 * float(current_hp)) / (3.0 * float(max_hp))
-	var raw := (float(catch_rate) / 255.0) * hp_term * item_bonus
-	if is_awakened:
-		raw *= awakened_multiplier
-
-	return clampf(raw, float(cap["minChance"]), float(cap["maxChance"]))
+## Captura: ver `RelicMath.capture_chance`. A fórmula antiga baseada em HP e
+## Despertar (`chance = catchRate/255 * hp_term * item_bonus * mult_despertar`)
+## foi substituída pelo sistema de Relicário — sem consumível, sem termo de
+## HP. `rules["capture"]` (`combat_rules.captureMinChance/maxChance`) segue
+## exportado por compatibilidade histórica do bundle, mas nada aqui o lê mais.
 
 
 ## Quem age primeiro. Devolve > 0 se `a` age antes, < 0 se `b` age antes,

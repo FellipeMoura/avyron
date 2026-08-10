@@ -229,9 +229,9 @@ func _do_capture(action: BattleAction, is_player: bool) -> void:
 		_log("capture_failed", enemy, {"text": "nao da para capturar a criatura de outro domador"})
 		return
 
-	var chance := CombatMath.capture_chance(
-		enemy.catch_rate, enemy.hp, enemy.max_hp, rules,
-		action.item_bonus, enemy.awakened_capture_multiplier, enemy.is_awakened
+	var chance := RelicMath.capture_chance(
+		db, action.relic_rate, action.relic_element, action.relic_class,
+		enemy.catch_rate, enemy.element, enemy.creature_class
 	)
 	var roll := rng.randf()
 	if roll < chance:

@@ -74,6 +74,9 @@ var _active_panel: ActiveCreaturePanel
 var _roster_window: RosterWindow
 var _inventory: PlayerInventory
 var _inventory_panel: InventoryPanel
+var _relic: PlayerRelic
+var _relic_station: RelicStationActor
+var _relic_screen: RelicStationScreen
 var _mine_rng := RandomNumberGenerator.new()
 var _mine_cooldown := 0.0
 var _mine_label: Label
@@ -85,6 +88,16 @@ var _staging: BattleStaging
 ## quem existe e em que mapa, o layout do mundo diz onde. Quando houver
 ## vilarejo modelado, isto vira um marcador na cena.
 const MERCHANT_SPOT := Vector3(6.0, 0.0, -6.0)
+
+## Idem, pro posto do Relicário — depositar/retirar do storage e trocar de
+## modelo só funcionam perto daqui (documento `relicario`: "exige estar em
+## um ponto fixo"). Mesmo raciocínio de placeholder que o comerciante já é.
+const RELIC_STATION_SPOT := Vector3(9.0, 0.0, -6.0)
+
+## Sem sistema de aquisição ainda (fora de escopo no handoff de design), todo
+## jogador começa equipado com o mesmo modelo — placeholder explícito, não
+## amarrado ao `starter_code` do mapa.
+const STARTER_RELIC_CODE := "RLC-001"
 
 ## Segundos entre minerações consecutivas, antes do perfil de trabalho da
 ## classe ativa. Theria (×1.1) espera menos, Draconis (×0.9) espera mais.
@@ -115,6 +128,13 @@ func _ready() -> void:
 	_roster = PlayerRoster.new()
 	_roster.setup(_db, encounter_level, starter_code)
 
+	# Sem aquisição ainda, todo jogador entra com o mesmo relicário — mas a
+	# capacidade do time já reflete o `slotCapacity` dele desde o início.
+	if _db:
+		_relic = PlayerRelic.from_bestiary(_db, STARTER_RELIC_CODE)
+	if _relic:
+		_roster.set_capacity(_relic.slot_capacity(_db))
+
 	_spawner = CreatureSpawner.new()
 	_spawner.name = "CreatureSpawner"
 	_spawner.level = encounter_level
@@ -130,6 +150,7 @@ func _ready() -> void:
 
 	_spawn_companion()
 	_spawn_merchants()
+	_spawn_relic_station()
 	_build_hud()
 	_update_hint()
 
@@ -149,6 +170,17 @@ func _spawn_merchants() -> void:
 		# Segundo comerciante no mesmo mapa fica ao lado do primeiro em vez de
 		# dentro dele. Provisório até haver vilarejo com posições próprias.
 		spot += Vector3(2.5, 0.0, 0.0)
+
+
+## Um posto só por mapa, sempre presente — ao contrário do comerciante, não é
+## dado do bestiário (não existe `npc_role` pra isso ainda), então não há
+## "zero é normal" aqui: sem storage não há como esvaziar slots pra trocar de
+## modelo, e essa regra do design doc precisa de um lugar pra valer.
+func _spawn_relic_station() -> void:
+	_relic_station = RelicStationActor.create(RELIC_STATION_SPOT)
+	_relic_station.name = "RelicStation"
+	_relic_station.engaged.connect(_on_relic_station_engaged)
+	add_child(_relic_station)
 
 
 func _spawn_companion() -> void:
@@ -307,11 +339,11 @@ func _handle_key(keycode: Key) -> void:
 			return
 	elif keycode == KEY_I and _roster_open():
 		open_item_menu()
-	# Limitado por MAX_SLOTS, não por KEY_9: o rodapé da janela promete
-	# "1–6", e uma tecla que aceita mais do que o texto diz é ruído. O que a
-	# linha *significa* depende do modo, e quem sabe disso é a janela — aqui só
-	# se traduz tecla em índice.
-	elif _roster_open() and keycode >= KEY_1 and keycode < KEY_1 + PlayerRoster.MAX_SLOTS:
+	# Limitado pela capacidade atual do time, não por KEY_9 fixo: o rodapé da
+	# janela promete "1–N", e uma tecla que aceita mais do que o texto diz é
+	# ruído. Ainda clampado a 9 — dígito único, mesmo teto que o comerciante já
+	# usa — mesmo que um relicário exótico erga a capacidade além disso.
+	elif _roster_open() and keycode >= KEY_1 and keycode < KEY_1 + mini(_roster.capacity(), 9):
 		_roster_window.choose_row(keycode - KEY_1)
 	elif keycode == KEY_F and not _roster_open():
 		trigger_mine()
@@ -337,6 +369,9 @@ func handle_click_at(screen_pos: Vector2) -> void:
 	if hit is MerchantActor:
 		handle_click_on_merchant(hit as MerchantActor)
 		return
+	if hit is RelicStationActor:
+		handle_click_on_relic_station(hit as RelicStationActor)
+		return
 	handle_click_on(hit as CreatureActor)
 
 
@@ -347,6 +382,18 @@ func handle_click_on_merchant(actor: MerchantActor) -> void:
 		return
 	if _player and actor.flat_distance_to(_player.global_position) > MerchantActor.INTERACT_RANGE:
 		_show_mine_msg("%s esta longe demais." % actor.display_name)
+		return
+	_clear_selection()
+	actor.request_engage()
+
+
+## Abre o posto do relicário, se o jogador estiver perto. Mesmo padrão de
+## `handle_click_on_merchant`.
+func handle_click_on_relic_station(actor: RelicStationActor) -> void:
+	if actor == null or _relic_screen != null or _duel != null or _shop != null:
+		return
+	if _player and actor.flat_distance_to(_player.global_position) > RelicStationActor.INTERACT_RANGE:
+		_show_mine_msg("O posto do relicario esta longe demais.")
 		return
 	_clear_selection()
 	actor.request_engage()
@@ -365,8 +412,9 @@ func handle_click_on(actor: CreatureActor) -> void:
 		_select(actor)
 
 
-## Devolve o corpo clicado — criatura, comerciante, ou null. Quem decide o que
-## fazer com ele é `handle_click_at`; misturar as duas responsabilidades aqui
+## Devolve o corpo clicado — criatura, comerciante, posto do relicário, ou
+## null. Quem decide o que fazer com ele é `handle_click_at`; misturar as
+## duas responsabilidades aqui
 ## foi o que fez esta função ter tipo de retorno fechado antes de existir mais
 ## de um tipo de coisa clicável.
 func _pick_body(screen_pos: Vector2) -> Node3D:
@@ -386,7 +434,7 @@ func _pick_body(screen_pos: Vector2) -> Node3D:
 	if hit.is_empty():
 		return null
 	var collider: Object = hit.get("collider")
-	if collider is CreatureActor or collider is MerchantActor:
+	if collider is CreatureActor or collider is MerchantActor or collider is RelicStationActor:
 		return collider as Node3D
 	return null
 
@@ -418,6 +466,10 @@ func roster() -> PlayerRoster:
 
 func inventory() -> PlayerInventory:
 	return _inventory
+
+
+func relic() -> PlayerRelic:
+	return _relic
 
 
 ## A encenação do duelo corrente, ou null fora dele. Público para os testes
@@ -469,10 +521,8 @@ func open_item_menu() -> void:
 ## que faz as duas metades, na ordem em que uma depende da outra: mede a cura,
 ## recusa se ela for nula, consome, aplica.
 ##
-## Consumir por último é o oposto do que a resina de captura faz — lá o item se
-## gasta no arremesso, dê certo ou não, porque o risco é o preço. Aqui não há
-## risco: a cura é determinística, então gastar sem efeito seria só perder
-## óbolos por um clique.
+## Consumir por último importa porque a cura é determinística — gastar antes
+## de medir o efeito arriscaria perder óbolos por um clique sem efeito nenhum.
 func use_item_on_slot(index: int, item_code: String) -> void:
 	if _roster == null or _inventory == null or _db == null or item_code == "":
 		return
@@ -510,14 +560,14 @@ func _on_roster_changed() -> void:
 
 	if _active_panel:
 		var i := _roster.active_index()
-		_active_panel.refresh(active, encounter_level, _roster.size(),
+		_active_panel.refresh(active, _roster.level_at(i), _roster.size(), _roster.capacity(),
 			_roster.hp_at(i), _roster.max_hp_at(i))
 	_refresh_roster_window()
 
 
 func _refresh_roster_window() -> void:
 	if _roster_window and _roster_window.is_open():
-		_roster_window.refresh(_roster, encounter_level)
+		_roster_window.refresh(_roster)
 
 
 func _creature_name(code: String) -> String:
@@ -625,6 +675,39 @@ func _on_shop_closed() -> void:
 	_show_world_hud()
 
 
+func _on_relic_station_engaged(actor: RelicStationActor) -> void:
+	if _relic_screen != null or _duel != null or _shop != null:
+		return
+
+	_hide_world_hud()
+
+	_relic_screen = RelicStationScreen.new()
+	_relic_screen.name = "RelicStationScreen"
+	_relic_screen.closed.connect(_on_relic_screen_closed)
+	# A troca de modelo acontece dentro da tela (novo `PlayerRelic`, própria
+	# capacidade) — o mundo só precisa saber qual passou a valer, pra montar
+	# o próximo duelo com ele.
+	_relic_screen.relic_swapped.connect(func(new_relic: PlayerRelic): _relic = new_relic)
+
+	var layer := CanvasLayer.new()
+	layer.name = "RelicStationLayer"
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	layer.add_child(_relic_screen)
+	add_child(layer)
+
+	_relic_screen.setup(_db, _roster, _relic)
+	get_tree().paused = true
+
+
+func _on_relic_screen_closed() -> void:
+	get_tree().paused = false
+	var layer := get_node_or_null("RelicStationLayer")
+	if layer:
+		layer.queue_free()
+	_relic_screen = null
+	_show_world_hud()
+
+
 ## Esconde a HUD de exploração. Sem isto o hint de WASD e os painéis vazam
 ## atrás do overlay — ruído puro enquanto a atenção está em outra coisa.
 func _hide_world_hud() -> void:
@@ -681,9 +764,9 @@ func _on_creature_engaged(actor: CreatureActor) -> void:
 	_duel.player_code = _roster.active()
 	_duel.player_party = _roster.to_party()
 	_duel.player_active_index = _roster.active_index()
-	# A mesma instância, não uma cópia: a resina gasta na batalha tem de sumir
-	# da bolsa que o mapa desenha.
-	_duel.inventory = _inventory
+	# A mesma instância: capturar sobe o nível do relicário aqui embaixo, e a
+	# tela de duelo precisa da taxa/elemento/classe atuais pra montar a ação.
+	_duel.relic = _relic
 	_duel.enemy_code = actor.creature_code
 	_duel.duel_level = encounter_level
 	_duel.closed.connect(_on_duel_closed)
@@ -774,17 +857,31 @@ func _on_duel_closed(outcome: int) -> void:
 	if _engaged_actor and is_instance_valid(_engaged_actor):
 		if outcome == Battle.Outcome.PLAYER_WON:
 			_spawner.remove_actor(_engaged_actor)
+			# Uma mensagem só: `_show_mine_msg` substitui a anterior na hora, e
+			# perder o aviso de drop pro aviso de XP (ou vice-versa) no mesmo
+			# quadro seria pior que juntar os dois numa linha.
+			var parts: Array[String] = []
+			var drop_msg := _grant_drops(fought)
+			if drop_msg != "":
+				parts.append(drop_msg)
+			var xp_msg := _grant_creature_xp(fought)
+			if xp_msg != "":
+				parts.append(xp_msg)
+			if not parts.is_empty():
+				_show_mine_msg("   ·   ".join(parts))
 		elif outcome == Battle.Outcome.CAPTURED:
 			# Entra com o HP com que foi capturada — enfraquecer para capturar
 			# tem preço, e ele é pago depois, esperando ela se recuperar.
 			# Time cheio: a criatura não some do mapa. Engolir a captura em
 			# silêncio seria perder o bicho e a batalha juntos.
-			if _roster.add(_engaged_actor.creature_code, captured_hp):
+			var captured_level := fought.enemy.level if fought else -1
+			if _roster.add(_engaged_actor.creature_code, captured_hp, captured_level):
 				_spawner.remove_actor(_engaged_actor, false)
+				_grant_capture_xp()
 			else:
 				_engaged_actor.reset_engagement()
 				_show_mine_msg("Time cheio (%d/%d) — a captura escapou."
-					% [_roster.size(), PlayerRoster.MAX_SLOTS])
+					% [_roster.size(), _roster.capacity()])
 		else:
 			_engaged_actor.reset_engagement()
 	_engaged_actor = null
@@ -798,3 +895,66 @@ func _on_duel_closed(outcome: int) -> void:
 	# a remoção ocorre, mas chamar aqui garante o texto certo mesmo nos
 	# desfechos que não mexem na população.
 	_update_hint()
+
+
+## Sorteia o que a criatura derrotada largou e joga na bolsa. Chamado só em
+## `PLAYER_WON` — capturar não mata a criatura, então não há o que largar.
+## Devolve a mensagem pronta, ou "" sem drop nenhum — quem chama decide como
+## (ou se) mostrar, porque `PLAYER_WON` também concede XP no mesmo instante.
+func _grant_drops(fought: Battle) -> String:
+	if fought == null or _db == null or _inventory == null:
+		return ""
+	var won := LootTable.roll(_mine_rng, _db.creature_drops(fought.enemy.code))
+	if won.is_empty():
+		return ""
+	for item_code in won:
+		_inventory.add(item_code)
+	var names: Array[String] = []
+	for item_code in won:
+		names.append(_db.item_name(item_code))
+	return "Encontrado: %s" % ", ".join(names)
+
+
+## Concede XP de vitória à criatura que terminou a luta em campo — a
+## finalizadora, não o time inteiro (ver comentário de escolha em
+## `grant_xp_at`). Mesma exigência dupla de sempre: XP cheio e material da
+## própria classe da criatura disponível na bolsa. Devolve a mensagem pronta,
+## ou "" se não subiu nada digno de aviso.
+func _grant_creature_xp(fought: Battle) -> String:
+	if fought == null or _db == null or _inventory == null:
+		return ""
+	var xp_rules: Dictionary = _db.progression_rules().get("xp", {})
+	if xp_rules.is_empty():
+		return ""
+	var divisor := float(xp_rules.get("yieldDivisor", 0.0))
+	if divisor <= 0.0:
+		return ""
+	var gained := int(floor(float(fought.enemy.xp_yield) * float(fought.enemy.level) / divisor))
+	if gained <= 0:
+		return ""
+
+	var idx := fought.player_active_index
+	var result := _roster.grant_xp_at(idx, gained, _inventory)
+	var name := _creature_name(_roster.code_at(idx))
+	if result["leveled_up"]:
+		return "%s subiu para o nivel %d!" % [name, int(result["new_level"])]
+	if result["waiting_material"]:
+		var cls := str(_db.creature(_roster.code_at(idx)).get("class", ""))
+		return "%s: XP cheio, falta %s." % [name, _db.item_name(_db.class_material_item(cls))]
+	return ""
+
+
+## Concede XP de captura ao relicário equipado e sobe de nível se der — precisa
+## de XP cheio e do material da própria classe do relicário disponível na
+## bolsa (documento `relicario`). Chamado só depois que a captura já entrou
+## no time, nunca numa captura que escapou por time cheio.
+func _grant_capture_xp() -> void:
+	if _relic == null or _db == null or _inventory == null:
+		return
+	var result := _relic.grant_capture_xp(_db, _inventory)
+	if result["leveled_up"]:
+		_show_mine_msg("%s subiu para o nivel %d!"
+			% [_relic.display_name(_db), int(result["new_level"])])
+	elif result["waiting_material"]:
+		_show_mine_msg("%s: XP cheio, falta %s."
+			% [_relic.display_name(_db), _db.item_name(_relic.material_item_code(_db))])

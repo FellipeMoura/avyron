@@ -39,6 +39,12 @@ var defense_modifier := 1.0
 var catch_rate := 0
 var awakened_capture_multiplier := 1.0
 
+## Quanto esta espécie concede a quem vencer, no nível atual — a conta de XP
+## em si (dividir e arredondar) fica com quem monitora a batalha de fora
+## (`WorldRoot`), não com `Combatant`: XP de progressão não é estado de
+## combate, é o que sobra dele.
+var xp_yield := 0
+
 var _abilities: Array = []          # dicionários do bundle, em ordem de aprendizado
 var _uses_left: Dictionary = {}     # código -> usos restantes
 
@@ -68,6 +74,7 @@ static func from_bestiary(db: BestiaryData, creature_code: String, at_level: int
 	var raw_stats: Dictionary = data["stats"]
 	c.awakening_multiplier = float(raw_stats["awakeningMultiplier"])
 	c.awakening_duration = int(raw_stats["awakeningDurationTurns"])
+	c.xp_yield = int(raw_stats.get("xpYield", 0))
 
 	var awk: Variant = data.get("awakening", null)
 	c.has_awakening = awk != null

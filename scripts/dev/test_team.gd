@@ -46,6 +46,8 @@ func _process(_delta: float) -> bool:
 			_test_composition()
 			_test_hp_state()
 			_test_regen()
+			_test_storage_and_capacity()
+			_test_progression()
 			_test_battle_party()
 			_test_replacement()
 			_test_persistence_round_trip()
@@ -97,7 +99,7 @@ func _test_composition() -> void:
 
 	while not r.is_full():
 		r.add("CRT-001")
-	_check("time enche em MAX_SLOTS", r.size(), PlayerRoster.MAX_SLOTS)
+	_check("time enche na capacidade atual", r.size(), r.capacity())
 	_check_true("time cheio recusa captura", not r.add("CRT-003"))
 
 
@@ -174,6 +176,132 @@ func _test_regen() -> void:
 	_check("dez minutos enchem o HP", fine.hp_at(0), fine.max_hp_at(0))
 	fine.regenerate(60.0)
 	_check("cheia nao passa do teto", fine.hp_at(0), fine.max_hp_at(0))
+
+
+# ---------------------------------------------------------------------------
+# storage e capacidade dinamica (Relicario)
+# ---------------------------------------------------------------------------
+
+func _test_storage_and_capacity() -> void:
+	print("storage e capacidade:")
+	var r := _new_roster()
+	_check("capacidade padrao antes de qualquer relicario", r.capacity(), 6)
+
+	r.set_capacity(3)
+	_check("set_capacity ajusta o teto", r.capacity(), 3)
+	r.set_capacity(999)
+	_check("set_capacity clampa no HARD_CEILING", r.capacity(), PlayerRoster.HARD_CEILING)
+	r.set_capacity(3)
+
+	_check_true("nao deposita a unica ativa", not r.deposit(0))
+	r.add(RESERVE)
+	_check_true("deposita quando sobra pelo menos uma", r.deposit(0))
+	_check("foi para o storage", r.storage_size(), 1)
+	_check("saiu do ativo", r.size(), 1)
+	_check("quem sobrou vira a ativa", r.active(), RESERVE)
+
+	_check_true("retira do storage", r.withdraw(0))
+	_check("storage esvaziou", r.storage_size(), 0)
+	_check("voltou pro ativo", r.size(), 2)
+
+	# Lota o ativo (capacidade 3, já tem 2) com algo guardado à espera, pra
+	# provar que retirar respeita o teto mesmo com storage não vazio.
+	while not r.is_full():
+		r.add("CRT-001")
+	_check_true("time cheio", r.is_full())
+	_check_true("abre vaga e guarda algo", r.deposit(0))
+	r.add("CRT-001")
+	_check_true("time cheio de novo, com algo no storage", r.is_full() and r.storage_size() > 0)
+	_check_true("time cheio recusa retirada mesmo com storage nao vazio", not r.withdraw(0))
+	_check_true("deposita para abrir vaga", r.deposit(0))
+	_check_true("agora ha vaga, retirada funciona", r.withdraw(0))
+
+	# Regen alcança o storage, não só o ativo — a guardada também cura sem
+	# estar no mapa. Fere ANTES de depositar, senão ela já entraria cheia e a
+	# regen não teria o que provar.
+	var storage_check := _new_roster()
+	storage_check.add(RESERVE)
+	storage_check.set_hp_at(0, 0)  # fere a STARTER, ainda ativa
+	storage_check.deposit(0)       # STARTER vai pro storage ferida; RESERVE fica ativa
+	_check("STARTER esta guardada", storage_check.storage_entries()[0], STARTER)
+	_check("entrou no storage ferida", storage_check.storage_hp_at(0), 0)
+	for _i in 60:
+		storage_check.regenerate(1.0)
+	_check_true("guardada regenera sem estar no mapa", storage_check.storage_hp_at(0) > 0,
+		"%d de HP apos 1 min" % storage_check.storage_hp_at(0))
+
+
+# ---------------------------------------------------------------------------
+# progressão de nível — XP de criatura, mesma lógica do Relicário
+# ---------------------------------------------------------------------------
+
+func _test_progression() -> void:
+	print("progressao de nivel:")
+	var xp_rules: Dictionary = _db.progression_rules().get("xp", {})
+	var cost_rules: Dictionary = _db.progression_rules().get("levelUpCost", {})
+	_check_true("bundle tem regras de progressao", not xp_rules.is_empty() and not cost_rules.is_empty())
+
+	var r := _new_roster()
+	_check("comeca no nivel do setup", r.level_at(0), LEVEL)
+	_check("sem xp no comeco", r.xp_at(0), 0)
+
+	var threshold := ProgressionMath.xp_to_next(
+		float(xp_rules["curveBase"]), float(xp_rules["curveExponent"]), LEVEL)
+	_check("xp_to_next_at bate com a formula", r.xp_to_next_at(0), threshold)
+
+	# STARTER (CRT-002) é Loricati — o material e' o dela mesma, nao o de
+	# quem foi derrotado.
+	var class_code := str(_db.creature(STARTER).get("class", ""))
+	var material := _db.class_material_item(class_code)
+	_check_true("Loricati tem material de classe", material != "", material)
+
+	var inv := PlayerInventory.new()
+
+	# XP abaixo do limiar: acumula, sem subir, sem tocar a bolsa.
+	var partial := r.grant_xp_at(0, 1, inv)
+	_check_true("xp parcial nao sobe de nivel", not partial["leveled_up"])
+	_check("xp foi somado", r.xp_at(0), 1)
+
+	# Enche o limiar sem ter o material: trava no teto, avisa, nao rouba a bolsa.
+	var filled := r.grant_xp_at(0, threshold, inv)
+	_check_true("sem material, nao sobe", not filled["leveled_up"])
+	_check_true("mas fica esperando", filled["waiting_material"])
+	_check("xp trava exatamente no limiar", r.xp_at(0), threshold)
+	_check("nivel nao mudou", r.level_at(0), LEVEL)
+
+	# Com o material em mãos, o próximo ganho (por menor que seja) resolve.
+	inv.add(material, int(cost_rules["base"]) + 5)  # folga generosa
+	var qty_before := inv.quantity(material)
+	var leveled := r.grant_xp_at(0, 1, inv)
+	_check_true("com material, sobe de nivel", leveled["leveled_up"])
+	_check("nivel foi pra frente", r.level_at(0), LEVEL + 1)
+	_check("new_level bate com level_at", leveled["new_level"], r.level_at(0))
+	var cost := ProgressionMath.material_cost(int(cost_rules["base"]), int(cost_rules["levelStep"]), LEVEL)
+	_check("material foi consumido na quantidade certa", qty_before - inv.quantity(material), cost)
+	# threshold + 1 - threshold = 1: o resto atravessa o level-up, nao some.
+	_check("resto de xp atravessa o level-up", r.xp_at(0), 1)
+
+	# Teto maximo de HP cresceu junto — a curva de stats le o novo nivel.
+	var top_before: int = int(_db.stats_at_level(STARTER, LEVEL)["hp"])
+	var top_after := r.max_hp_at(0)
+	_check_true("HP maximo cresceu com o nivel", top_after > top_before,
+		"%d -> %d" % [top_before, top_after])
+
+	# Um salto de XP gigante sobe mais de um nivel numa unica chamada, desde
+	# que a bolsa aguente o material de cada degrau.
+	var big := _new_roster()
+	var big_inv := PlayerInventory.new()
+	big_inv.add(material, 999)
+	var jump := big.grant_xp_at(0, threshold * 10, big_inv)
+	_check_true("xp grande sobe de nivel", jump["leveled_up"])
+	_check_true("mais de um nivel de uma vez", big.level_at(0) > LEVEL + 1,
+		"foi ate %d" % big.level_at(0))
+
+	# Indice invalido e quantidade zero sao no-op seguro.
+	var noop := r.grant_xp_at(9, 10, inv)
+	_check_true("indice invalido nao sobe nada", not noop["leveled_up"])
+	var noop2 := r.grant_xp_at(0, 0, inv)
+	_check_true("xp zero nao faz nada", not noop2["leveled_up"] and not noop2["waiting_material"])
 
 
 # ---------------------------------------------------------------------------

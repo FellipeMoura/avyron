@@ -223,25 +223,36 @@ func _test_switching() -> void:
 	_check("troca redundante ignorada", b.player_active().code, before)
 
 
+## A fórmula em si (`RelicMath.capture_chance`) já é testada exaustivamente
+## em `test_data.gd`. Aqui a pergunta é outra: `Battle._do_capture` liga
+## `action.relic_rate/relic_element/relic_class` na fórmula e resolve o roll
+## certo — um smoke test de ponta a ponta, não da aritmética.
 func _test_capture() -> void:
-	print("captura:")
-	# Inimigo quase derrotado e catchRate alto: captura praticamente certa.
+	print("captura via relicario:")
+	var relic_code: String = _db.relic_codes()[0]
+	var relic := _db.relic(relic_code)
+	var relic_rate := _db.relic_capture_rate_at_level(relic_code, 1)
+
+	# catchRate alto (facil, convencao herdada) -> resistance baixo -> base%
+	# passa longe do teto mesmo sem nenhum bonus de elemento/classe.
 	var hero := Combatant.from_bestiary(_db, "CRT-021", 20)
-	var weak := Combatant.from_bestiary(_db, "CRT-024", 20)   # catchRate 200
-	weak.hp = 1
+	var weak := Combatant.from_bestiary(_db, "CRT-024", 20)   # catchRate alto
 	var b := Battle.new(_db, [hero], weak)
 	b.rng.seed = 7
-
-	b.resolve_round(BattleAction.capture(3.0), BattleAction.use_ability("HAB-007"))
-	_check("capturou", b.outcome, Battle.Outcome.CAPTURED)
+	b.resolve_round(
+		BattleAction.capture(relic_rate, str(relic["element"]), str(relic["class"])),
+		BattleAction.use_ability("HAB-007"))
+	_check("captura quase certa captura", b.outcome, Battle.Outcome.CAPTURED)
 	_check_true("batalha terminou", b.is_over())
 
-	# Com HP cheio a chance despenca — com a mesma semente, escapa.
-	var healthy := Combatant.from_bestiary(_db, "CRT-023", 20)   # catchRate 65
-	var b2 := Battle.new(_db, [Combatant.from_bestiary(_db, "CRT-021", 20)], healthy)
+	# Taxa minima, sem bonus (elemento/classe inexistentes de proposito, pra
+	# garantir neutro) contra o chefe mais dificil -> chance no piso.
+	var hero2 := Combatant.from_bestiary(_db, "CRT-021", 20)
+	var boss := Combatant.from_bestiary(_db, "CRT-023", 20)   # catchRate baixo
+	var b2 := Battle.new(_db, [hero2], boss)
 	b2.rng.seed = 7
-	b2.resolve_round(BattleAction.capture(), BattleAction.use_ability("HAB-010"))
-	_check_true("chefe com HP cheio escapa", b2.outcome != Battle.Outcome.CAPTURED)
+	b2.resolve_round(BattleAction.capture(0.01, "ELE-999", "CLS-999"), BattleAction.use_ability("HAB-010"))
+	_check_true("taxa minima praticamente nunca captura", b2.outcome != Battle.Outcome.CAPTURED)
 
 
 func _test_status_effects() -> void:

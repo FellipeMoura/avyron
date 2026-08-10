@@ -44,6 +44,10 @@ var _biome_mining: Dictionary = {}  # biomeCode -> {itemCode: float}
 var _items: Dictionary = {}         # code -> Dictionary
 var _merchants: Dictionary = {}     # code -> Dictionary
 
+## Modelos de Relicário — código -> Dictionary já achatado com `relic_stats`
+## pelo exportador (elemento, classe, slotCapacity, curvas de captura/buff).
+var _relics: Dictionary = {}        # code -> Dictionary
+
 ## Constantes da economia: nome da moeda, bolsa inicial, margem do comerciante.
 var economy: Dictionary = {}
 
@@ -94,6 +98,7 @@ func load_bundle(path: String = BUNDLE_PATH) -> String:
 	_index_mining(bundle.get("mining", null))
 	_items = _index_by_code(bundle.get("items", []))
 	_merchants = _index_by_code(bundle.get("merchants", []))
+	_relics = _index_by_code(bundle.get("relics", []))
 	economy = bundle.get("economy", {})
 
 	if _creatures.is_empty():
@@ -106,6 +111,10 @@ func load_bundle(path: String = BUNDLE_PATH) -> String:
 	# anterior ao módulo de mineração.
 	if _minerals.is_empty():
 		push_warning("Bestiary: bundle sem o bloco `mining` — mineracao desligada. Re-exporte.")
+	# Mesmo raciocínio: bundle anterior ao módulo de Relicário não deve travar
+	# o jogo, só desligar captura/storage até re-exportar.
+	if _relics.is_empty():
+		push_warning("Bestiary: bundle sem o bloco `relics` — Relicário desligado. Re-exporte.")
 
 	_loaded = true
 	return ""
@@ -272,6 +281,20 @@ func items_in_category(category: String) -> Array:
 	return out
 
 
+## O material de `category = "material"` que pertence a uma classe — o item
+## que sobe de nível gasta, seja uma criatura dessa classe (`progressao`) ou
+## um relicário dessa classe (`relicario`). Só 3 hoje (`ITM-019/020/021`),
+## scan linear está bem. Vazio se a classe não existe ou não tem material
+## cadastrado.
+func class_material_item(class_code: String) -> String:
+	if class_code == "":
+		return ""
+	for item in items_in_category("material"):
+		if str(item.get("classCode", "")) == class_code:
+			return str(item["code"])
+	return ""
+
+
 func item_codes() -> Array:
 	return _items.keys()
 
@@ -357,6 +380,86 @@ func known_abilities(creature_code: String, level: int) -> Array:
 			if not a.is_empty():
 				out.append(a)
 	return out
+
+
+## `catchRate` bruto da criatura (1–255, maior é mais fácil), lido do bloco
+## `capture` do bundle. Fonte única de dificuldade por criatura — o Relicário
+## deriva `resistance` dele (`RelicMath.resistance`), não guarda o próprio.
+func catch_rate(creature_code: String) -> int:
+	var c := creature(creature_code)
+	var cap: Variant = c.get("capture", null)
+	return int(cap["catchRate"]) if cap != null else 0
+
+
+## O que a criatura larga ao ser derrotada: `[{itemCode, chance, condition}]`.
+## Vazio para criatura sem drop cadastrado — estado normal, não erro.
+func creature_drops(creature_code: String) -> Array:
+	return creature(creature_code).get("drops", [])
+
+
+## `{xp: {curveBase, curveExponent, yieldDivisor}, levelUpCost: {base, levelStep}}`
+## — as constantes de progressão de nível de criatura. Mesmo bloco `rules`
+## que a formula de dano já lê, só a fatia `progression`. Ver `ProgressionMath`
+## e documento `progressao`.
+func progression_rules() -> Dictionary:
+	var p: Variant = rules.get("progression", null)
+	return p if typeof(p) == TYPE_DICTIONARY else {}
+
+
+## Teto de nível do jogo (`combat_rules.levelMax`). Cria monta subindo até
+## aqui e para — sem isso, XP sobrando numa criatura já no topo tentaria
+## gastar material pra um nível que não existe.
+func level_cap() -> int:
+	var levels: Variant = rules.get("levels", null)
+	if typeof(levels) != TYPE_DICTIONARY:
+		return 999
+	return int(levels.get("max", 999))
+
+
+# ---------------------------------------------------------------------------
+# Relicário
+#
+# Mesma divisão de sempre: esta classe indexa o bundle, `RelicMath` decide a
+# fórmula. `_relics` já chega achatado (modelo + `relic_stats` num só dict),
+# então não há uma segunda tabela pra cruzar aqui dentro.
+# ---------------------------------------------------------------------------
+
+func relic(code: String) -> Dictionary:
+	return _relics.get(code, {})
+
+
+func relic_codes() -> Array:
+	return _relics.keys()
+
+
+func has_relics() -> bool:
+	return not _relics.is_empty()
+
+
+## Constantes globais do sistema (floors/bônus de captura, curva de XP e
+## custo de material do nível do relicário). `{}` se o bundle é anterior ao
+## módulo — `has_relics()` já avisou no load.
+func relic_rules() -> Dictionary:
+	var r: Variant = rules.get("relic", null)
+	return r if typeof(r) == TYPE_DICTIONARY else {}
+
+
+## Taxa de captura do relicário no nível dado — sobe linear a partir de
+## `baseCaptureRate` (o valor no nível 1).
+func relic_capture_rate_at_level(relic_code: String, level: int) -> float:
+	var r := relic(relic_code)
+	if r.is_empty():
+		return 0.0
+	return RelicMath.rate_at_level(float(r["baseCaptureRate"]), float(r["captureRatePerLevel"]), level)
+
+
+## Magnitude do buff de combate do relicário no nível dado. Mesma curva da
+## taxa de captura, campos diferentes.
+func relic_combat_buff_at_level(relic_code: String, level: int) -> float:
+	var r := relic(relic_code)
+	if r.is_empty():
+		return 0.0
+	return RelicMath.rate_at_level(float(r["combatBuffBase"]), float(r["combatBuffPerLevel"]), level)
 
 
 # ---------------------------------------------------------------------------

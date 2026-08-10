@@ -24,9 +24,7 @@ extends PanelContainer
 ##
 ## O modo muda o que a linha significa, e por isso o rodapé é reescrito em
 ## cada um: uma lista que faz coisas diferentes com o mesmo clique sem dizer
-## qual é o caso é a receita do clique errado. É o mesmo desenho do menu de
-## resinas do duelo (`_capture_mode` em `DuelScreen`) — dois lugares com o
-## mesmo problema resolvido do mesmo jeito.
+## qual é o caso é a receita do clique errado.
 
 signal activate_requested(index: int)
 
@@ -65,7 +63,6 @@ var _item_rows: Array[String] = []
 ## sem o `WorldRoot` no meio — e pedir o time de volta a cada mudança de modo
 ## faria a janela depender de quem a abriu para trocar de tela.
 var _roster: PlayerRoster
-var _level := 1
 
 
 func _ready() -> void:
@@ -222,14 +219,13 @@ func _on_row_pressed(index: int) -> void:
 ## barato para seis slots e elimina toda a classe de bug em que a linha ativa
 ## e o índice real saem de sincronia.
 ##
-## Recebe o time inteiro, não uma lista de códigos: o HP corrente de cada
-## membro vive nele, e passar códigos e HP em arrays paralelos seria criar
-## duas fontes que podem discordar.
-func refresh(roster: PlayerRoster, level: int) -> void:
+## Recebe o time inteiro, não uma lista de códigos: o HP e o **nível** de cada
+## membro vivem nele — cada criatura sobe sozinha por XP agora, não há mais
+## um nível de encontro achatado pra passar aqui.
+func refresh(roster: PlayerRoster) -> void:
 	if roster == null:
 		return
 	_roster = roster
-	_level = level
 	_render()
 
 
@@ -237,9 +233,9 @@ func _render() -> void:
 	if _rows == null or _roster == null:
 		return
 
-	# A bolsa pode ter esvaziado desde que o modo abriu — a última resina gasta
-	# na tela anterior, por exemplo. Cair para a lista normal é mais honesto
-	# que oferecer uma lista de zero linhas.
+	# A bolsa pode ter esvaziado desde que o modo abriu — o último emplastro
+	# gasto na tela anterior, por exemplo. Cair para a lista normal é mais
+	# honesto que oferecer uma lista de zero linhas.
 	if _mode != Mode.LIST and _held_heal_items().is_empty():
 		_reset_mode()
 
@@ -262,9 +258,9 @@ func _render_team() -> void:
 			% [COL_BONE, COL_SLATE]
 	else:
 		_title.text = "[color=%s]time[/color]   [color=%s]%d/%d[/color]" \
-			% [COL_BONE, COL_SLATE, _roster.size(), PlayerRoster.MAX_SLOTS]
+			% [COL_BONE, COL_SLATE, _roster.size(), _roster.capacity()]
 
-	for i in PlayerRoster.MAX_SLOTS:
+	for i in _roster.capacity():
 		var occupied := i < _roster.size()
 		var row := Button.new()
 		row.custom_minimum_size = Vector2(0, ROW_HEIGHT if occupied else ROW_HEIGHT_EMPTY)
@@ -296,13 +292,13 @@ func _render_team() -> void:
 
 	if picking:
 		_footer.text = "[color=%s]clique ou 1–%d escolhe   ·   Esc volta[/color]" \
-			% [COL_SLATE, PlayerRoster.MAX_SLOTS]
+			% [COL_SLATE, _roster.capacity()]
 	else:
 		var heal_hint := ""
 		if not _held_heal_items().is_empty():
 			heal_hint = "   ·   I usa item"
 		_footer.text = "[color=%s]clique ou 1–%d manda à frente%s   ·   T / Esc fecha[/color]" \
-			% [COL_SLATE, PlayerRoster.MAX_SLOTS, heal_hint]
+			% [COL_SLATE, _roster.capacity(), heal_hint]
 
 
 func _render_items() -> void:
@@ -382,7 +378,7 @@ func _row_text(slot: int, picking: bool) -> String:
 	var marker := "[color=%s]●[/color] " % COL_EMBER if is_active else "  "
 	var head := "%s %s[color=%s][b]%s[/b][/color]   [color=%s]Lv %d · %s · %s[/color]" \
 		% [number, marker, COL_BONE, str(c.get("name", code)), COL_SLATE,
-		   _level, class_label, element_name]
+		   _roster.level_at(slot), class_label, element_name]
 
 	# HP corrente na frente dos stats: com dano que persiste, "quanto sobrou" é
 	# a leitura que decide a troca, e stat base é contexto.
@@ -403,7 +399,7 @@ func _row_text(slot: int, picking: bool) -> String:
 			detail += "   [color=%s]faltam %d[/color]" % [COL_MOSS, top - hp]
 		return head + "\n" + detail
 
-	var stats := _db.stats_at_level(code, _level) if _db else {}
+	var stats := _db.stats_at_level(code, _roster.level_at(slot)) if _db else {}
 	if not stats.is_empty():
 		detail += "  [color=%s]· ATQ %d · DEF %d · VEL %d[/color]" \
 			% [COL_SLATE, int(stats["attack"]), int(stats["defense"]), int(stats["speed"])]
@@ -424,9 +420,8 @@ func _row_text(slot: int, picking: bool) -> String:
 # itens
 # ---------------------------------------------------------------------------
 
-## Curas em mãos, da mais fraca para a mais forte — a mesma ordenação do menu
-## de resinas do duelo, e pela mesma razão: a tecla `1` cai sempre no item
-## barato, então o gesto rápido nunca é o caro.
+## Curas em mãos, da mais fraca para a mais forte: a tecla `1` cai sempre no
+## item barato, então o gesto rápido nunca é o caro.
 ##
 ## Filtra por `effectCode`, não por categoria: a categoria é como o bestiário
 ## organiza a vitrine, o efeito é o que o jogo executa. Um item de outra

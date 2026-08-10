@@ -84,13 +84,16 @@ const TRAINER_GAP := 1.2
 
 ## Multiplicador de enquadramento sobre o recuo do domador, irmão do
 ## `DUEL_SPREAD` e pela mesma razão: a distância geométrica põe os dois corpos
-## quase encostados, e em projeção ortográfica isso lê como uma peça só. O ×3
-## separa o domador da própria criatura o bastante para se ver quem é quem.
+## quase encostados, e em projeção ortográfica isso lê como uma peça só — o
+## multiplicador abre esse vão até separar visualmente quem é quem.
+##
+## Era ×3; reduzido pela metade (×1.5) a pedido, pra aproximar o domador da
+## própria criatura em combate.
 ##
 ## Multiplica o recuo inteiro, não só a folga — a mesma escolha do
 ## `DUEL_SPREAD`, para o afastamento crescer junto com o tamanho da criatura em
 ## vez de ficar proporcionalmente menor nos bichos grandes.
-const TRAINER_SPREAD := 3.0
+const TRAINER_SPREAD := 1.5
 
 ## Ritmo do domador tomando posição. Acima do `APPROACH_SPEED` de propósito: o
 ## posto dele é preso à criatura, que também está andando, e com o mesmo ritmo

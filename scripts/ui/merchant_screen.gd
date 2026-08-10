@@ -6,7 +6,7 @@ extends PanelContainer
 ## com a atenção em outra coisa.
 ##
 ## Instrumento de playtest, texto puro, pelo mesmo motivo do duelo: o que
-## precisa ser avaliado é a *economia* — se o preço de uma resina corresponde
+## precisa ser avaliado é a *economia* — se o preço de um consumível corresponde
 ## a um tempo de mineração que se sente justo —, e para isso a tabela crua é
 ## melhor do que qualquer vitrine.
 ##

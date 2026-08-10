@@ -134,16 +134,18 @@ Como o combate acontece no mesmo espaço, o par que aparece na luta é o par que
 distância = (raio(a) + raio(b) + 0,8 + (tamanho_a + tamanho_b) × 0,35) × 2,5
             limitada a [2,5 ; 17,5] m
 
-domador   = (raio(criatura) + raio(jogador) + 1,2) × 3, atrás dela no eixo
+domador   = (raio(criatura) + raio(jogador) + 1,2) × 1,5, atrás dela no eixo
 ```
 
 Somar os **raios** é o que faz a conta funcionar em escala real: o vão que se vê é sempre o mesmo, seja o par dois trilobitas de 15 cm ou dois Arthropleura de 2,5 m. Medir de centro a centro sem eles daria bichos grandes sobrepostos com o número que separa dois pequenos. A parcela proporcional existe pela razão inversa — um par gigante precisa de mais ar entre os corpos para a mesma leitura de "frente a frente".
 
-O `× 2,5` do par e o `× 3` do domador são **enquadramento, não geometria**. A soma dos raios mais a folga dá o ponto em que dois corpos apenas se livram — correto e cenicamente errado: lido de cima, em projeção ortográfica, um par nessa distância parece agarrado. Os multiplicadores abrem o vão até a leitura certa, e foram escolhidos olhando a cena. Os dois multiplicam o resultado **inteiro**, e os limites acompanham: aplicá-los só à folga faria o par grande crescer proporcionalmente menos que o pequeno, o oposto do que a distância precisa fazer.
+O `× 2,5` do par e o `× 1,5` do domador são **enquadramento, não geometria**. A soma dos raios mais a folga dá o ponto em que dois corpos apenas se livram — correto e cenicamente errado: lido de cima, em projeção ortográfica, um par nessa distância parece agarrado. Os multiplicadores abrem o vão até a leitura certa, e foram escolhidos olhando a cena. Os dois multiplicam o resultado **inteiro**, e os limites acompanham: aplicá-los só à folga faria o par grande crescer proporcionalmente menos que o pequeno, o oposto do que a distância precisa fazer.
 
-**Consequência de enquadramento:** a câmera segue o `Player`, que está numa das pontas da composição. Com o par a ~8,9 m e o domador 6,5 m atrás da própria criatura, o adversário fica a ~15,4 m do centro do quadro. O `base_size` aberto para 17,15 levou a batalha junto (15,01), e com isso o adversário voltou para dentro do enquadramento — mas por pouco, e depende de para onde o eixo do confronto aponta: ao longo do eixo de visão a projeção comprime a distância por `sin(18°)`, e 15,4 m viram 4,7 m contra 7,5 m de meia-altura, com folga; perpendicular a ele não há compressão, e 15,4 m disputam com 13,35 m de meia-largura a 16:9. Ou seja, num confronto atravessado na tela o adversário ainda encosta na borda.
+`TRAINER_SPREAD` era `3,0`; caiu pela metade (`1,5`) a pedido, para aproximar o domador da própria criatura em combate — o resto da fórmula (raios, `TRAINER_GAP`) não mudou, então o recuo inteiro só encolheu, não a leitura de "quem é quem".
 
-A correção definitiva é apontar a câmera para o **ponto médio dos dois combatentes** enquanto a batalha dura — `IsoCamera.set_target` já existe, e o ponto médio é justamente o que a correção simétrica da encenação preserva, então seria um alvo estável. Cortaria os 15,4 m pela metade e tiraria a dependência do ângulo. Ainda não foi decidido.
+**Consequência de enquadramento:** a câmera segue o `Player`, que está numa das pontas da composição. Com o par a ~8,9 m e o domador agora ~3,25 m atrás da própria criatura (era 6,5 m), o adversário fica a ~12,15 m do centro do quadro — era 15,4 m. O `base_size` aberto para 17,15 levou a batalha junto (15,01): ao longo do eixo de visão a projeção comprime por `sin(18°)`, e 12,15 m viram ~3,75 m contra 7,5 m de meia-altura, com folga; perpendicular a ele não há compressão, e 12,15 m já cabem dentro dos 13,35 m de meia-largura a 16:9 — o caso que antes estourava (15,4 > 13,35) agora não estoura mais neste exemplo.
+
+A correção definitiva continua sendo apontar a câmera para o **ponto médio dos dois combatentes** enquanto a batalha dura — `IsoCamera.set_target` já existe, e o ponto médio é justamente o que a correção simétrica da encenação preserva, então seria um alvo estável e livre de depender do ângulo. Reduzir o recuo do domador é mitigação, não a correção: um par grande o bastante ainda pode voltar a estourar a borda perpendicular, só que precisa de um par bem maior que o exemplo medido aqui para chegar lá agora.
 
 O raio do jogador é lido da forma de colisão em `main.tscn`, não de uma constante — duas medidas do mesmo corpo discordariam no dia em que uma delas mudasse.
 
@@ -151,12 +153,12 @@ Quatro decisões que o teste prende:
 
 - **Pode mexer na posição direto porque o mundo está pausado.** Nó pausado não processa, então a máquina de estados da `CreatureActor` e a trilha da `CompanionActor` estão as duas congeladas; `BattleStaging` roda com `PROCESS_MODE_ALWAYS`, como a câmera, e tem controle exclusivo dos dois corpos. É o que dispensa física, colisão e trava de prioridade. A encenação é liberada **antes** de o mundo voltar a andar, senão perseguição e trilha disputariam o mesmo `global_position` com ela.
 - **A correção é metade para cada um.** O ponto médio não se move, então a briga acontece onde eles se encontraram em vez de escorregar para o lado do mais lento — e nenhum dos dois faz todo o trabalho, que é o que faria a cena ler como "um foge" em vez de "os dois se medem".
-- **O domador fica de fora dessa simetria.** O posto dele é *derivado* da posição da criatura, não negociado com ninguém: puxá-lo para o cálculo faria o ponto do encontro escorregar na direção de quem está só assistindo. Ele também anda mais rápido que os combatentes (3,0 contra 2,0 m/s) — a marca dele está presa a um corpo que também se move, e com o mesmo ritmo ele nunca a alcançaria; com o recuo em 6,5 m isso deixou de ser detalhe.
+- **O domador fica de fora dessa simetria.** O posto dele é *derivado* da posição da criatura, não negociado com ninguém: puxá-lo para o cálculo faria o ponto do encontro escorregar na direção de quem está só assistindo. Ele também anda mais rápido que os combatentes (3,0 contra 2,0 m/s) — a marca dele está presa a um corpo que também se move, e com o mesmo ritmo ele nunca a alcançaria.
 - **Só o yaw e o plano.** Os três corpos apoiam o Y em regras próprias — a selvagem sobe meia cápsula, a companheira fica no chão com o mesh deslocado, o domador fica no centro da própria cápsula — e escrever altura ali desfaria as três.
 
 Uma zona morta de 12 cm em torno da distância ideal impede o tremor a dois, pelo mesmo motivo que `CompanionActor.STOP_DISTANCE` existe. E o eixo do confronto é lembrado de um quadro para o outro: dois corpos exatamente sobrepostos não têm direção entre si, e sem essa memória o afastamento escolheria um rumo diferente a cada quadro.
 
-**Ciclo de vida no mapa** — vencer o combate remove o adversário do mapa e joga um slot de respawn na fila do `CreatureSpawner`. Depois de 20–40s, o slot vira uma criatura nova (espécie e posição sorteadas do pool do bioma). Fuga e derrota do jogador liberam a criatura de origem para ser reengajada. **Captura** remove o adversário sem respawn e o põe no time como reserva.
+**Ciclo de vida no mapa** — vencer o combate remove o adversário do mapa, joga um slot de respawn na fila do `CreatureSpawner`, sorteia os drops dele (ver [Nível e XP](#nível-e-xp)) e concede XP à criatura que terminou a luta. Depois de 20–40s, o slot vira uma criatura nova (espécie e posição sorteadas do pool do bioma). Fuga e derrota do jogador liberam a criatura de origem para ser reengajada. **Captura** remove o adversário sem respawn, o põe no time como reserva no próprio nível que tinha no encontro, e concede XP de captura ao relicário equipado.
 
 ## Time e mineração
 
@@ -186,6 +188,22 @@ Consequências, todas deliberadas:
 - **Caída pode andar à frente no mapa** — ali ela é só uma criatura muito ferida. Quem barra desmaiada é o combate.
 - **Time inteiro caído não abre combate.** O clique avisa e não engata, em vez de abrir um duelo travado na substituição sem ninguém para escolher.
 - A regeneração não precisa de trava para não correr durante a luta: o mundo fica pausado, e nó pausado não processa.
+
+### Nível e XP
+
+Cada criatura sobe de nível **sozinha** — não existe mais um nível de encontro achatado pro time inteiro. `PlayerRoster` guarda nível e XP por membro; o teto de HP de cada uma deriva do próprio nível (`stats_at_level`), não de um valor único do mundo.
+
+```
+xpGanho   = floor(xpYield_do_derrotado × nível_do_derrotado / xpYieldDivisor)
+xpToNext  = floor(xpCurveBase × nível ^ xpCurveExponent)
+custo     = itemCostBase + floor(nível / itemCostLevelStep)   # unidades do material
+```
+
+**Só quem terminou a luta em campo ganha XP** — a finalizadora, não o time inteiro. É a mesma escolha de "um destinatário só" que a captura já faz para o relicário; mudar para "todo mundo que lutou" é contido a um ponto só (`WorldRoot._grant_creature_xp`) se o design pedir o contrário depois.
+
+Subir de nível pede as duas condições ao mesmo tempo, igual ao Relicário: **XP cheio e o material da própria classe da criatura** que sobe (`ITM-019` Quitina Fossilizada para Loricati, `020` Presa Fóssil para Theria, `021` Escama Fóssil para Draconis) — o material vem de **drops** de combate, não do comerciante. Sem o material na bolsa, a barra trava no teto em vez de estourar; o próximo ganho de XP (a próxima vitória) resolve sozinho assim que o jogador tiver o item. `PlayerRoster.grant_xp_at` e `PlayerRelic.grant_capture_xp` compartilham a mesma curva (`ProgressionMath`), extraída quando o segundo consumidor apareceu.
+
+**Drops** — criatura derrotada em combate (não capturada — capturar não a mata) rola cada entrada de `creature.drops` **independentemente** (`LootTable.roll`): zero, um ou vários itens na mesma vitória, sem relação entre as chances. O material de subida de nível é só mais um item nessa lista, com a classe do **derrotado** decidindo qual material cai — nunca a de quem venceu. `WorldRoot._grant_drops` joga o que caiu direto na bolsa e mostra uma mensagem; nada cai se o roll não der em nada, e a HUD fica quieta.
 
 **Mineração** — `F` coleta um mineral sorteado por:
 
@@ -233,13 +251,36 @@ O *spread* entre comprar e vender é a margem do comerciante, e é o que impede 
 
 | Categoria | Efeito | O que faz |
 |---|---|---|
-| `capture` | `capture_bonus` | multiplica a chance de captura |
 | `heal` | `heal_percent` | recupera % do HP máximo |
 | `mineral` | `none` | mercadoria pura |
 
-As **resinas** de captura entram no duelo pelo `C`: com resina em mãos ele abre a lista, sem resina captura direto — menu de uma opção só é cerimônia. A resina se gasta no arremesso, dê certo ou não; devolvê-la em caso de falha faria tentar de novo custar nada, e a escolha entre a resina cara e a barata deixaria de existir.
+`capture` é categoria legada: os consumíveis de captura (as antigas resinas) saíram do catálogo quando a captura passou a ser resolvida pelo **Relicário**.
 
-O gancho `item_bonus` já existia em `BattleAction.capture()` desde a primeira versão da batalha, e nunca teve dado alimentando ele. Só faltava o item.
+### Relicário
+
+Equipamento do domador — sem item consumido por tentativa. O que limita é a **capacidade de slots** do modelo equipado e o storage geral, não a bolsa. Todo jogador começa equipado com `RLC-001` (`WorldRoot.STARTER_RELIC_CODE`): sem sistema de aquisição ainda, é o mesmo placeholder explícito que o catálogo já documenta para os três modelos de exemplo.
+
+**Captura** entra no duelo pelo `C` e é direta — sem menu: com um relicário equipado ele resolve a tentativa na hora, e sem relicário a tecla recusa com aviso. `BattleAction.capture()` recebe a taxa e o elemento/classe do relicário (`relic.capture_rate()`, `relic.element_code()`, `relic.class_code()`), não um bônus de item; a fórmula vive em `scripts/data/relic_math.gd` e não tem termo de HP nem de Despertar Ancestral — decisão do redesenho, não omissão.
+
+```
+relicRate  = baseCaptureRate + (nível - 1) × captureRatePerLevel
+resistance = 256 - catchRate
+base%      = (relicRate / resistance) × 100
+
+final% = clamp(base%
+           + sameElementBonusPct           (elemento do relicário == elemento da criatura)
+           + sameClassBonusPct             (classe do relicário == classe da criatura)
+           - elementDisadvantagePenaltyPct (elemento do relicário em desvantagem)
+         , captureFloorPct, captureCeilPct)
+```
+
+**Progressão** — uma barra de XP própria, alimentada só por captura bem-sucedida (tentativa fracassada não gera XP). Ao encher, o level-up consome uma unidade do **material da própria classe do relicário** (`ITM-019`/`020`/`021`, o mesmo material que a subida de nível de criatura usa) — sem o material na bolsa, a barra trava exatamente no teto até o jogador conseguir o item, em vez de estourar em silêncio. Sobe mais de um nível numa chamada só se a XP e o material derem.
+
+**Buff de combate** — enquanto equipado, criaturas do time que batem com o elemento *ou* a classe do relicário recebem um bônus fixo em `attack_modifier` durante o duelo (`DuelScreen._apply_relic_buff`). É uma escolha de implementação, não fechamento de design: o catálogo deixa em aberto qual stat o buff deveria afetar.
+
+**Posto do relicário** — ponto fixo no mapa (`RelicStationActor`, mesmo padrão de clique-para-interagir do comerciante), com quatro modos (`Tab` circula): status do equipado, depositar um ativo no storage, retirar um guardado, e trocar de modelo — só habilitado com o time ativo **vazio**, forçando "esvaziar os slots antes de trocar" como o design exige. Sem sistema de posse ainda, a troca deixa escolher qualquer modelo do catálogo — o mesmo furo que a aquisição já é, só tornado visível aqui.
+
+`PlayerRoster` tem três níveis por causa disso: **ativo** (limitado por `slotCapacity`, via `set_capacity()`), **storage** (sem limite de código, só acessível no posto) e o HP/regeneração que já valiam para os dois. Time cheio na hora da captura continua fazendo a captura escapar, exatamente como antes — só que "cheio" agora depende do relicário equipado, não de um teto fixo de seis.
 
 ### Itens de cura
 
@@ -257,13 +298,13 @@ cura = floor(hpMáximo × effectValue / 100)      # heal_percent, com piso de 1
 cura = effectValue                              # heal_flat
 ```
 
-`heal_percent` traz **pontos percentuais** (30, 70, 100). É a mesma coluna `effectValue` em que `capture_bonus` guarda multiplicador cru (1.5, 2.5, 4.0) — quem interpreta o número é sempre o `effectCode` ao lado, e ler o campo sozinho é o erro que transformaria o emplastro barato em cura infinita.
+`heal_percent` traz **pontos percentuais** (30, 70, 100) — quem interpreta o número é sempre o `effectCode` ao lado, e ler o campo sozinho é o erro que transformaria o emplastro barato em cura infinita.
 
 Decisões que o teste prende:
 
-- **Cura nula não consome o item.** Alvo cheio é recusado antes de a bolsa ser tocada, e a lista de alvos apaga quem não tem ferimento. É o oposto da resina, que se gasta no arremesso — lá o risco é o preço; aqui a cura é determinística, e gastar sem efeito seria só perder óbolos por um clique.
+- **Cura nula não consome o item.** Alvo cheio é recusado antes de a bolsa ser tocada, e a lista de alvos apaga quem não tem ferimento. A cura é determinística, então gastar sem efeito seria só perder óbolos por um clique.
 - **A lista mostra o efetivo, não o nominal.** `+100%` numa criatura a que faltam 12 HP restaura 12, e a linha diz `restaura 12 (desperdicia 92)`. Sem esse número o jogador queima a Seiva Primordial de 600 óbolos num arranhão.
-- **Ordenado do fraco para o forte**, como o menu de resinas: a tecla `1` cai sempre no item barato, então o gesto rápido nunca é o caro.
+- **Ordenado do fraco para o forte**: a tecla `1` cai sempre no item barato, então o gesto rápido nunca é o caro.
 - **Caída pode ser curada** — mesma regra da regeneração por tempo: desmaiar é interdição temporária.
 - **O filtro é por `effectCode`, não por categoria.** Categoria é como o bestiário organiza a vitrine; efeito é o que o jogo executa. Item de outra categoria que cure entra na lista sem ela saber que ele existe.
 
@@ -325,7 +366,7 @@ Ele também exige o bloco `mining` — minerais nomeados, toda classe do elenco 
 
 Trocar a ativa por outra da mesma classe passaria em tudo sem provar nada — por isso o teste usa um Draconis contra o starter Loricati, de propósito.
 
-`test_merchant.gd` fecha o laço: minerar produz, o comerciante compra, a bolsa paga, e o que se compra faz alguma coisa. A asserção que mais importa é negativa — **nenhum consumível pode ser minerável**. Enquanto todo item era minério, o export mandava a tabela inteira para `mining.items`; a primeira resina cadastrada teria virado minério de chão. O filtro por categoria conserta, e este teste é o que impede alguém de removê-lo.
+`test_merchant.gd` fecha o laço: minerar produz, o comerciante compra, a bolsa paga, e o que se compra faz alguma coisa. A asserção que mais importa é negativa — **nenhum consumível pode ser minerável**. Enquanto todo item era minério, o export mandava a tabela inteira para `mining.items`; o primeiro consumível cadastrado teria virado minério de chão. O filtro por categoria conserta, e este teste é o que impede alguém de removê-lo.
 
 Também prende o "tudo ou nada" das duas pontas: sem saldo, nem a bolsa nem o inventário se mexem; vender o que não se tem não credita nada.
 
@@ -333,7 +374,7 @@ Também prende o "tudo ou nada" das duas pontas: sem saldo, nem a bolsa nem o in
 
 `test_team.gd` responde "uma expedição custa alguma coisa?". Não testa `hp = hp - dano`; testa a cadeia inteira — sair ferido de uma batalha, entrar ferido na próxima, e a espera no mapa sendo o único jeito de desfazer isso. Inclui a armadilha da regeneração fracionária: 10% de 84 HP por minuto dá 0,023 HP por quadro a 60 fps, e sem acumulador a cura inteira desaparece no arredondamento. O teste roda o mesmo minuto em passo de segundo e em passo de quadro e exige que os dois cheguem ao mesmo lugar.
 
-`test_items.gd` responde "comprar cura serve para alguma coisa?". Antes dele os emplastros eram compráveis, vendíveis e precificados, e **nada os consumia** — o laço econômico terminava numa vitrine. A asserção que mais importa também é negativa: **cura nula não consome o item**, medida nos dois níveis (o `WorldRoot` recusa antes de tocar na bolsa, e a lista de alvos já apaga quem está cheio). Prende também que `30` em `heal_percent` são trinta por cento e não trinta vezes, e que uma resina na bolsa não aparece na lista de cura.
+`test_items.gd` responde "comprar cura serve para alguma coisa?". Antes dele os emplastros eram compráveis, vendíveis e precificados, e **nada os consumia** — o laço econômico terminava numa vitrine. A asserção que mais importa também é negativa: **cura nula não consome o item**, medida nos dois níveis (o `WorldRoot` recusa antes de tocar na bolsa, e a lista de alvos já apaga quem está cheio). Prende também que `30` em `heal_percent` são trinta por cento e não trinta vezes, e que um mineral na bolsa não aparece na lista de cura.
 
 `test_staging.gd` responde "a imagem mostra o que o overlay narra?". A asserção que mais importa é a da **simetria**: o ponto médio entre os dois não pode escorregar, porque é onde eles se encontraram — se um dia um dos lados passar a fazer todo o trabalho, é ela que pega. A do domador é a mesma medida por outro lado: montar a cena **com** e **sem** ele e exigir que o ponto do encontro caia no mesmo lugar. A segunda é a única que prova fiação em vez de geometria: uma fase inteira do teste espera **quadros reais do motor**, sem chamar `step`, com o mundo pausado. Sem ela, `PROCESS_MODE_ALWAYS` poderia cair e todo o resto continuaria verde.
 

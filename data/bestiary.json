@@ -1,8 +1,19 @@
 {
-  "dataVersion": "0.104",
-  "generatedAt": "2026-08-09T22:28:50.207Z",
+  "dataVersion": "0.178",
+  "generatedAt": "2026-08-10T20:32:28.250Z",
   "source": "http://localhost:5101",
   "rules": {
+    "progression": {
+      "xp": {
+        "curveBase": 14,
+        "curveExponent": 1.7,
+        "yieldDivisor": 5
+      },
+      "levelUpCost": {
+        "base": 1,
+        "levelStep": 20
+      }
+    },
     "damage": {
       "constant": 0.22,
       "varianceMin": 0.9,
@@ -23,7 +34,19 @@
       "min": 1,
       "max": 50
     },
-    "elementNeutralMultiplier": 1
+    "elementNeutralMultiplier": 1,
+    "relic": {
+      "captureFloorPct": 5,
+      "captureCeilPct": 95,
+      "sameElementBonusPct": 15,
+      "sameClassBonusPct": 10,
+      "elementDisadvantagePenaltyPct": 15,
+      "xpPerCapture": 20,
+      "xpCurveBase": 10,
+      "xpCurveExponent": 1.5,
+      "materialCostBase": 1,
+      "materialCostLevelStep": 20
+    }
   },
   "elements": [
     {
@@ -648,7 +671,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-001.v2.glb",
+      "modelUrl": "/models/CRT-001.glb",
       "stats": {
         "hp": 50,
         "attack": 35,
@@ -656,6 +679,7 @@
         "speed": 25,
         "charge": 45,
         "growthRate": 0.03,
+        "xpYield": 42,
         "sizeMeters": 0.9,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
@@ -690,6 +714,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-001",
         "name": "Isotelus",
@@ -707,7 +738,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-002.v4.glb",
+      "modelUrl": "/models/CRT-002.glb",
       "stats": {
         "hp": 65,
         "attack": 70,
@@ -715,6 +746,7 @@
         "speed": 55,
         "charge": 50,
         "growthRate": 0.034,
+        "xpYield": 57,
         "sizeMeters": 2.18,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -749,6 +781,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-002",
         "name": "Anomalocaris Prime",
@@ -774,6 +813,7 @@
         "speed": 65,
         "charge": 60,
         "growthRate": 0.031,
+        "xpYield": 51,
         "sizeMeters": 0.9,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -808,6 +848,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-003",
         "name": "Opabinia Imperator",
@@ -825,7 +872,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-004.glb",
       "stats": {
         "hp": 60,
         "attack": 30,
@@ -833,6 +880,7 @@
         "speed": 20,
         "charge": 40,
         "growthRate": 0.029,
+        "xpYield": 45,
         "sizeMeters": 0.9,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -867,6 +915,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-004",
         "name": "Wiwaxia Colossus",
@@ -884,7 +939,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-005.glb",
       "stats": {
         "hp": 45,
         "attack": 50,
@@ -892,6 +947,7 @@
         "speed": 40,
         "charge": 55,
         "growthRate": 0.03,
+        "xpYield": 47,
         "sizeMeters": 0.9,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -926,6 +982,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-005",
         "name": "Hallucigenia Rex",
@@ -951,6 +1014,7 @@
         "speed": 50,
         "charge": 45,
         "growthRate": 0.032,
+        "xpYield": 50,
         "sizeMeters": 1.41,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
@@ -985,17 +1049,24 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-006",
-        "name": "Jaekelopterus",
+        "name": "Omnidens",
         "type": "swap",
-        "referenceSpecies": "Jaekelopterus"
+        "referenceSpecies": "Omnidens"
       }
     },
     {
       "code": "CRT-007",
-      "name": "Jaekelopterus",
-      "baseSpecies": "Jaekelopterus",
+      "name": "Omnidens",
+      "baseSpecies": "Omnidens",
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
@@ -1010,6 +1081,7 @@
         "speed": 55,
         "charge": 45,
         "growthRate": 0.036,
+        "xpYield": 62,
         "sizeMeters": 2.69,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1044,9 +1116,16 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-007",
-        "name": "Jaekelopterus Leviathan",
+        "name": "Omnidens Leviathan",
         "type": "reinforcement",
         "referenceSpecies": null
       }
@@ -1069,6 +1148,7 @@
         "speed": 30,
         "charge": 40,
         "growthRate": 0.033,
+        "xpYield": 57,
         "sizeMeters": 2.69,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1103,6 +1183,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-008",
         "name": "Arthropleura Titan",
@@ -1120,7 +1207,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
-      "modelUrl": "/models/CRT-009.v1.glb",
+      "modelUrl": "/models/CRT-009.glb",
       "stats": {
         "hp": 45,
         "attack": 55,
@@ -1128,6 +1215,7 @@
         "speed": 85,
         "charge": 55,
         "growthRate": 0.032,
+        "xpYield": 54,
         "sizeMeters": 1.98,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
@@ -1162,6 +1250,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-009",
         "name": "Meganeuropsis",
@@ -1187,6 +1282,7 @@
         "speed": 50,
         "charge": 50,
         "growthRate": 0.033,
+        "xpYield": 55,
         "sizeMeters": 1.98,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
@@ -1221,6 +1317,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-010",
         "name": "Brontoscorpio",
@@ -1246,6 +1349,7 @@
         "speed": 70,
         "charge": 65,
         "growthRate": 0.03,
+        "xpYield": 51,
         "sizeMeters": 0.9,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1280,6 +1384,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-011",
         "name": "Rhyniognatha Monarch",
@@ -1305,6 +1416,7 @@
         "speed": 35,
         "charge": 40,
         "growthRate": 0.032,
+        "xpYield": 55,
         "sizeMeters": 2.56,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1339,6 +1451,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-013",
         "name": "Aegirocassis Colossus",
@@ -1356,7 +1475,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-014.glb",
       "stats": {
         "hp": 60,
         "attack": 50,
@@ -1364,6 +1483,7 @@
         "speed": 40,
         "charge": 45,
         "growthRate": 0.031,
+        "xpYield": 52,
         "sizeMeters": 1.79,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1398,6 +1518,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-014",
         "name": "Hurdia Magnus",
@@ -1415,7 +1542,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-015.glb",
       "stats": {
         "hp": 45,
         "attack": 50,
@@ -1423,6 +1550,7 @@
         "speed": 75,
         "charge": 55,
         "growthRate": 0.031,
+        "xpYield": 52,
         "sizeMeters": 1,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1457,6 +1585,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-015",
         "name": "Odaraia Phantom",
@@ -1482,6 +1617,7 @@
         "speed": 45,
         "charge": 45,
         "growthRate": 0.031,
+        "xpYield": 52,
         "sizeMeters": 1.51,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1516,6 +1652,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-016",
         "name": "Ceratiocaris Tyrant",
@@ -1533,7 +1676,7 @@
       "biome": null,
       "role": "hero",
       "silhouetteNote": "Vela dorsal alta e triangular sustentada por espinhos ósseos alongados; corpo quadrupede robusto, cauda longa afinada; cabeça alongada com dentes carniceiros diferenciados. Silhueta dominada pela vela — sinapsídeo comumente confundido com dinossauro.",
-      "modelUrl": "/models/CRT-017.v1.glb",
+      "modelUrl": "/models/CRT-017.glb",
       "stats": {
         "hp": 75,
         "attack": 75,
@@ -1541,6 +1684,7 @@
         "speed": 50,
         "charge": 55,
         "growthRate": 0.036,
+        "xpYield": 62,
         "sizeMeters": 2.87,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1575,6 +1719,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-017",
         "name": "Dimetrodon Solar",
@@ -1600,6 +1751,7 @@
         "speed": 35,
         "charge": 45,
         "growthRate": 0.031,
+        "xpYield": 53,
         "sizeMeters": 2.87,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1634,6 +1786,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-018",
         "name": "Edaphosaurus Florido",
@@ -1651,7 +1810,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Corpo atarracado e baixo, quatro membros curtos e robustos; cabeça grande com bico córneo curto e um par de presas caniniformes pequenas apontando para baixo; sem crista, sem vela. Silhueta compacta em barril — sobrevivente icônico da extinção Permo-Triássica.",
-      "modelUrl": "/models/CRT-019.v2.glb",
+      "modelUrl": "/models/CRT-019.glb",
       "stats": {
         "hp": 70,
         "attack": 45,
@@ -1659,6 +1818,7 @@
         "speed": 40,
         "charge": 50,
         "growthRate": 0.031,
+        "xpYield": 53,
         "sizeMeters": 2.18,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
@@ -1693,6 +1853,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-019",
         "name": "Kannemeyeria",
@@ -1710,7 +1877,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Cabeça bulbosa com crânio espesso arredondado adaptado a combate de topada; corpo curvado com dorso arqueado tipo urso-tatu, membros curtos; cauda curta. Silhueta corcunda dominante.",
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-020.glb",
       "stats": {
         "hp": 85,
         "attack": 55,
@@ -1718,6 +1885,7 @@
         "speed": 30,
         "charge": 40,
         "growthRate": 0.032,
+        "xpYield": 54,
         "sizeMeters": 2.73,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1752,6 +1920,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-020",
         "name": "Moschops Ariete",
@@ -1777,6 +1952,7 @@
         "speed": 60,
         "charge": 50,
         "growthRate": 0.037,
+        "xpYield": 63,
         "sizeMeters": 2.87,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1811,6 +1987,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-021",
         "name": "Inostrancevia Algoz",
@@ -1828,7 +2011,7 @@
       "biome": null,
       "role": "hero",
       "silhouetteNote": "Corpo cilíndrico desproporcionalmente gigantesco em barril; cabeça minúscula em relação ao corpo; membros curtos afastados; cauda curta. Silhueta cômica: pequena cabeça sobre corpo bola — bom mini-boss territorial.",
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-022.glb",
       "stats": {
         "hp": 100,
         "attack": 45,
@@ -1836,6 +2019,7 @@
         "speed": 25,
         "charge": 45,
         "growthRate": 0.034,
+        "xpYield": 59,
         "sizeMeters": 3.17,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1870,6 +2054,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-022",
         "name": "Cotylorhynchus Monolito",
@@ -1895,6 +2086,7 @@
         "speed": 25,
         "charge": 40,
         "growthRate": 0.035,
+        "xpYield": 60,
         "sizeMeters": 2.79,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1929,6 +2121,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-023",
         "name": "Scutosaurus Bastiao",
@@ -1954,6 +2153,7 @@
         "speed": 60,
         "charge": 60,
         "growthRate": 0.029,
+        "xpYield": 48,
         "sizeMeters": 1.28,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
@@ -1988,6 +2188,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-024",
         "name": "Paleothyris",
@@ -2013,6 +2220,7 @@
         "speed": 70,
         "charge": 60,
         "growthRate": 0.03,
+        "xpYield": 52,
         "sizeMeters": 1.67,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
@@ -2047,6 +2255,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-025",
         "name": "Araeoscelis",
@@ -2072,6 +2287,7 @@
         "speed": 65,
         "charge": 50,
         "growthRate": 0.031,
+        "xpYield": 53,
         "sizeMeters": 2.18,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -2106,6 +2322,13 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-026",
         "name": "Mesosaurus Abissal",
@@ -2131,6 +2354,7 @@
         "speed": 45,
         "charge": 50,
         "growthRate": 0.03,
+        "xpYield": 51,
         "sizeMeters": 1.51,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
@@ -2165,11 +2389,323 @@
           "learnLevel": 1
         }
       ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-027",
         "name": "Moradisaurus",
         "type": "swap",
         "referenceSpecies": "Moradisaurus"
+      }
+    },
+    {
+      "code": "CRT-028",
+      "name": "Weigeltisaurus",
+      "baseSpecies": "Weigeltisaurus",
+      "class": "CLS-003",
+      "element": "ELE-005",
+      "map": "PZ-01",
+      "biome": null,
+      "role": null,
+      "silhouetteNote": "Pequeno reptil quadrupede com membranas de planeio sustentadas por costelas alongadas nas laterais do tronco; cabeca pequena com crista ossea baixa; cauda longa fina. Silhueta alada quando em glide, contraste aereo aos repteis terrestres do elenco.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 40,
+        "attack": 55,
+        "defense": 35,
+        "speed": 80,
+        "charge": 60,
+        "growthRate": 0.03,
+        "xpYield": 54,
+        "sizeMeters": 1.1,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 175,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-013",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-014",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-015",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-030",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [],
+      "awakening": {
+        "code": "DSP-028",
+        "name": "Weigeltisaurus Fulgor",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-029",
+      "name": "Protorosaurus",
+      "baseSpecies": "Protorosaurus",
+      "class": "CLS-003",
+      "element": "ELE-005",
+      "map": "PZ-01",
+      "biome": null,
+      "role": null,
+      "silhouetteNote": "Diapsideo esguio de pescoco alongado e cabeca pequena triangular; corpo quadrupede moderado, cauda longa afilada. Silhueta de pescoco como traco distintivo, generalista de porte medio do Permiano.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 55,
+        "defense": 50,
+        "speed": 50,
+        "charge": 50,
+        "growthRate": 0.031,
+        "xpYield": 53,
+        "sizeMeters": 2,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 140,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-013",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-014",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-015",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-030",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [],
+      "awakening": {
+        "code": "DSP-029",
+        "name": "Protorosaurus Voltaico",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-030",
+      "name": "Archosaurus",
+      "baseSpecies": "Archosaurus",
+      "class": "CLS-003",
+      "element": "ELE-004",
+      "map": "PZ-01",
+      "biome": null,
+      "role": null,
+      "silhouetteNote": "Corpo quadrupede alongado tipo crocodiliano primitivo; focinho comprido e estreito com dentes conicos numerosos; membros curtos afastados do corpo; cauda longa. Silhueta rasteira de emboscada, predador de Terra em contraponto agil ao Scutosaurus blindado.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 70,
+        "attack": 70,
+        "defense": 50,
+        "speed": 45,
+        "charge": 45,
+        "growthRate": 0.034,
+        "xpYield": 56,
+        "sizeMeters": 2.6,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 70,
+        "awakenedMultiplier": 0.35
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-029",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [],
+      "awakening": {
+        "code": "DSP-030",
+        "name": "Archosaurus Sismico",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-031",
+      "name": "Sphenacodon",
+      "baseSpecies": "Sphenacodon",
+      "class": "CLS-002",
+      "element": "ELE-001",
+      "map": "PZ-01",
+      "biome": null,
+      "role": null,
+      "silhouetteNote": "Vela dorsal baixa e rudimentar, menos proeminente que a do Dimetrodon; corpo quadrupede esguio de sinapsideo carnivoro; cauda longa afinada; cabeca alongada com dentes diferenciados. Silhueta-irma do Dimetrodon, mesma familia, porte menor.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 65,
+        "defense": 50,
+        "speed": 55,
+        "charge": 50,
+        "growthRate": 0.033,
+        "xpYield": 56,
+        "sizeMeters": 2.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 75,
+        "awakenedMultiplier": 0.35
+      },
+      "abilities": [
+        {
+          "code": "HAB-001",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-002",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-003",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-026",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [],
+      "awakening": {
+        "code": "DSP-031",
+        "name": "Sphenacodon Ardente",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-032",
+      "name": "Thrinaxodon",
+      "baseSpecies": "Thrinaxodon",
+      "class": "CLS-002",
+      "element": "ELE-005",
+      "map": "PZ-01",
+      "biome": null,
+      "role": null,
+      "silhouetteNote": "Pequeno cinodonte quase-mamifero, corpo baixo e alongado tipo furao; cabeca curta com mandibula robusta; postura semi-ereta com membros sob o corpo. Silhueta agil e escavadora, contemporaneo do Lystrosaurus na travessia Permo-Triassica.",
+      "modelUrl": null,
+      "stats": {
+        "hp": 45,
+        "attack": 50,
+        "defense": 40,
+        "speed": 75,
+        "charge": 60,
+        "growthRate": 0.03,
+        "xpYield": 54,
+        "sizeMeters": 1.2,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 190,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-013",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-014",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-015",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-030",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [],
+      "awakening": {
+        "code": "DSP-032",
+        "name": "Cynognathus",
+        "type": "swap",
+        "referenceSpecies": "Cynognathus"
       }
     }
   ],
@@ -2178,6 +2714,7 @@
       "code": "ITM-001",
       "name": "Pedra",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Mineral basico de construcao",
       "value": 5,
@@ -2188,6 +2725,7 @@
       "code": "ITM-002",
       "name": "Ferro",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Mineral estrutural de construcao e ferramentas",
       "value": 12,
@@ -2198,6 +2736,7 @@
       "code": "ITM-003",
       "name": "Carvao",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Combustivel; nao serve como moeda de troca com o comerciante",
       "value": 14,
@@ -2208,6 +2747,7 @@
       "code": "ITM-004",
       "name": "Cobre",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Moeda de troca cotidiana com o comerciante (food de HP e itens de baixo valor)",
       "value": 20,
@@ -2218,6 +2758,7 @@
       "code": "ITM-005",
       "name": "Prata",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Moeda premium; troca por cards com o comerciante",
       "value": 60,
@@ -2228,6 +2769,7 @@
       "code": "ITM-006",
       "name": "Ambar Fossil",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Mineral raro; troca por cards e flavor tematico; forte conexao com Loricati (ambar preserva insetos)",
       "value": 30,
@@ -2238,6 +2780,7 @@
       "code": "ITM-007",
       "name": "Cristal Elemental — Fogo",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Vinculado ao elemento Fogo (ELE-001); material para Despertar Ancestral e habilidades",
       "value": 150,
@@ -2248,6 +2791,7 @@
       "code": "ITM-008",
       "name": "Cristal Elemental — Agua",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Vinculado ao elemento Agua (ELE-002); material para Despertar Ancestral e habilidades",
       "value": 150,
@@ -2258,6 +2802,7 @@
       "code": "ITM-009",
       "name": "Cristal Elemental — Natureza",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Vinculado ao elemento Natureza (ELE-003); material para Despertar Ancestral e habilidades",
       "value": 150,
@@ -2268,6 +2813,7 @@
       "code": "ITM-010",
       "name": "Cristal Elemental — Terra",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Vinculado ao elemento Terra (ELE-004); material para Despertar Ancestral e habilidades",
       "value": 150,
@@ -2278,6 +2824,7 @@
       "code": "ITM-011",
       "name": "Cristal Elemental — Eletricidade",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Vinculado ao elemento Eletricidade (ELE-005); material para Despertar Ancestral e habilidades",
       "value": 150,
@@ -2288,6 +2835,7 @@
       "code": "ITM-012",
       "name": "Cristal Elemental — Gelo",
       "category": "mineral",
+      "classCode": null,
       "effect": null,
       "notes": "Vinculado ao elemento Gelo (ELE-006); material para Despertar Ancestral e habilidades",
       "value": 150,
@@ -2295,39 +2843,10 @@
       "effectValue": 0
     },
     {
-      "code": "ITM-013",
-      "name": "Resina Comum",
-      "category": "capture",
-      "effect": "Aumenta a chance de captura em metade.",
-      "notes": null,
-      "value": 60,
-      "effectCode": "capture_bonus",
-      "effectValue": 1.5
-    },
-    {
-      "code": "ITM-014",
-      "name": "Resina Densa",
-      "category": "capture",
-      "effect": "Aumenta bastante a chance de captura.",
-      "notes": null,
-      "value": 180,
-      "effectCode": "capture_bonus",
-      "effectValue": 2.5
-    },
-    {
-      "code": "ITM-015",
-      "name": "Resina Ancestral",
-      "category": "capture",
-      "effect": "Quadruplica a chance de captura.",
-      "notes": null,
-      "value": 500,
-      "effectCode": "capture_bonus",
-      "effectValue": 4
-    },
-    {
       "code": "ITM-016",
       "name": "Emplastro de Limo",
       "category": "heal",
+      "classCode": null,
       "effect": "Recupera parte do vigor da criatura.",
       "notes": null,
       "value": 80,
@@ -2338,6 +2857,7 @@
       "code": "ITM-017",
       "name": "Emplastro Espesso",
       "category": "heal",
+      "classCode": null,
       "effect": "Recupera boa parte do vigor da criatura.",
       "notes": null,
       "value": 220,
@@ -2348,11 +2868,86 @@
       "code": "ITM-018",
       "name": "Seiva Primordial",
       "category": "heal",
+      "classCode": null,
       "effect": "Restaura o vigor por completo.",
       "notes": null,
       "value": 600,
       "effectCode": "heal_percent",
       "effectValue": 100
+    },
+    {
+      "code": "ITM-019",
+      "name": "Quitina Fossilizada",
+      "category": "material",
+      "classCode": "CLS-001",
+      "effect": "Consumida na subida de nível de uma criatura Loricati.",
+      "notes": "Fragmento de exoesqueleto preservado. Só cai de Loricati e só serve a Loricati — a classe do material é a da criatura derrotada, não a de quem derrotou.",
+      "value": 0,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-020",
+      "name": "Presa Fóssil",
+      "category": "material",
+      "classCode": "CLS-002",
+      "effect": "Consumida na subida de nível de uma criatura Theria.",
+      "notes": "Dentição diferenciada é a marca do grupo. Só cai de Theria e só serve a Theria.",
+      "value": 0,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-021",
+      "name": "Escama Fóssil",
+      "category": "material",
+      "classCode": "CLS-003",
+      "effect": "Consumida na subida de nível de uma criatura Draconis.",
+      "notes": "Cobertura de escamas preservada. Só cai de Draconis e só serve a Draconis.",
+      "value": 0,
+      "effectCode": "none",
+      "effectValue": 0
+    }
+  ],
+  "relics": [
+    {
+      "code": "RLC-001",
+      "name": "Relicario de Agua - Loricati",
+      "element": "ELE-002",
+      "class": "CLS-001",
+      "notes": "Modelo de exemplo/ilustrativo criado junto com o sistema de Relicario. Como obter um modelo esta fora de escopo deste handoff (ver documento relicario) - nao tratar como conteudo final de aquisicao.",
+      "slotCapacity": 3,
+      "baseCaptureRate": 80,
+      "captureRatePerLevel": 4,
+      "maxLevel": 30,
+      "combatBuffBase": 5,
+      "combatBuffPerLevel": 0.3
+    },
+    {
+      "code": "RLC-002",
+      "name": "Relicario de Fogo - Theria",
+      "element": "ELE-001",
+      "class": "CLS-002",
+      "notes": "Modelo de exemplo/ilustrativo criado junto com o sistema de Relicario. Aquisicao fora de escopo (ver documento relicario).",
+      "slotCapacity": 3,
+      "baseCaptureRate": 80,
+      "captureRatePerLevel": 4,
+      "maxLevel": 30,
+      "combatBuffBase": 5,
+      "combatBuffPerLevel": 0.3
+    },
+    {
+      "code": "RLC-003",
+      "name": "Relicario de Terra - Draconis",
+      "element": "ELE-004",
+      "class": "CLS-003",
+      "notes": "Modelo de exemplo/ilustrativo criado junto com o sistema de Relicario. Aquisicao fora de escopo (ver documento relicario).",
+      "slotCapacity": 3,
+      "baseCaptureRate": 80,
+      "captureRatePerLevel": 4,
+      "maxLevel": 30,
+      "combatBuffBase": 5,
+      "combatBuffPerLevel": 0.3
     }
   ],
   "economy": {
@@ -2367,20 +2962,8 @@
       "name": "Curador Sarn",
       "faction": "Guilda dos Curadores",
       "map": "PZ-01",
-      "notes": "Trata dos achados e de quem os traz. Compra mineral bruto, vende resina de captura e emplastro.",
+      "notes": "Trata dos achados e de quem os traz. Compra mineral bruto, vende emplastro.",
       "offers": [
-        {
-          "itemCode": "ITM-013",
-          "price": 60
-        },
-        {
-          "itemCode": "ITM-014",
-          "price": 180
-        },
-        {
-          "itemCode": "ITM-015",
-          "price": 500
-        },
         {
           "itemCode": "ITM-016",
           "price": 80

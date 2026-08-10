@@ -56,13 +56,15 @@ func _ready() -> void:
 func setup(db: BestiaryData, biome_code: String) -> void:
 	_db = db
 	_biome_code = biome_code
-	refresh("", 1, 0)
+	refresh("", 1, 0, 6)
 
 
 ## `hp`/`max_hp` chegam prontos do time em vez de saírem de `stats_at_level`:
 ## o HP corrente persiste entre batalhas e é o time quem guarda, não o bundle.
 ## `hp` negativo desliga a linha — é o que o duelo solto de playtest passa.
-func refresh(creature_code: String, level: int, roster_size: int,
+## `roster_capacity` vem de `PlayerRoster.capacity()` — dinâmico desde que o
+## Relicário existe, não mais o `MAX_SLOTS` fixo de antes.
+func refresh(creature_code: String, level: int, roster_size: int, roster_capacity: int,
 		hp: int = -1, max_hp: int = 0) -> void:
 	if _label == null:
 		return
@@ -110,6 +112,6 @@ func refresh(creature_code: String, level: int, roster_size: int,
 
 	lines.append("")
 	lines.append("[color=%s][T] time  (%d/%d)[/color]"
-		% [COL_SLATE, roster_size, PlayerRoster.MAX_SLOTS])
+		% [COL_SLATE, roster_size, roster_capacity])
 
 	_label.text = "\n".join(lines)

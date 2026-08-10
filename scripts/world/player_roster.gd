@@ -1,8 +1,9 @@
 class_name PlayerRoster
 extends RefCounted
 
-## O time do jogador: uma criatura **ativa**, as **reservas**, e o HP de cada
-## uma — que persiste entre batalhas e se recupera com o tempo.
+## O time do jogador, em três níveis: uma criatura **ativa**, as **reservas**
+## que viajam com ela no mapa, e o **storage** que fica pra trás — mais o HP
+## de cada uma, que persiste entre batalhas e se recupera com o tempo.
 ##
 ## A ativa é o slot 0 conceitualmente, mas guardar um índice em vez de
 ## reordenar o array significa que trocar quem vai à frente não embaralha a
@@ -14,19 +15,31 @@ extends RefCounted
 ## decide o que a mineração produz (`MiningTable`), e é o HP dela que o próximo
 ## combate herda.
 ##
+## ## Ativo vs. storage
+##
+## `_members` é o que o jogador carrega no mapa agora — limitado pelo
+## `slotCapacity` do Relicário equipado (`set_capacity`), não mais um teto
+## fixo. `_storage` é tudo que ficou pra trás no posto do relicário: sem
+## limite de código (o design deixa "storage geral" em aberto, ver documento
+## `relicario`), só acessível lá, não no mapa. Ver `PlayerRelic`.
+##
 ## ## O que persiste e o que não
 ##
 ## Só o HP. Carga do Despertar, buffs e usos de golpe continuam começando do
 ## zero a cada batalha — são o arco de uma luta, não um orçamento administrado
 ## ao longo do dia (ver o cabeçalho de `Combatant`). O HP é a exceção porque é
 ## o que transforma uma sequência de encontros em uma expedição com custo: sem
-## ele, seis criaturas são seis opções e nenhuma é um recurso.
+## ele, seis criaturas são seis opções e nenhuma é um recurso. HP regenera
+## igual em `_members` e em `_storage` — são criaturas do jogador de um jeito
+## ou de outro, e nada no design distingue as duas pra regeneração.
 
 signal changed
 
-## Seis é o teto clássico do gênero e o que a HUD comporta sem virar lista
-## rolável. Quando o bestiário exportar um limite, ele vem do bundle.
-const MAX_SLOTS := 6
+## Teto de sanidade, não o limite operante — esse vem de
+## `PlayerRelic.slot_capacity()` via `set_capacity`. Mesmo bound do CHECK de
+## `relic_stats.slotCapacity` no banco (1–12); existe só pra `_capacity` nunca
+## crescer descontrolado a partir de um dado de bundle ruim.
+const HARD_CEILING := 12
 
 ## Fração do HP máximo recuperada por minuto, fora de combate.
 ##
@@ -38,6 +51,7 @@ const REGEN_FRACTION_PER_MINUTE := 0.10
 
 var _db: BestiaryData
 var _level := 1
+var _capacity := 6  # fallback antes de qualquer relicário equipado
 
 ## `[{code, hp, accum}]`. `accum` é o resto fracionário da regeneração — sem
 ## ele, `max_hp * 0.1/60 * delta` a 60 fps é sempre muito menor que 1 e a cura
@@ -45,33 +59,52 @@ var _level := 1
 var _members: Array[Dictionary] = []
 var _active := 0
 
+## Mesma forma de `_members` — criaturas que ficaram no posto do relicário,
+## fora do alcance do mapa até o jogador voltar lá.
+var _storage: Array[Dictionary] = []
+
 
 ## Começa o time com a criatura inicial, em HP cheio.
 ##
-## `db` e `level` ficam guardados porque o HP máximo de cada membro é derivado
-## (`stats_at_level`), não armazenado: mudar o nível do encontro não pode
-## deixar um teto de HP velho pendurado no time.
+## `db` fica guardado porque o HP máximo de cada membro é derivado
+## (`stats_at_level`), não armazenado. `level` vira o nível **inicial** da
+## primeira criatura e o fallback de `add()` quando quem chama não sabe (ou
+## não liga) em que nível a nova criatura deveria entrar — cada membro tem o
+## próprio nível daqui pra frente, sobe sozinho por XP (`grant_xp_at`).
 func setup(db: BestiaryData, level: int, starter_code: String) -> void:
 	_db = db
 	_level = maxi(1, level)
 	_members.clear()
+	_storage.clear()
 	_active = 0
 	if starter_code != "":
-		_members.append(_make_member(starter_code, -1))
+		_members.append(_make_member(starter_code, -1, _level))
 	changed.emit()
 
 
-func _make_member(code: String, hp: int) -> Dictionary:
-	var top := _max_hp_of(code)
+## Ajusta a capacidade ativa pro `slotCapacity` do relicário equipado.
+## Clampado ao `HARD_CEILING` — um valor de bundle ruim não deve deixar o
+## array crescer sem limite.
+func set_capacity(n: int) -> void:
+	_capacity = clampi(n, 1, HARD_CEILING)
+
+
+func capacity() -> int:
+	return _capacity
+
+
+func _make_member(code: String, hp: int, level: int) -> Dictionary:
+	var lvl := maxi(1, level)
+	var top := _max_hp_of(code, lvl)
 	# hp < 0 é o pedido de "cheia"; qualquer outro valor entra limitado ao teto.
 	var start := top if hp < 0 else clampi(hp, 0, top)
-	return {"code": code, "hp": start, "accum": 0.0}
+	return {"code": code, "hp": start, "accum": 0.0, "level": lvl, "xp": 0}
 
 
-func _max_hp_of(code: String) -> int:
+func _max_hp_of(code: String, level: int) -> int:
 	if _db == null:
 		return 1
-	var stats := _db.stats_at_level(code, _level)
+	var stats := _db.stats_at_level(code, level)
 	return maxi(1, int(stats.get("hp", 1)))
 
 
@@ -116,7 +149,7 @@ func size() -> int:
 
 
 func is_full() -> bool:
-	return _members.size() >= MAX_SLOTS
+	return _members.size() >= _capacity
 
 
 func has(code: String) -> bool:
@@ -131,14 +164,18 @@ func has(code: String) -> bool:
 ## batalha: pegou-se um bicho enfraquecido, e ele chega enfraquecido. É a mesma
 ## regra do resto do time, aplicada no momento em que ele entra nele.
 ##
+## `level` negativo cai no nível padrão do time (`setup`) — quem captura sabe
+## o nível de verdade do bicho selvagem (`Combatant.level`) e deve passá-lo;
+## o fallback existe pra quem só quer testar composição sem se importar.
+##
 ## Repetir espécie é permitido de propósito: dois Anomalocaris são dois bichos,
 ## não um duplicado.
-func add(code: String, hp: int = -1) -> bool:
+func add(code: String, hp: int = -1, level: int = -1) -> bool:
 	if code == "" or is_full():
 		return false
 	if _db != null and _db.creature(code).is_empty():
 		return false
-	_members.append(_make_member(code, hp))
+	_members.append(_make_member(code, hp, level if level > 0 else _level))
 	changed.emit()
 	return true
 
@@ -159,6 +196,70 @@ func set_active(index: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# storage — posto do relicário
+# ---------------------------------------------------------------------------
+
+func storage_entries() -> Array[String]:
+	var out: Array[String] = []
+	for m in _storage:
+		out.append(str(m["code"]))
+	return out
+
+
+func storage_size() -> int:
+	return _storage.size()
+
+
+## HP de um membro guardado, pelo mesmo motivo que `hp_at` existe pro ativo:
+## a HUD/tela do posto precisa mostrar sem expor o array privado.
+func storage_hp_at(index: int) -> int:
+	if index < 0 or index >= _storage.size():
+		return 0
+	return int(_storage[index]["hp"])
+
+
+func storage_max_hp_at(index: int) -> int:
+	if index < 0 or index >= _storage.size():
+		return 0
+	return _max_hp_of(str(_storage[index]["code"]), int(_storage[index]["level"]))
+
+
+func storage_level_at(index: int) -> int:
+	if index < 0 or index >= _storage.size():
+		return 0
+	return int(_storage[index]["level"])
+
+
+## Move um ativo pro storage. Recusa se sobraria zero ativa — o jogador
+## sempre precisa de alguém pra andar no mapa e entrar em campo — ou se o
+## índice não existe. Se a depositada for a ativa, a próxima da lista assume.
+func deposit(index: int) -> bool:
+	if index < 0 or index >= _members.size() or _members.size() <= 1:
+		return false
+	var member: Dictionary = _members[index]
+	_members.remove_at(index)
+	_storage.append(member)
+	if _active >= _members.size():
+		_active = _members.size() - 1
+	elif index < _active:
+		_active -= 1
+	changed.emit()
+	return true
+
+
+## Move um guardado pro time ativo. Recusa se o time já está no teto — mesma
+## regra que já vale pra `add()` na captura.
+func withdraw(storage_index: int) -> bool:
+	if storage_index < 0 or storage_index >= _storage.size() or is_full():
+		return false
+	var member: Dictionary = _storage[storage_index]
+	_storage.remove_at(storage_index)
+	_members.append(member)
+	changed.emit()
+	return true
+
+
+# ---------------------------------------------------------------------------
 # HP
 # ---------------------------------------------------------------------------
 
@@ -171,7 +272,31 @@ func hp_at(index: int) -> int:
 func max_hp_at(index: int) -> int:
 	if index < 0 or index >= _members.size():
 		return 0
-	return _max_hp_of(str(_members[index]["code"]))
+	return _max_hp_of(str(_members[index]["code"]), level_at(index))
+
+
+func level_at(index: int) -> int:
+	if index < 0 or index >= _members.size():
+		return 0
+	return int(_members[index]["level"])
+
+
+func xp_at(index: int) -> int:
+	if index < 0 or index >= _members.size():
+		return 0
+	return int(_members[index]["xp"])
+
+
+## XP necessário pra `index` passar do nível atual ao seguinte. Zero se o
+## bundle não tem o bloco `progression` (bundle anterior a este sistema).
+func xp_to_next_at(index: int) -> int:
+	if index < 0 or index >= _members.size() or _db == null:
+		return 0
+	var xp_rules: Dictionary = _db.progression_rules().get("xp", {})
+	if xp_rules.is_empty():
+		return 0
+	return ProgressionMath.xp_to_next(
+		float(xp_rules.get("curveBase", 14)), float(xp_rules.get("curveExponent", 1.7)), level_at(index))
 
 
 func hp_ratio_at(index: int) -> float:
@@ -260,44 +385,100 @@ func first_alive_index() -> int:
 ## interdição temporária, não um estado que precisa de item para sair. Se um
 ## dia isso mudar, é este método que ganha o `if`.
 func regenerate(delta: float) -> void:
-	if delta <= 0.0 or _members.is_empty():
+	if delta <= 0.0:
 		return
-
 	var rate := REGEN_FRACTION_PER_MINUTE / 60.0
-	var healed_any := false
+	# Ativa e storage regeneram igual — são criaturas do jogador de um jeito
+	# ou de outro, e nada no design distingue as duas pra isso.
+	var healed := _regenerate_array(_members, rate, delta)
+	healed = _regenerate_array(_storage, rate, delta) or healed
+	if healed:
+		changed.emit()
 
-	for i in _members.size():
-		var top := max_hp_at(i)
-		var current := int(_members[i]["hp"])
+
+func _regenerate_array(arr: Array[Dictionary], rate: float, delta: float) -> bool:
+	if arr.is_empty():
+		return false
+	var healed_any := false
+	for i in arr.size():
+		var top := _max_hp_of(str(arr[i]["code"]), int(arr[i]["level"]))
+		var current := int(arr[i]["hp"])
 		if current >= top:
 			# Zera o resto ao encher: sem isso, uma criatura curada sobra com
 			# acúmulo que viraria 1 de cura instantânea no primeiro dano.
-			_members[i]["accum"] = 0.0
+			arr[i]["accum"] = 0.0
 			continue
 
-		var accum := float(_members[i]["accum"]) + float(top) * rate * delta
+		var accum := float(arr[i]["accum"]) + float(top) * rate * delta
 		var whole := int(accum)
 		if whole > 0:
-			_members[i]["hp"] = mini(top, current + whole)
+			arr[i]["hp"] = mini(top, current + whole)
 			accum -= float(whole)
 			healed_any = true
-		_members[i]["accum"] = accum
+		arr[i]["accum"] = accum
+	return healed_any
 
-	if healed_any:
-		changed.emit()
+
+# ---------------------------------------------------------------------------
+# progressão — XP de criatura, mesma forma do Relicário
+#
+# Duas condições ao mesmo tempo: XP acumulado até o limiar **e** o material
+# da própria classe da criatura que sobe, gasto no ato. Sem o material, a
+# barra trava cheia até o jogador ter o item — não deixa passar do teto
+# esperando, mesma regra de `PlayerRelic.grant_capture_xp`. Documento
+# `progressao`.
+# ---------------------------------------------------------------------------
+
+## Concede XP a um membro ativo e sobe de nível enquanto der — XP cheio e
+## material disponível na bolsa, no mesmo golpe. Devolve
+## `{leveled_up, new_level, waiting_material}`, mesmo formato de
+## `PlayerRelic.grant_capture_xp`.
+func grant_xp_at(index: int, amount: int, inventory: PlayerInventory) -> Dictionary:
+	var result := {"leveled_up": false, "new_level": level_at(index), "waiting_material": false}
+	if index < 0 or index >= _members.size() or _db == null or inventory == null or amount <= 0:
+		return result
+
+	var xp_rules: Dictionary = _db.progression_rules().get("xp", {})
+	var cost_rules: Dictionary = _db.progression_rules().get("levelUpCost", {})
+	if xp_rules.is_empty() or cost_rules.is_empty():
+		return result
+
+	_members[index]["xp"] = int(_members[index]["xp"]) + amount
+	var cap := _db.level_cap()
+
+	while level_at(index) < cap and xp_at(index) >= xp_to_next_at(index):
+		var threshold := xp_to_next_at(index)
+		var class_code := str(_db.creature(str(_members[index]["code"])).get("class", ""))
+		var material := _db.class_material_item(class_code)
+		var units := ProgressionMath.material_cost(
+			int(cost_rules.get("base", 1)), int(cost_rules.get("levelStep", 20)), level_at(index))
+
+		if material == "" or not inventory.remove(material, units):
+			_members[index]["xp"] = threshold  # trava no teto — ver cabeçalho da seção
+			result["waiting_material"] = true
+			break
+
+		_members[index]["xp"] = xp_at(index) - threshold
+		_members[index]["level"] = level_at(index) + 1
+		result["leveled_up"] = true
+		result["new_level"] = level_at(index)
+
+	changed.emit()
+	return result
 
 
 # ---------------------------------------------------------------------------
 # ponte com a batalha
 # ---------------------------------------------------------------------------
 
-## O time no formato que a tela de duelo consome: `[{code, hp}]`, na mesma
-## ordem dos slots. A tela monta os `Combatant` a partir disso e devolve o HP
-## pelo `absorb_party`.
+## O time no formato que a tela de duelo consome: `[{code, hp, level}]`, na
+## mesma ordem dos slots — cada criatura entra em campo no **próprio** nível,
+## não mais um nível de encontro achatado pro time inteiro. A tela monta os
+## `Combatant` a partir disso e devolve o HP pelo `absorb_party`.
 func to_party() -> Array:
 	var out: Array = []
 	for m in _members:
-		out.append({"code": str(m["code"]), "hp": int(m["hp"])})
+		out.append({"code": str(m["code"]), "hp": int(m["hp"]), "level": int(m["level"])})
 	return out
 
 

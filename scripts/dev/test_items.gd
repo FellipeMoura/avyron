@@ -23,6 +23,7 @@ const LEVEL := 10
 const WEAK   := "ITM-016"     # Emplastro de Limo, +30%
 const MEDIUM := "ITM-017"     # Emplastro Espesso, +70%
 const FULL   := "ITM-018"     # Seiva Primordial, +100%
+const NONHEAL := "ITM-001"    # Pedra, mineral sem efeito de cura
 
 var _world: WorldRoot
 var _db: BestiaryData
@@ -88,7 +89,7 @@ func _test_bundle_contract() -> void:
 		and _db.item_effect_value(MEDIUM) < _db.item_effect_value(FULL))
 
 	# Cura não pode sair do chão: é a mesma armadilha que `test_merchant`
-	# guarda para as resinas, e vale para toda categoria de consumível.
+	# guarda para o catálogo inteiro de consumível.
 	var mineable := _db.mineral_codes()
 	for code in [WEAK, MEDIUM, FULL]:
 		_check_true("%s nao e mineravel" % code, not mineable.has(code))
@@ -219,16 +220,16 @@ func _test_window_flow() -> void:
 	var window := RosterWindow.new()
 	root.add_child(window)
 	window.setup(_db, bag)
-	window.refresh(r, LEVEL)
+	window.refresh(r)
 
 	_check_true("sem cura na bolsa o modo nao abre", not window.open_item_mode())
 	_check("e o modo continua o normal", window.mode(), RosterWindow.Mode.LIST)
 
 	bag.add(WEAK, 2)
 	bag.add(FULL)
-	# Resina na bolsa não pode virar item de cura na lista: o filtro é por
-	# efeito, e é ele que separa as duas famílias de consumível.
-	bag.add("ITM-013")
+	# Mineral na bolsa não pode virar item de cura na lista: o filtro é por
+	# efeito, e é ele que separa as famílias de consumível.
+	bag.add(NONHEAL)
 	_check_true("com cura na bolsa o modo abre", window.open_item_mode())
 	_check("entra escolhendo o alvo", window.mode(), RosterWindow.Mode.PICK_TARGET)
 
@@ -274,11 +275,11 @@ func _test_window_flow() -> void:
 	_check("fechar volta ao modo normal", window.mode(), RosterWindow.Mode.LIST)
 
 	# Bolsa esvaziada com a janela aberta cai sozinha para a lista normal.
-	window.refresh(r, LEVEL)
+	window.refresh(r)
 	window.open_item_mode()
 	bag.remove(WEAK, 2)
 	bag.remove(FULL)
-	window.refresh(r, LEVEL)
+	window.refresh(r)
 	_check("bolsa vazia derruba o modo", window.mode(), RosterWindow.Mode.LIST)
 
 	window.free()
@@ -316,10 +317,10 @@ func _test_world_use() -> void:
 	_check("e nao mexe no HP", r.hp_at(0), top)
 
 	# Item que não cura não passa por aqui, mesmo estando na bolsa.
-	bag.add("ITM-013")
+	bag.add(NONHEAL)
 	r.set_hp_at(0, 1)
-	_world.use_item_on_slot(0, "ITM-013")
-	_check("resina nao e usada como cura", bag.quantity("ITM-013"), 1)
+	_world.use_item_on_slot(0, NONHEAL)
+	_check("mineral nao e usado como cura", bag.quantity(NONHEAL), 1)
 	_check("e o HP fica onde estava", r.hp_at(0), 1)
 
 	# Item que não está na bolsa não cura ninguém.

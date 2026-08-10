@@ -2,7 +2,7 @@
 
 O que está pendente, em que ordem, e por quê. Cobre os dois repositórios — o jogo aqui, o catálogo em `../game`.
 
-Atualizado em: bundle `dataVersion 0.104`.
+Atualizado em: bundle `dataVersion 0.178`. O catálogo segue em edição contínua por outra sessão em paralelo — este número já deve estar defasado quando você ler.
 
 ---
 
@@ -12,7 +12,7 @@ Atualizado em: bundle `dataVersion 0.104`.
 
 **A metade do mapa está feita.** `ITM-016`/`017`/`018` se usam pela janela do time (`I` → alvo → item), consomem a bolsa e curam de verdade. `ItemEffects` é a classe de fórmula, `PlayerRoster.heal_at` aplica, `WorldRoot.use_item_on_slot` arbitra, `test_items.gd` prende. O laço econômico fechou: comprar cura é comprar tempo contra os 10 %/min de regeneração.
 
-Falta o uso **em combate**, que é o que o jogador do gênero espera. Exige `Kind.ITEM` em `BattleAction` e `_do_item` em `Battle`, ~40 linhas seguindo o padrão de `_do_capture`, mais um menu no `DuelScreen` espelhando o das resinas. A aritmética já está pronta e é reusável inteira — `ItemEffects.heal_amount` não sabe se quem chama é o mapa ou a batalha.
+Falta o uso **em combate**, que é o que o jogador do gênero espera. Exige `Kind.ITEM` em `BattleAction` e `_do_item` em `Battle`, ~40 linhas seguindo o padrão de `_do_capture`, mais um menu de item no `DuelScreen` — a captura não serve mais de referência para isso, virou ação direta sem menu com o Relicário. A aritmética já está pronta e é reusável inteira — `ItemEffects.heal_amount` não sabe se quem chama é o mapa ou a batalha.
 
 Duas decisões a tomar quando isso for feito, e nenhuma delas é óbvia:
 
@@ -64,21 +64,31 @@ O `avyron` já está protegido — `.gitattributes` com filtros LFS entrou antes
 
 `BattleStaging` põe os dois combatentes frente a frente e o domador atrás da própria criatura. A composição está certa; quem não a mostra é a câmera, que segue o `Player` — e o `Player` agora é uma das **pontas** dela, não o centro.
 
-A conta, com os valores atuais:
+**Atualizado:** `BattleStaging.TRAINER_SPREAD` caiu de `3,0` para `1,5` (recuo do domador pela metade, a pedido — mitigação, não a correção definitiva abaixo). A conta, recalculada:
 
-| | |
-|---|---|
-| domador → companheira | 6,5 m |
-| companheira → adversário | 8,9 m |
-| adversário → centro do quadro | **15,4 m** |
-| meia-altura do enquadramento (size 15,01) | 7,5 m |
-| meia-largura a 16:9 | 13,35 m |
+| | antes | agora |
+|---|---|---|
+| domador → companheira | 6,5 m | **3,25 m** |
+| companheira → adversário | 8,9 m | 8,9 m (sem mudança) |
+| adversário → centro do quadro | 15,4 m | **12,15 m** |
+| meia-altura do enquadramento (size 15,01) | 7,5 m | 7,5 m |
+| meia-largura a 16:9 | 13,35 m | 13,35 m |
 
-Abrir o `base_size` para 17,15 levou a batalha junto e trouxe o adversário de volta para dentro do quadro, mas por pouco e **dependendo do ângulo**: ao longo do eixo de visão a projeção comprime a distância por `sin(18°)` e 15,4 m viram 4,7 m, com folga; perpendicular a ele não há compressão nenhuma, e 15,4 m disputam com 13,35 m. Num confronto atravessado na tela o adversário encosta na borda.
+Com `base_size` em 17,15: ao longo do eixo de visão a projeção comprime por `sin(18°)`, e 12,15 m viram ~3,75 m contra 7,5 m de meia-altura — folga ampla. Perpendicular, sem compressão nenhuma: 12,15 m contra 13,35 m de meia-largura — o caso que antes estourava (15,4 > 13,35) agora **cabe**, para este par de exemplo. Não é garantia geral: um par grande o bastante ainda estoura, só que precisa ser maior que o medido aqui para chegar lá.
 
-A correção é apontar a câmera para o **ponto médio dos dois combatentes** enquanto a batalha dura. `IsoCamera.set_target` já existe, e o ponto médio é exatamente o que a correção simétrica da encenação preserva — ele não se move, então seria um alvo estável, não um que persegue. Corta os 15,4 m pela metade e elimina a dependência do ângulo.
+A correção definitiva continua sendo apontar a câmera para o **ponto médio dos dois combatentes** enquanto a batalha dura. `IsoCamera.set_target` já existe, e o ponto médio é exatamente o que a correção simétrica da encenação preserva — ele não se move, então seria um alvo estável, não um que persegue, e elimina a dependência do ângulo por completo (não só reduz, como a mitigação acima).
 
 O que trava a decisão não é a implementação, é o contrato: a câmera hoje tem **um** alvo e o lookahead lê a velocidade dele (`_target is CharacterBody3D`). Um ponto médio não é um nó, então ou `set_target` passa a aceitar uma posição, ou nasce um nó-âncora que a encenação move. O segundo é mais feio e não muda o `_physics_process`; o primeiro é mais limpo e mexe no lookahead.
+
+### 5. Relicário e progressão — pontas soltas do redesenho de captura
+
+A mecânica está de pé — captura, XP de relicário e de criatura, drops, storage, posto — mas três coisas ficaram deliberadamente em aberto quando o sistema entrou:
+
+- **Aquisição de relicário não existe.** Todo jogador começa com `RLC-001` fixo em código (`WorldRoot.STARTER_RELIC_CODE`), e o posto deixa trocar para **qualquer** modelo do catálogo sem checar posse — mesmo furo que já era assumido no handoff de design do Relicário, só que agora visível em jogo em vez de escondido atrás de "fora de escopo". Loot de dungeon, arena, crafting ou quest são os candidatos óbvios; nenhum foi decidido.
+- **Qual stat o buff de combate afeta não foi fechado pelo design.** A implementação escolheu `attack_modifier` (`DuelScreen._apply_relic_buff`) porque o hook já existia e o campo não podia ficar inerte — mas é decisão de código preenchendo lacuna, não confirmação de que ataque é o certo. Se o design decidir por defesa, velocidade ou algo do Despertar, é um ponto de aplicação só para mudar.
+- **Números de XP e custo de material são placeholders sem playtest**, dos dois lados (`relic_rules.xpPerCapture/xpCurveBase/xpCurveExponent/materialCostBase/materialCostLevelStep` e o mesmo bloco em `progression_rules`). Vale a mesma ressalva que já existia para a regeneração de HP: mexer nesses números muda o ritmo do jogo inteiro, e ninguém jogou o suficiente para saber se a barra enche rápido ou devagar demais.
+
+Nenhum dos três bloqueia jogar — o sistema funciona de ponta a ponta sem eles fechados. Bloqueiam é declarar a mecânica "pronta" em vez de "jogável".
 
 ---
 
@@ -116,12 +126,14 @@ Números escolhidos com raciocínio mas sem playtest. Todos ajustáveis por `PAT
 |---|---|---|
 | Regeneração de HP | 10 %/min | `PlayerRoster.REGEN_FRACTION_PER_MINUTE` — **em código**, é o único que não veio do bestiário |
 | Renda de mineração | ~98 óbolos/min no PZ-01 com Loricati | derivado de `item_stats.value` × `mining_rates` |
-| Resina Comum | 60 óbolos ≈ 40 s de mineração | `item_stats` |
 | Emplastro de Limo | 80 óbolos por 30 % do HP ≈ 3 min de regeneração comprados | `item_stats` |
 | Seiva Primordial | 600 óbolos por 100 % ≈ 10 min comprados, a 2,25× o preço por ponto | `item_stats` |
-| Resina Ancestral | 500 óbolos ≈ 5 min | `item_stats` |
 | Margem do comerciante | `sellRatio` 0.4 | `economy_rules` |
 | Distância do companheiro | 2,6 m parado / 3,6 m correndo | `CompanionActor.FOLLOW_DISTANCE` — apresentação, fica em código |
+| Recuo do domador em combate | ~3,25 m (era 6,5 m) | `BattleStaging.TRAINER_SPREAD` — apresentação, fica em código |
+| Bônus de captura do Relicário | mesmo elemento +15, mesma classe +10, elemento em desvantagem −15 (pontos percentuais) | `relic_rules` |
+| XP por captura / curva de nível do Relicário | 20 por captura, `xpCurveBase` 10, `xpCurveExponent` 1.5 | `relic_rules` |
+| Custo de material por nível (Relicário e criatura) | base 1 unidade, +1 a cada 20 níveis | `relic_rules.materialCost*` / `progression_rules.itemCost*` |
 
 A regeneração é a primeira que eu mexeria depois de jogar: seis criaturas se recuperando em paralelo pode tornar a espera irrelevante, ou o contrário — ficar parado olhando a HUD.
 

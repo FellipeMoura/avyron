@@ -11,7 +11,6 @@ extends SceneTree
 ##     godot --headless --script res://scripts/dev/test_merchant.gd
 
 const MERCHANT := "NPC-001"
-const RESIN_CHEAP := "ITM-013"    # Resina Comum, captura x1.5
 const POULTICE := "ITM-016"       # Emplastro de Limo
 const STONE := "ITM-001"          # Pedra, o mineral mais barato
 
@@ -48,7 +47,6 @@ func _process(_delta: float) -> bool:
 			_test_purse()
 			_test_shop_screen()
 			_test_world_wiring()
-			_test_capture_resin()
 			_phase = "done"
 		"done":
 			_finish()
@@ -66,11 +64,9 @@ func _test_catalog() -> void:
 		"%d itens" % _db.item_codes().size())
 	_check_true("mineral e consumivel convivem no mesmo catalogo",
 		_db.items_in_category("mineral").size() > 0
-		and _db.items_in_category("capture").size() > 0
 		and _db.items_in_category("heal").size() > 0,
-		"%d mineral, %d captura, %d cura" % [
+		"%d mineral, %d cura" % [
 			_db.items_in_category("mineral").size(),
-			_db.items_in_category("capture").size(),
 			_db.items_in_category("heal").size()])
 
 	# O furo que o filtro do export existe para tapar: consumivel nao pode
@@ -80,13 +76,9 @@ func _test_catalog() -> void:
 	for c in _db.mineral_codes():
 		minable[str(c)] = true
 	_check_true("nenhum consumivel e mineravel",
-		not minable.has(RESIN_CHEAP) and not minable.has(POULTICE),
+		not minable.has(POULTICE),
 		"%d mineraveis de %d itens" % [minable.size(), _db.item_codes().size()])
 
-	_check_true("resina tem efeito de captura",
-		_db.item_effect_code(RESIN_CHEAP) == "capture_bonus"
-		and _db.item_effect_value(RESIN_CHEAP) > 1.0,
-		"x%.1f" % _db.item_effect_value(RESIN_CHEAP))
 	_check_true("emplastro tem efeito de cura",
 		_db.item_effect_code(POULTICE) == "heal_percent"
 		and _db.item_effect_value(POULTICE) > 0.0,
@@ -115,8 +107,8 @@ func _test_economy_math() -> void:
 		"%.2f" % ratio)
 
 	# O spread e o que impede o loop infinito de comprar e revender.
-	var buy := _db.item_value(RESIN_CHEAP)
-	var sell := _db.sell_price(RESIN_CHEAP)
+	var buy := _db.item_value(POULTICE)
+	var sell := _db.sell_price(POULTICE)
 	_check_true("revender da prejuizo", sell < buy, "compra %d, vende %d" % [buy, sell])
 
 	# Piso de 1: mineral barato nao pode arredondar para zero, ou vira lixo
@@ -169,10 +161,10 @@ func _test_shop_screen() -> void:
 	shop.setup(_db, inv, MERCHANT)
 
 	# Compra: debita a bolsa e entrega o item, um pelo outro.
-	var price := _db.item_value(RESIN_CHEAP)
-	shop._buy(RESIN_CHEAP)
+	var price := _db.item_value(POULTICE)
+	shop._buy(POULTICE)
 	_check("a bolsa pagou", inv.currency, 200 - price)
-	_check("o item entrou", inv.quantity(RESIN_CHEAP), 1)
+	_check("o item entrou", inv.quantity(POULTICE), 1)
 
 	# Sem saldo: nada acontece dos dois lados.
 	var poor := PlayerInventory.new()
@@ -180,9 +172,9 @@ func _test_shop_screen() -> void:
 	var shop2 := MerchantScreen.new()
 	root.add_child(shop2)
 	shop2.setup(_db, poor, MERCHANT)
-	shop2._buy(RESIN_CHEAP)
+	shop2._buy(POULTICE)
 	_check("sem saldo, a bolsa nao mexe", poor.currency, 1)
-	_check("e nada entra", poor.quantity(RESIN_CHEAP), 0)
+	_check("e nada entra", poor.quantity(POULTICE), 0)
 
 	# Venda: tira o item e credita.
 	inv.add(STONE, 2)
@@ -257,51 +249,6 @@ func _test_world_wiring() -> void:
 	_check_true("a HUD do mapa voltou",
 		(_world.get_node_or_null("HudLayer/InventoryPanel") as Control).visible)
 
-
-# ---------------------------------------------------------------------------
-# a resina no combate
-# ---------------------------------------------------------------------------
-
-func _test_capture_resin() -> void:
-	print("resina no duelo:")
-	var inv := PlayerInventory.new()
-	inv.add(RESIN_CHEAP, 2)
-
-	var roster := PlayerRoster.new()
-	roster.setup(_db, 10, "CRT-002")
-
-	var duel := load("res://scenes/duel.tscn").instantiate() as DuelScreen
-	duel.player_code = roster.active()
-	duel.player_party = roster.to_party()
-	duel.enemy_code = "CRT-017"
-	duel.duel_level = 10
-	duel.inventory = inv
-	root.add_child(duel)
-
-	# Com resina em maos, `C` abre a lista em vez de capturar direto.
-	var rows := duel._held_capture_items()
-	_check_true("a lista tem 'sem resina' e a resina", rows.size() == 2 and rows[0] == "",
-		str(rows))
-
-	duel._capture_mode = true
-	duel._capture_rows = rows
-
-	# Posicao 1 = a resina: consome uma e leva o bonus dela para a acao.
-	var action := duel._numeric_action(1)
-	_check_true("a acao e de captura",
-		action != null and action.kind == BattleAction.Kind.CAPTURE)
-	_check_true("com o bonus da resina",
-		action != null and absf(action.item_bonus - _db.item_effect_value(RESIN_CHEAP)) < 0.01,
-		"x%.1f" % (action.item_bonus if action else 0.0))
-	_check("a resina foi consumida", inv.quantity(RESIN_CHEAP), 1)
-
-	# Sem resina, `C` captura a mao — sem menu de uma opcao so.
-	inv.remove(RESIN_CHEAP, 1)
-	_check("acabou a resina", inv.quantity(RESIN_CHEAP), 0)
-	_check("a lista volta a ter so a captura basica",
-		duel._held_capture_items().size(), 1)
-
-	duel.queue_free()
 
 
 # ---------------------------------------------------------------------------

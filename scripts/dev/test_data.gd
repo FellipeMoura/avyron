@@ -31,11 +31,12 @@ func _init() -> void:
 	_test_element_ring(db)
 	_test_damage(db)
 	_test_charge(db)
-	_test_capture(db)
 	_test_known_abilities(db)
 	_test_turn_order()
 	_test_contract_integrity(db)
 	_test_mining_contract(db)
+	_test_relics_contract(db)
+	_test_relic_math(db)
 
 	db.free()
 
@@ -76,8 +77,11 @@ func _check_true(label: String, condition: bool, detail: String = "") -> void:
 
 func _test_inventory(db: BestiaryData) -> void:
 	print("inventario:")
-	_check("criaturas", db.creature_count(), 26)
-	_check("habilidades", db.ability_count(), 31)
+	# Contagens crescem com o catálogo — travar um número fixo faria este teste
+	# quebrar a cada criatura nova cadastrada no bestiário sem nenhum bug real.
+	# O que importa guardar é que o bundle não está vazio.
+	_check_true("tem criaturas", db.creature_count() > 0, "%d" % db.creature_count())
+	_check_true("tem habilidades", db.ability_count() > 0, "%d" % db.ability_count())
 	_check_true("dataVersion preenchida", db.data_version != "")
 	_check_true("bloco rules presente", not db.rules.is_empty())
 
@@ -185,24 +189,6 @@ func _test_charge(db: BestiaryData) -> void:
 		"precisa sofrer %.0f%% do HP maximo" % hp_needed)
 
 
-func _test_capture(db: BestiaryData) -> void:
-	print("captura:")
-	var full := CombatMath.capture_chance(190, 100, 100, db.rules)
-	var hurt := CombatMath.capture_chance(190, 5, 100, db.rules)
-	_check_true("enfraquecer aumenta a chance", hurt > full,
-		"%.3f cheio vs %.3f ferido" % [full, hurt])
-
-	var awake := CombatMath.capture_chance(190, 5, 100, db.rules, 1.0, 0.35, true)
-	_check_true("Despertar dificulta a captura", awake < hurt,
-		"%.3f desperto vs %.3f normal" % [awake, hurt])
-
-	# Nunca garantida, nunca impossível.
-	var ceiling := CombatMath.capture_chance(255, 1, 100, db.rules, 10.0)
-	var floor_ := CombatMath.capture_chance(1, 100, 100, db.rules)
-	_check("teto de 95%", ceiling, 0.95)
-	_check("piso de 1%", floor_, 0.01)
-
-
 func _test_known_abilities(db: BestiaryData) -> void:
 	print("repertorio:")
 	var at1 := db.known_abilities("CRT-021", 1)
@@ -234,6 +220,7 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 	var no_abilities: Array = []
 	var no_awakening: Array = []
 	var bad_element: Array = []
+	var bad_drops := 0
 
 	for code in db.creature_codes():
 		var c := db.creature(code)
@@ -247,11 +234,16 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 			no_awakening.append(code)
 		if db.element(str(c.get("element", ""))).is_empty():
 			bad_element.append(code)
+		# `creature_drops` não pode estourar nem devolver algo que não seja
+		# array — é o que `LootTable.roll` itera direto em combate.
+		if typeof(db.creature_drops(code)) != TYPE_ARRAY:
+			bad_drops += 1
 
 	_check("criaturas sem stats", no_stats.size(), 0)
 	_check("criaturas sem regra de captura", no_capture.size(), 0)
 	_check("criaturas sem golpes", no_abilities.size(), 0)
 	_check("criaturas com elemento invalido", bad_element.size(), 0)
+	_check("criaturas com bloco de drops invalido", bad_drops, 0)
 	# Despertar é opcional no schema, mas a meta do elenco é cobertura 1:1.
 	_check_true("cobertura de Despertar 1:1", no_awakening.is_empty(),
 		"sem despertar: %s" % str(no_awakening) if not no_awakening.is_empty() else "26 de 26")
@@ -298,3 +290,115 @@ func _test_mining_contract(db: BestiaryData) -> void:
 			if db.mineral(item_code).is_empty():
 				orphan += 1
 	_check("pesos apontando para mineral inexistente", orphan, 0)
+
+
+## Mesmo espírito de `_test_mining_contract`: `relics` é opcional em
+## `load_bundle` (bundle antigo ainda sobe, só com o Relicário desligado), mas
+## aqui é obrigatório — um export sem relics é um export velho, e é este teste
+## que tem de dizer isso.
+func _test_relics_contract(db: BestiaryData) -> void:
+	print("contrato do relicario:")
+	_check_true("bloco relics presente", db.has_relics(),
+		"%d modelos" % db.relic_codes().size())
+	if not db.has_relics():
+		return
+
+	var bad_element: Array = []
+	var bad_class: Array = []
+	var bad_stats: Array = []
+	for code in db.relic_codes():
+		var r := db.relic(code)
+		if db.element(str(r.get("element", ""))).is_empty():
+			bad_element.append(code)
+		if db.creature_class(str(r.get("class", ""))).is_empty():
+			bad_class.append(code)
+		# Campos numéricos achatados de relic_stats pelo exportador — ausência
+		# de qualquer um significa relic sem a linha em relic_stats.
+		for field in ["slotCapacity", "baseCaptureRate", "captureRatePerLevel", "maxLevel"]:
+			if not r.has(field):
+				bad_stats.append("%s.%s" % [code, field])
+	_check("relics com elemento invalido", bad_element.size(), 0)
+	_check("relics com classe invalida", bad_class.size(), 0)
+	_check("relics sem stats completos", bad_stats.size(), 0)
+
+	var rr := db.relic_rules()
+	_check_true("relic_rules presente", not rr.is_empty())
+	if not rr.is_empty():
+		_check_true("captureFloorPct <= captureCeilPct",
+			float(rr["captureFloorPct"]) <= float(rr["captureCeilPct"]),
+			"%.1f / %.1f" % [float(rr["captureFloorPct"]), float(rr["captureCeilPct"])])
+
+	# baseCaptureRate é o valor no nível 1 por definição — a curva não pode
+	# somar incremento nenhum ali, senão o bug de (nível vs nível-1) voltou.
+	var level1_ok := true
+	for code in db.relic_codes():
+		var r := db.relic(code)
+		if db.relic_capture_rate_at_level(code, 1) != float(r["baseCaptureRate"]):
+			level1_ok = false
+	_check_true("taxa de captura no nivel 1 == baseCaptureRate", level1_ok)
+
+
+## `RelicMath` é uma classe de fórmula pura, mesmo contrato de `CombatMath` —
+## e por isso testada do mesmo jeito, aqui dentro, com o esperado derivado das
+## regras do bundle em vez de números travados.
+func _test_relic_math(db: BestiaryData) -> void:
+	print("formula do relicario:")
+	if not db.has_relics():
+		print("  (pulado — bundle sem relics)")
+		return
+
+	# Nível 1 é a base pura; a curva só entra a partir do nível 2.
+	_check("rate_at_level(80, 4, 1)", RelicMath.rate_at_level(80.0, 4.0, 1), 80.0)
+	_check("rate_at_level(80, 4, 5)", RelicMath.rate_at_level(80.0, 4.0, 5), 96.0)
+
+	_check("resistance(catchRate=200)", RelicMath.resistance(200), 56)
+	_check("resistance(catchRate=1)", RelicMath.resistance(1), 255)
+
+	var rr := db.relic_rules()
+	var code: String = db.relic_codes()[0]
+	var relic := db.relic(code)
+	var relic_element := str(relic["element"])
+	var relic_class := str(relic["class"])
+	var rate := db.relic_capture_rate_at_level(code, 1)
+
+	# Criatura neutra: elemento e classe diferentes dos do relicário, sem
+	# vantagem/desvantagem elemental — só o termo base entra.
+	var other_element := "ELE-999"
+	var other_class := "CLS-999"
+	var neutral := RelicMath.capture_chance(db, rate, relic_element, relic_class, 128, other_element, other_class)
+	var expected_base := clampf(
+		(rate / float(RelicMath.resistance(128))) * 100.0,
+		float(rr["captureFloorPct"]), float(rr["captureCeilPct"])) / 100.0
+	_check_true("caso neutro bate com base% clampado",
+		absf(neutral - expected_base) < 0.0001,
+		"%.4f vs %.4f" % [neutral, expected_base])
+
+	# Mesmo elemento soma o bônus — chance sobe (a menos que já estivesse no teto).
+	var same_element := RelicMath.capture_chance(db, rate, relic_element, relic_class, 128, relic_element, other_class)
+	_check_true("mesmo elemento nao reduz a chance", same_element >= neutral,
+		"%.4f vs %.4f" % [same_element, neutral])
+
+	# Mesma classe soma o bônus.
+	var same_class := RelicMath.capture_chance(db, rate, relic_element, relic_class, 128, other_element, relic_class)
+	_check_true("mesma classe nao reduz a chance", same_class >= neutral,
+		"%.4f vs %.4f" % [same_class, neutral])
+
+	# Desvantagem elemental: acha o elemento que bate o do relicário (mesmo
+	# oráculo que `RelicMath.capture_chance` usa por dentro, via
+	# `element_multiplier`) e confirma que a penalidade reduz a chance.
+	var disadvantage_element := ""
+	for candidate in ["ELE-001", "ELE-002", "ELE-003", "ELE-004", "ELE-005", "ELE-006"]:
+		if db.element_multiplier(relic_element, candidate) < 1.0:
+			disadvantage_element = candidate
+			break
+	if disadvantage_element != "":
+		var disadvantaged := RelicMath.capture_chance(
+			db, rate, relic_element, relic_class, 128, disadvantage_element, other_class)
+		_check_true("desvantagem elemental reduz a chance", disadvantaged <= neutral,
+			"%.4f vs %.4f" % [disadvantaged, neutral])
+
+	# Floor/ceil seguram os dois extremos.
+	var near_impossible := RelicMath.capture_chance(db, 0.01, relic_element, relic_class, 255, other_element, other_class)
+	var near_certain := RelicMath.capture_chance(db, 100000.0, relic_element, relic_class, 1, other_element, other_class)
+	_check("piso respeitado", near_impossible, float(rr["captureFloorPct"]) / 100.0)
+	_check("teto respeitado", near_certain, float(rr["captureCeilPct"]) / 100.0)

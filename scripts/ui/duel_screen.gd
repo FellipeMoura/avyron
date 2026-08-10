@@ -61,9 +61,11 @@ var duel_level := DEFAULT_LEVEL
 var player_party: Array = []
 var player_active_index := 0
 
-## Inventário do jogador, para a resina de captura. Null em playtest solto —
-## sem mundo não há bolsa, e `C` cai direto na captura sem item.
-var inventory: PlayerInventory
+## O relicário equipado — fonte da taxa de captura e do bônus de
+## elemento/classe. Null em playtest solto (sem mundo não há relicário
+## equipado); `C` fica sem efeito nesse caso, mesmo espírito do guard antigo
+## de `inventory == null`.
+var relic: PlayerRelic
 
 ## Paleta herdada dos tokens do app web.
 const COL_BONE := "#F2EDE0"
@@ -82,13 +84,6 @@ var _last_message := ""
 ## porque um estado que o jogador não pode desligar não deve ser guardado num
 ## booleano que alguém pode esquecer de sincronizar.
 var _switch_mode := false
-
-## Lista de resinas aberta pelo `C`. Como o modo de troca, muda o significado
-## das teclas numéricas — e o painel de ações muda junto, então o número nunca
-## fica ambíguo.
-var _capture_mode := false
-## Códigos na ordem desenhada; "" na posição 0 significa capturar sem item.
-var _capture_rows: Array[String] = []
 
 var _enemy_label: RichTextLabel
 var _player_label: RichTextLabel
@@ -241,25 +236,45 @@ func _start_new_duel() -> void:
 	_render()
 
 
-## Monta os combatentes do jogador. Com time, aplica o HP que veio do mundo;
-## sem time, cai no duelo solto de playtest com uma criatura só.
+## Monta os combatentes do jogador. Com time, aplica o HP e o **próprio**
+## nível de cada um, vindos do mundo (`PlayerRoster.to_party`) — não mais um
+## nível de encontro achatado pro time inteiro. Sem time, cai no duelo solto
+## de playtest com uma criatura só, em `duel_level`.
 func _build_party(codes: Array) -> Array:
 	var party: Array = []
 
 	for entry in player_party:
-		var c := Combatant.from_bestiary(_db, str(entry.get("code", "")), duel_level)
+		var lvl := int(entry.get("level", duel_level))
+		var c := Combatant.from_bestiary(_db, str(entry.get("code", "")), lvl)
 		if c == null:
 			continue
 		c.hp = clampi(int(entry.get("hp", c.max_hp)), 0, c.max_hp)
+		_apply_relic_buff(c)
 		party.append(c)
 
 	if party.is_empty():
 		var a := player_code
 		if a == "":
 			a = codes[_rng.randi() % codes.size()]
-		party.append(Combatant.from_bestiary(_db, a, duel_level))
+		var solo := Combatant.from_bestiary(_db, a, duel_level)
+		_apply_relic_buff(solo)
+		party.append(solo)
 
 	return party
+
+
+## Buff passivo do relicário equipado, pra criatura do elemento ou classe
+## dele — propriedade fixa do equipamento, não depende de contra quem a
+## criatura está lutando. Aplicado em `attack_modifier`, o hook que já existe
+## pra buff/debuff; qual stat exatamente é decisão em aberto no documento
+## `relicario` — esta é a escolha de implementação enquanto isso não fecha.
+func _apply_relic_buff(c: Combatant) -> void:
+	if c == null or relic == null:
+		return
+	var matches := c.element == relic.element_code(_db) or c.creature_class == relic.class_code(_db)
+	if not matches:
+		return
+	c.attack_modifier *= 1.0 + relic.combat_buff(_db) / 100.0
 
 
 func _input(event: InputEvent) -> void:
@@ -292,19 +307,11 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if key == KEY_S:
-		_capture_mode = false
 		_toggle_switch_mode()
 		return
 
 	if key == KEY_C:
-		# Segundo `C` com a lista aberta cancela — a mesma tecla que abre
-		# fecha, como o `S` da troca.
-		if _capture_mode:
-			_capture_mode = false
-			_last_message = ""
-			_render()
-		else:
-			_open_capture_menu()
+		_try_capture()
 		return
 
 	# Despertar não consome o turno, então não dispara a rodada.
@@ -330,7 +337,6 @@ func _input(event: InputEvent) -> void:
 
 	_last_message = ""
 	_switch_mode = false
-	_capture_mode = false
 	battle.resolve_round(action, battle.choose_enemy_action())
 	# A rodada que derruba a ativa muda o assunto da tela. Uma dica escrita
 	# para o menu de troca ("trocar custa a rodada") sobrevivendo até aqui
@@ -344,21 +350,6 @@ func _input(event: InputEvent) -> void:
 ## resto do tempo. Devolve null quando não há o que fazer na posição — a
 ## mensagem já foi escrita, cabe ao chamador redesenhar.
 func _numeric_action(index: int) -> BattleAction:
-	if _capture_mode:
-		if index >= _capture_rows.size():
-			_last_message = "Nao ha nada nessa posicao."
-			return null
-		var code := _capture_rows[index]
-		if code == "":
-			return BattleAction.capture()
-		# Consome antes de lançar: a resina se gasta no arremesso, dê certo ou
-		# não. Devolver em caso de falha faria tentar de novo custar nada, e a
-		# escolha entre resina cara e barata deixaria de existir.
-		if not inventory.remove(code):
-			_last_message = "Voce nao tem %s." % _db.item_name(code)
-			return null
-		return BattleAction.capture(_db.item_effect_value(code))
-
 	if _switch_mode:
 		if index >= battle.player_party.size():
 			_last_message = "Nao existe slot nessa posicao."
@@ -379,57 +370,21 @@ func _numeric_action(index: int) -> BattleAction:
 	return BattleAction.use_ability(str(options[index]["code"]))
 
 
-## Abre a lista de resinas. Sem inventário ou sem nenhuma resina, captura na
-## hora e sem item — obrigar a passar por um menu de uma opção só seria
-## cerimônia.
-func _open_capture_menu() -> void:
-	_capture_rows = _held_capture_items()
-	if _capture_rows.size() <= 1:
-		_last_message = ""
-		_switch_mode = false
-		battle.resolve_round(BattleAction.capture(), battle.choose_enemy_action())
-		if battle.needs_replacement():
-			_last_message = ""
+## Captura direta — sem menu, sem consumível. Um relicário só, então não há
+## escolha a fazer; "obrigar a passar por um menu de uma opção só seria
+## cerimônia" já valia pro caso de zero itens, e agora é o único caso.
+func _try_capture() -> void:
+	if relic == null:
+		_last_message = "Nenhum relicario equipado."
 		_render()
 		return
-
 	_switch_mode = false
-	_capture_mode = true
-	_last_message = "Capturar consome a rodada."
+	_last_message = ""
+	var action := BattleAction.capture(relic.capture_rate(_db), relic.element_code(_db), relic.class_code(_db))
+	battle.resolve_round(action, battle.choose_enemy_action())
+	if battle.needs_replacement():
+		_last_message = ""
 	_render()
-
-
-## Resinas em mãos, ordenadas do bônus menor para o maior. A posição 0 é
-## sempre "sem resina", para a captura básica continuar a um toque.
-func _held_capture_items() -> Array[String]:
-	var out: Array[String] = [""]
-	if inventory == null or _db == null:
-		return out
-	for entry in inventory.entries():
-		var code := str(entry["code"])
-		if _db.item_effect_code(code) == "capture_bonus":
-			out.append(code)
-	out.sort_custom(func(a, b):
-		if a == "":
-			return true
-		if b == "":
-			return false
-		return _db.item_effect_value(a) < _db.item_effect_value(b))
-	return out
-
-
-func _capture_list() -> String:
-	var lines: Array[String] = []
-	for i in _capture_rows.size():
-		var code := _capture_rows[i]
-		if code == "":
-			lines.append("[color=%s][%d][/color] %-22s [color=%s]sem resina — chance base[/color]"
-				% [COL_BONE, i + 1, "a mao", COL_SLATE])
-			continue
-		lines.append("[color=%s][%d][/color] %-22s [color=%s]x%.1f[/color]  [color=%s]x%d em maos[/color]"
-			% [COL_BONE, i + 1, _db.item_name(code), COL_MOSS,
-			   _db.item_effect_value(code), COL_SLATE, inventory.quantity(code)])
-	return "\n".join(lines)
 
 
 func _toggle_switch_mode() -> void:
@@ -504,13 +459,6 @@ func _actions_block(c: Combatant) -> String:
 		out.append("[color=%s]%s caiu. Quem entra?[/color]" % [COL_EMBER, c.display_name])
 		out.append("")
 		out.append(_party_list())
-	elif _capture_mode:
-		out.append("[color=%s]capturar %s — resina se gasta no arremesso[/color]"
-			% [COL_SLATE, battle.enemy.display_name])
-		out.append("")
-		out.append(_capture_list())
-		out.append("")
-		out.append("[color=%s][C] cancelar[/color]" % COL_SLATE)
 	elif _switch_mode:
 		out.append("[color=%s]trocar — a rodada e gasta e o adversario ataca[/color]" % COL_SLATE)
 		out.append("")
