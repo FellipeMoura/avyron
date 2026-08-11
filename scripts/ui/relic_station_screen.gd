@@ -254,7 +254,7 @@ func _swap_rows() -> Array[String]:
 		var r := _db.relic(code)
 		out.append("[color=%s][%d][/color] %-28s [color=%s]%s · %s[/color]" % [
 			COL_BONE, _rows.size(), str(r.get("name", code)),
-			COL_SLATE, _element_name(str(r.get("element", ""))), _class_name(str(r.get("class", ""))),
+			COL_SLATE, _element_name(BestiaryData.relic_element_code(r)), _class_name(BestiaryData.relic_class_code(r)),
 		])
 	return out
 
@@ -265,10 +265,14 @@ func _creature_name(code: String) -> String:
 
 
 func _element_name(code: String) -> String:
+	if code == "":
+		return "—"
 	var e := _db.element(code)
 	return str(e.get("name", code))
 
 
 func _class_name(code: String) -> String:
+	if code == "":
+		return "—"
 	var c := _db.creature_class(code)
 	return str(c.get("name", code))

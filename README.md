@@ -98,7 +98,7 @@ Na primeira vez você precisa importar o projeto — depois é só abrir do Proj
 
 Se pedir para escolher a Main Scene na primeira execução, aponte para `scenes/main.tscn` — está fixado no `project.godot`, mas versões novas do Godot às vezes perguntam mesmo assim.
 
-**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, **F minera**, **T abre o time**, câmera isométrica travada seguindo com lookahead. A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele, com bob leve — puramente visual, sem colisão nem clique.
+**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, **F minera**, **T abre o time**, **E abre o set do jogador**, **V esconde/reexibe a bolsa**, câmera isométrica travada seguindo com lookahead. A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele, com bob leve — puramente visual, sem colisão nem clique.
 
 ### Como a companheira segue
 
@@ -194,12 +194,19 @@ Consequências, todas deliberadas:
 Cada criatura sobe de nível **sozinha** — não existe mais um nível de encontro achatado pro time inteiro. `PlayerRoster` guarda nível e XP por membro; o teto de HP de cada uma deriva do próprio nível (`stats_at_level`), não de um valor único do mundo.
 
 ```
-xpGanho   = floor(xpYield_do_derrotado × nível_do_derrotado / xpYieldDivisor)
+xpTotal   = floor(xpYield_do_derrotado × nível_do_derrotado / xpYieldDivisor)
 xpToNext  = floor(xpCurveBase × nível ^ xpCurveExponent)
 custo     = itemCostBase + floor(nível / itemCostLevelStep)   # unidades do material
 ```
 
-**Só quem terminou a luta em campo ganha XP** — a finalizadora, não o time inteiro. É a mesma escolha de "um destinatário só" que a captura já faz para o relicário; mudar para "todo mundo que lutou" é contido a um ponto só (`WorldRoot._grant_creature_xp`) se o design pedir o contrário depois.
+**`xpTotal` é um pool fixo, repartido entre quem participou** — não mais "só a finalizadora leva tudo". `Battle` registra participação de cada slot do time ao longo da luta inteira (`_xp_participation`, indexado por posição, não por quem terminou em campo): entrou em ação válida ou levou golpe hostil em campo, mesmo que tenha sido trocada depois. Trocar mais criaturas nunca cria XP — o pool não muda de tamanho, só de quantas mãos passa.
+
+```
+contribuição_i = dano_causado_efetivo_i + dano_sofrido_efetivo_i   # sem overkill
+parcela_i = xpTotal/participantes × 0.2 + (xpTotal × 0.8) × contribuição_i / Σcontribuição
+```
+
+`ProgressionMath.distribute_xp` calcula as parcelas (piso por arredondamento de maior resto, soma sempre bate com `xpTotal` exatamente) — um participante só leva tudo; contribuição total zero (ninguém causou nem sofreu dano) reparte igual entre quem participou. O `0.2`/`0.8` é **placeholder de tuning** (`ProgressionMath.XP_BASE_SHARE_RATIO`), não decisão final. Cada participante passa individualmente por `PlayerRoster.grant_xp_at` — mesmo gate de sempre, ver abaixo — e a mensagem final lista uma linha por criatura (`Nome +X XP`).
 
 Subir de nível pede as duas condições ao mesmo tempo, igual ao Relicário: **XP cheio e o material da própria classe da criatura** que sobe (`ITM-019` Quitina Fossilizada para Loricati, `020` Presa Fóssil para Theria, `021` Escama Fóssil para Draconis) — o material vem de **drops** de combate, não do comerciante. Sem o material na bolsa, a barra trava no teto em vez de estourar; o próximo ganho de XP (a próxima vitória) resolve sozinho assim que o jogador tiver o item. `PlayerRoster.grant_xp_at` e `PlayerRelic.grant_capture_xp` compartilham a mesma curva (`ProgressionMath`), extraída quando o segundo consumidor apareceu.
 
@@ -227,7 +234,9 @@ A fórmula vive em `scripts/data/mining_table.gd`; `BestiaryData` só indexa o b
 
 `scripts/data/ore_table.gd` — que carregava cinco minérios inventados em constante — foi removida quando o export passou a trazer o bloco `mining`.
 
-**Painéis** — bolsa e inventário no canto superior esquerdo, criatura ativa no superior direito (status + perfil de mineração + os três minerais mais prováveis para ela ali). Todos somem durante o combate e a negociação, e voltam ao fechar.
+**Painéis** — bolsa e inventário no canto superior esquerdo, criatura ativa no superior direito (status + perfil de mineração + os três minerais mais prováveis para ela ali). Todos somem durante o combate e a negociação, e voltam ao fechar — exceto a bolsa se o jogador pediu para escondê-la com `V`: essa escolha é dele, não do overlay, e sobrevive ao fechar loja/posto/duelo (`WorldRoot._inventory_hidden`).
+
+**Set do jogador** (`E`, `player_set_window.gd`) — janela central somente-leitura com o que está equipado. Hoje só tem uma seção, o Relicário (nome, nível, XP, afinidade — "—" quando neutra, slots, taxa de captura); outras peças do set entram como novas seções aqui, não como janelas novas. Diferente do posto do relicário: o posto (`Tab`, ponto fixo do mapa) é onde o equipamento se *gerencia* (depositar/retirar/trocar de modelo); esta janela é só a *visão* dele, de qualquer lugar. Fecha com `Esc`, mutuamente exclusiva com a janela do time (`T`) — as duas são overlays centrais e se sobreporiam.
 
 ## Economia
 
@@ -258,7 +267,9 @@ O *spread* entre comprar e vender é a margem do comerciante, e é o que impede 
 
 ### Relicário
 
-Equipamento do domador — sem item consumido por tentativa. O que limita é a **capacidade de slots** do modelo equipado e o storage geral, não a bolsa. Todo jogador começa equipado com `RLC-001` (`WorldRoot.STARTER_RELIC_CODE`): sem sistema de aquisição ainda, é o mesmo placeholder explícito que o catálogo já documenta para os três modelos de exemplo.
+Equipamento do domador — sem item consumido por tentativa. O que limita é a **capacidade de slots** do modelo equipado e o storage geral, não a bolsa. Foco do sistema: captura, afinidade de captura por elemento/classe, capacidade de slots, progressão própria de nível e identidade/especialização do domador — **não** bônus direto de status em combate (ver "Buff de combate", abaixo).
+
+Todo jogador começa equipado com `RLC-000`, o **starter neutro**: sem elemento, sem classe, `slotCapacity = 2` — só para ensinar captura/gerenciamento antes da primeira especialização (fora de escopo aqui: prevista como recompensa de arena). `WorldRoot._pick_starter_relic()` procura no bundle por um modelo sem elemento e sem classe em vez de fixar um código; se o catálogo algum dia subir sem esse modelo, o jogador entra sem relicário equipado e um `push_warning` explica o porquê em vez de falhar quieto. `RLC-001/002/003` seguem no catálogo como modelos especializados de exemplo (um por classe) — a distribuição deles pelo mundo continua fora de escopo.
 
 **Captura** entra no duelo pelo `C` e é direta — sem menu: com um relicário equipado ele resolve a tentativa na hora, e sem relicário a tecla recusa com aviso. `BattleAction.capture()` recebe a taxa e o elemento/classe do relicário (`relic.capture_rate()`, `relic.element_code()`, `relic.class_code()`), não um bônus de item; a fórmula vive em `scripts/data/relic_math.gd` e não tem termo de HP nem de Despertar Ancestral — decisão do redesenho, não omissão.
 
@@ -276,11 +287,21 @@ final% = clamp(base%
 
 **Progressão** — uma barra de XP própria, alimentada só por captura bem-sucedida (tentativa fracassada não gera XP). Ao encher, o level-up consome uma unidade do **material da própria classe do relicário** (`ITM-019`/`020`/`021`, o mesmo material que a subida de nível de criatura usa) — sem o material na bolsa, a barra trava exatamente no teto até o jogador conseguir o item, em vez de estourar em silêncio. Sobe mais de um nível numa chamada só se a XP e o material derem.
 
-**Buff de combate** — enquanto equipado, criaturas do time que batem com o elemento *ou* a classe do relicário recebem um bônus fixo em `attack_modifier` durante o duelo (`DuelScreen._apply_relic_buff`). É uma escolha de implementação, não fechamento de design: o catálogo deixa em aberto qual stat o buff deveria afetar.
+**Buff de combate — removido.** O Relicário não concede mais bônus de ataque nem qualquer outro status direto em batalha; `DuelScreen._apply_relic_buff` e o uso de `Combatant.attack_modifier` pelo relicário saíram do duelo. `relic-stats.combatBuffBase`/`combatBuffPerLevel` continuam existindo no catálogo (não removidos por ficarem sem consumidor — só desligados; `RLC-000` já sobe com os dois em `0`), porque outras peças do futuro set do jogador é que devem assumir buffs de combate, Despertar, troca, exploração etc. — não o Relicário.
 
 **Posto do relicário** — ponto fixo no mapa (`RelicStationActor`, mesmo padrão de clique-para-interagir do comerciante), com quatro modos (`Tab` circula): status do equipado, depositar um ativo no storage, retirar um guardado, e trocar de modelo — só habilitado com o time ativo **vazio**, forçando "esvaziar os slots antes de trocar" como o design exige. Sem sistema de posse ainda, a troca deixa escolher qualquer modelo do catálogo — o mesmo furo que a aquisição já é, só tornado visível aqui.
 
 `PlayerRoster` tem três níveis por causa disso: **ativo** (limitado por `slotCapacity`, via `set_capacity()`), **storage** (sem limite de código, só acessível no posto) e o HP/regeneração que já valiam para os dois. Time cheio na hora da captura continua fazendo a captura escapar, exatamente como antes — só que "cheio" agora depende do relicário equipado, não de um teto fixo de seis.
+
+### Arena e Glifos
+
+Documento de regra no bestiário: `glifos-e-portais`. Um **Glifo** é conquista permanente, não item — não se vende, não se craft, não dropa de combate comum. O **Campeão da Arena** (`NPC-002`, `role = duelist` no bestiário) é o primeiro duelista jogável: clicar nele de perto abre o mesmo `duel.tscn` de sempre, mas com `DuelScreen.is_wild = false` — `Battle` recusa captura nessa configuração (`_do_capture`), então a arena é sempre golpe contra golpe até alguém cair. Vencer concede o **Glifo Daleth**; `PlayerProgress.grant_glyph` é idempotente, então refazer a arena depois de já tê-lo não reanuncia nem duplica nada.
+
+O **Guardião do portal** (`PortalGuardianActor`, silhueta em bloco alto — não repete cápsula nem torus de nenhum outro ator) barra a passagem até o jogador ter o Glifo. `can_pass()` é a checagem de lógica, separada de qualquer texto — o requisito vale mesmo se a mensagem nunca aparecesse. Sem cena de Titanor ainda para ir de verdade, atravessar com o Glifo só troca a mensagem do guardião por um aviso de que o destino não existe neste build; não há troca de cena.
+
+**Primeiro estado que sobrevive a fechar o jogo.** Tudo o resto aqui (time, bolsa, relicário) é só em memória — `PlayerProgress` (autoload `Progress`) é o único que grava em disco, em `user://progress.cfg`, na hora que o Glifo é concedido. É formato pequeno de propósito (uma lista de códigos), mas a seção existe para crescer quando o resto do save também precisar persistir, sem precisar de arquivo novo.
+
+Arena e guardião ficam no mesmo mapa único que existe hoje (PZ-01/Aetheris I) — posição de estande-in, mesmo raciocínio de `MERCHANT_SPOT`/`RELIC_STATION_SPOT`. O Glifo Zayin (Titanor) está definido no bestiário mas não tem arena nem guardião próprios ainda: não existe mapa de Titanor para prender neles.
 
 ### Itens de cura
 
@@ -335,7 +356,7 @@ Derrota só acontece quando **o time inteiro** cai.
 
 ### Testes
 
-Doze suítes headless, sem dependência de editor:
+Treze suítes headless, sem dependência de editor:
 
 ```powershell
 $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe"
@@ -352,6 +373,7 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_merchant.gd     # o laço da economia
 & $godot --headless --script res://scripts/dev/test_items.gd        # cura: formula, janela, bolsa
 & $godot --headless --script res://scripts/dev/test_staging.gd      # os dois se encaram no duelo
+& $godot --headless --script res://scripts/dev/test_glyphs.gd       # Glifo de arena, nunca de vitória selvagem
 ```
 
 `test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.
@@ -379,6 +401,8 @@ Também prende o "tudo ou nada" das duas pontas: sem saldo, nem a bolsa nem o in
 `test_staging.gd` responde "a imagem mostra o que o overlay narra?". A asserção que mais importa é a da **simetria**: o ponto médio entre os dois não pode escorregar, porque é onde eles se encontraram — se um dia um dos lados passar a fazer todo o trabalho, é ela que pega. A do domador é a mesma medida por outro lado: montar a cena **com** e **sem** ele e exigir que o ponto do encontro caia no mesmo lugar. A segunda é a única que prova fiação em vez de geometria: uma fase inteira do teste espera **quadros reais do motor**, sem chamar `step`, com o mundo pausado. Sem ela, `PROCESS_MODE_ALWAYS` poderia cair e todo o resto continuaria verde.
 
 Ela também prende que o encaramento é medido **no plano**: a bancada põe os dois corpos em alturas diferentes de propósito (companheira no chão, selvagem meia cápsula acima), e um produto escalar em 3D mediria a inclinação entre eles em vez do encaramento — foi exatamente assim que a primeira versão do teste falhou com `dot 0.913`, que é o cosseno de 1,4 m de desnível e não um erro de yaw.
+
+`test_glyphs.gd` responde "só arena concede Glifo?". `PlayerProgress` é `Node`, não `RefCounted`, então o teste é o primeiro a precisar de `free()` explícito nas instâncias — sem isso o `ObjectDB` vaza em silêncio e só aparece no aviso de saída do processo. Isola o save de teste do save real do jogador (`use_path_for_test`, nunca `user://progress.cfg`) e prova as duas metades: uma batalha `is_wild = false` vencida concede o Glifo (idempotente num refight), e uma vitória selvagem — mesmo par, mesma semente — nunca chama `grant_glyph`. A metade que fica sem cobertura headless é a árvore de cena inteira (clique no duelista, `WorldRoot._on_arena_engaged`); testar isso pediria o padrão `_initialize`/`_process` que `test_playable.gd` usa, não o `_init` síncrono que basta aqui.
 
 `scripts/dev/setup_project.gd` gerou o input map e a cena inicial. É andaime de bootstrap — daqui em diante a edição normal é pelo editor.
 

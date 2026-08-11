@@ -68,12 +68,18 @@ var _selected: CreatureActor
 var _info: CreatureInfoPanel
 var _hint: Label
 var _db: BestiaryData
+var _progress: PlayerProgress
 var _companion: CompanionActor
 var _roster: PlayerRoster
 var _active_panel: ActiveCreaturePanel
 var _roster_window: RosterWindow
+var _set_window: PlayerSetWindow
 var _inventory: PlayerInventory
 var _inventory_panel: InventoryPanel
+## Escolha do jogador (tecla `V`), não estado de tela. `_show_world_hud` —
+## chamado ao fechar loja/posto/duelo — respeita isto em vez de sempre
+## reexibir a bolsa, senão "esconder" duraria só até a próxima negociação.
+var _inventory_hidden := false
 var _relic: PlayerRelic
 var _relic_station: RelicStationActor
 var _relic_screen: RelicStationScreen
@@ -83,6 +89,9 @@ var _mine_label: Label
 var _merchants: Array[MerchantActor] = []
 var _shop: MerchantScreen
 var _staging: BattleStaging
+var _arenas: Array[ArenaActor] = []
+var _engaged_arena: ArenaActor
+var _portal_guardian: PortalGuardianActor
 
 ## Onde o comerciante fica. Posição de cena, não de bestiário: o catálogo diz
 ## quem existe e em que mapa, o layout do mundo diz onde. Quando houver
@@ -94,10 +103,34 @@ const MERCHANT_SPOT := Vector3(6.0, 0.0, -6.0)
 ## um ponto fixo"). Mesmo raciocínio de placeholder que o comerciante já é.
 const RELIC_STATION_SPOT := Vector3(9.0, 0.0, -6.0)
 
+## Idem, pra arena e pro guardião do portal (documento `glifos-e-portais`).
+## Guardião fica mais longe dos outros pontos de interação — ele marca a
+## borda do mapa, não um serviço no meio dele.
+const ARENA_SPOT := Vector3(-6.0, 0.0, -6.0)
+const PORTAL_SPOT := Vector3(-6.0, 0.0, -14.0)
+
+## Conteúdo da arena única desta era: contra quem o jogador luta, em que
+## nível, e qual Glifo a vitória concede. Fixo em código pelo mesmo motivo
+## de `starter_code` — o catálogo descreve que existe um duelista (`role =
+## duelist`), não qual criatura específica ele usa. `CRT-021` (Inostrancevia)
+## é `hero`/Theria, um dos predadores de topo já cadastrados — leitura
+## natural de "campeão da arena" dentre o elenco existente.
+const ARENA_OPPONENT_CODE := "CRT-021"
+const ARENA_OPPONENT_LEVEL := 18
+const ARENA_GRANTS_GLYPH := "DALETH"
+
+## O que o guardião exige e para onde ele levaria — só a exibição, ver
+## `PortalGuardianActor.can_pass()` para a checagem em si.
+const PORTAL_REQUIRED_GLYPH := "DALETH"
+const PORTAL_DESTINATION_LABEL := "Titanor"
+
 ## Sem sistema de aquisição ainda (fora de escopo no handoff de design), todo
-## jogador começa equipado com o mesmo modelo — placeholder explícito, não
-## amarrado ao `starter_code` do mapa.
-const STARTER_RELIC_CODE := "RLC-001"
+## jogador começa equipado com o mesmo modelo. Decisão de design (documento
+## `relicario`): o starter é neutro — sem elemento, sem classe, `slotCapacity
+## = 2` — só para ensinar captura/gerenciamento antes da primeira
+## especialização, que vem depois como recompensa de arena (fora de escopo
+## aqui). `_pick_starter_relic` procura por ele no bundle; ver o aviso lá se
+## não achar.
 
 ## Segundos entre minerações consecutivas, antes do perfil de trabalho da
 ## classe ativa. Theria (×1.1) espera menos, Draconis (×0.9) espera mais.
@@ -108,6 +141,12 @@ func _ready() -> void:
 	_camera = get_node_or_null("IsoCamera") as IsoCamera
 	_player = get_node_or_null("Player")
 	_db = get_node_or_null("/root/Bestiary") as BestiaryData
+	# Mesmo padrão do Bestiary: nunca referenciar o autoload pelo identificador
+	# global bare (`Progress.foo()`) — scripts carregados fora do boot padrão
+	# de cena (como os testes headless que fazem `load()` direto) não
+	# resolvem esse identificador, e a falha é erro de compilação, não de
+	# runtime.
+	_progress = get_node_or_null("/root/Progress") as PlayerProgress
 
 	# A câmera continua processando durante a pausa. Um Tween acompanha o
 	# estado de pausa do nó a que está preso, então sem isto o zoom de entrada
@@ -130,8 +169,7 @@ func _ready() -> void:
 
 	# Sem aquisição ainda, todo jogador entra com o mesmo relicário — mas a
 	# capacidade do time já reflete o `slotCapacity` dele desde o início.
-	if _db:
-		_relic = PlayerRelic.from_bestiary(_db, STARTER_RELIC_CODE)
+	_relic = _pick_starter_relic()
 	if _relic:
 		_roster.set_capacity(_relic.slot_capacity(_db))
 
@@ -151,6 +189,8 @@ func _ready() -> void:
 	_spawn_companion()
 	_spawn_merchants()
 	_spawn_relic_station()
+	_spawn_arenas()
+	_spawn_portal_guardian()
 	_build_hud()
 	_update_hint()
 
@@ -181,6 +221,82 @@ func _spawn_relic_station() -> void:
 	_relic_station.name = "RelicStation"
 	_relic_station.engaged.connect(_on_relic_station_engaged)
 	add_child(_relic_station)
+
+
+## Instancia os duelistas de arena que o bestiário coloca neste mapa
+## (`role = duelist`, documento `glifos-e-portais`). Zero é normal, mesmo
+## raciocínio de `_spawn_merchants` — hoje só existe um nesta era.
+func _spawn_arenas() -> void:
+	if _db == null:
+		return
+	var spot := ARENA_SPOT
+	for data in _db.duelists_in_map(map_code):
+		var actor := ArenaActor.create(
+			data, spot, ARENA_OPPONENT_CODE, ARENA_OPPONENT_LEVEL, ARENA_GRANTS_GLYPH)
+		actor.name = "Arena_%s" % str(data.get("code", ""))
+		actor.engaged.connect(_on_arena_engaged)
+		add_child(actor)
+		_arenas.append(actor)
+		spot += Vector3(2.5, 0.0, 0.0)
+
+
+## Um guardião só, sempre presente — igual ao posto do Relicário, não é dado
+## do bestiário (sem `npc_role` que sirva ainda). Fixo nesta era: é ele quem
+## bloqueia a progressão até Titanor.
+func _spawn_portal_guardian() -> void:
+	_portal_guardian = PortalGuardianActor.create(
+		PORTAL_SPOT, PORTAL_REQUIRED_GLYPH, PORTAL_DESTINATION_LABEL, _progress)
+	_portal_guardian.name = "PortalGuardian"
+	_portal_guardian.engaged.connect(_on_portal_guardian_engaged)
+	add_child(_portal_guardian)
+
+
+## Procura no bundle um modelo de Relicário neutro — sem `element`, sem
+## `class` — para equipar o jogador de saída. `null` sem bestiário.
+##
+## Hoje **nenhum modelo assim existe no catálogo**: RLC-001/002/003 têm
+## elemento e classe fixos (e `slotCapacity = 3`, não 2). Isto não é algo que
+## este jogo deva resolver inventando um código local — o bundle exportado é
+## a fonte de verdade (ver cabeçalho de `BestiaryData`), e duplicar o modelo
+## aqui divergiria dele na primeira reexportação.
+##
+## O que falta do lado do avyron-bestiary, para desbloquear isto:
+##   1. Schema: `relics.elementId`/`relics.classId` hoje são `NOT NULL`
+##      (`packages/db/src/schema/relics.ts`) — precisam aceitar ausência,
+##      mesmo padrão que `abilities.elementCode` já usa para golpe sem
+##      afinidade.
+##   2. API: `CreateRelicBodySchema` (`RelicsTypes.ts`) exige
+##      `elementCode`/`classCode` como string — precisam virar opcionais.
+##   3. Um novo relic model via `POST /relics` + `POST /relic-stats`, com:
+##        code, name          — únicos, como qualquer relic
+##        elementCode         — ausente (null)
+##        classCode           — ausente (null)
+##        slotCapacity        — 2
+##        baseCaptureRate, captureRatePerLevel, maxLevel
+##                            — tuning em aberto, qualquer valor razoável serve
+##        combatBuffBase, combatBuffPerLevel
+##                            — sem função em combate desde este patch
+##                              (`duel_screen.gd` não aplica mais), podem ficar
+##                              em 0 ou o default do schema
+##   4. `pnpm game:export` para o bundle pegar o modelo novo.
+##
+## Até isso existir, o jogador entra sem relicário equipado — captura fica
+## indisponível (mesmo tratamento que já existe para "nenhum relicario
+## equipado" em `DuelScreen._try_capture`), e o aviso abaixo torna o motivo
+## visível no log em vez de falhar em silêncio.
+func _pick_starter_relic() -> PlayerRelic:
+	if _db == null:
+		return null
+	for code in _db.relic_codes():
+		var r := _db.relic(code)
+		if BestiaryData.relic_element_code(r) == "" and BestiaryData.relic_class_code(r) == "":
+			return PlayerRelic.from_bestiary(_db, code)
+	push_warning(
+		"WorldRoot: sem relicario neutro (sem elemento/classe) no catalogo — " +
+		"o starter precisa ser criado no avyron-bestiary (ver comentario de " +
+		"_pick_starter_relic). Jogador comeca sem relicario equipado."
+	)
+	return null
 
 
 func _spawn_companion() -> void:
@@ -250,6 +366,10 @@ func _build_hud() -> void:
 	_roster_window.item_use_requested.connect(use_item_on_slot)
 	layer.add_child(_roster_window)
 
+	_set_window = PlayerSetWindow.new()
+	_set_window.name = "PlayerSetWindow"
+	layer.add_child(_set_window)
+
 	_inventory_panel = InventoryPanel.new()
 	_inventory_panel.name = "InventoryPanel"
 	layer.add_child(_inventory_panel)
@@ -284,7 +404,7 @@ func _update_hint() -> void:
 	if _hint == null:
 		return
 	var count := _spawner.actors().size() if _spawner else 0
-	_hint.text = "WASD anda · Shift corre · F minera · T time · clique numa criatura para ver, clique de novo para lutar   (%d no mapa)" % count
+	_hint.text = "WASD anda · Shift corre · F minera · T time · E set · V bolsa · clique numa criatura para ver, clique de novo para lutar   (%d no mapa)" % count
 
 
 # ---------------------------------------------------------------------------
@@ -325,14 +445,21 @@ func _unhandled_input(event: InputEvent) -> void:
 func _handle_key(keycode: Key) -> void:
 	if keycode == KEY_T:
 		toggle_roster_window()
+	elif keycode == KEY_E and not _roster_open():
+		toggle_set_window()
+	elif keycode == KEY_V:
+		toggle_inventory_panel()
 	elif keycode == KEY_ESCAPE:
 		# A janela aberta tem prioridade sobre a seleção: `Esc` fecha o que
 		# está por cima, que é a leitura que qualquer um espera. Dentro da
-		# janela ela volta um passo antes de fechar — sair da escolha de item
-		# direto para o mapa perderia o contexto de uma tecla só.
+		# janela do time ela volta um passo antes de fechar — sair da escolha
+		# de item direto para o mapa perderia o contexto de uma tecla só. O
+		# set não tem passo intermediário (é só leitura), então fecha direto.
 		if _roster_open():
 			if not _roster_window.back():
 				_roster_window.close()
+		elif _set_window != null and _set_window.is_open():
+			_set_window.close()
 		elif _selected != null:
 			_clear_selection()
 		else:
@@ -372,6 +499,12 @@ func handle_click_at(screen_pos: Vector2) -> void:
 	if hit is RelicStationActor:
 		handle_click_on_relic_station(hit as RelicStationActor)
 		return
+	if hit is ArenaActor:
+		handle_click_on_arena(hit as ArenaActor)
+		return
+	if hit is PortalGuardianActor:
+		handle_click_on_portal_guardian(hit as PortalGuardianActor)
+		return
 	handle_click_on(hit as CreatureActor)
 
 
@@ -394,6 +527,30 @@ func handle_click_on_relic_station(actor: RelicStationActor) -> void:
 		return
 	if _player and actor.flat_distance_to(_player.global_position) > RelicStationActor.INTERACT_RANGE:
 		_show_mine_msg("O posto do relicario esta longe demais.")
+		return
+	_clear_selection()
+	actor.request_engage()
+
+
+## Engata o duelo de arena, se o jogador estiver perto. Mesmo padrão de
+## `handle_click_on_merchant`.
+func handle_click_on_arena(actor: ArenaActor) -> void:
+	if actor == null or _duel != null or _shop != null:
+		return
+	if _player and actor.flat_distance_to(_player.global_position) > ArenaActor.INTERACT_RANGE:
+		_show_mine_msg("%s esta longe demais." % actor.display_name)
+		return
+	_clear_selection()
+	actor.request_engage()
+
+
+## Fala com o guardião do portal, se o jogador estiver perto. Mesmo padrão de
+## `handle_click_on_merchant`.
+func handle_click_on_portal_guardian(actor: PortalGuardianActor) -> void:
+	if actor == null or _duel != null or _shop != null:
+		return
+	if _player and actor.flat_distance_to(_player.global_position) > PortalGuardianActor.INTERACT_RANGE:
+		_show_mine_msg("O guardiao esta longe demais.")
 		return
 	_clear_selection()
 	actor.request_engage()
@@ -434,7 +591,8 @@ func _pick_body(screen_pos: Vector2) -> Node3D:
 	if hit.is_empty():
 		return null
 	var collider: Object = hit.get("collider")
-	if collider is CreatureActor or collider is MerchantActor or collider is RelicStationActor:
+	if collider is CreatureActor or collider is MerchantActor or collider is RelicStationActor \
+			or collider is ArenaActor or collider is PortalGuardianActor:
 		return collider as Node3D
 	return null
 
@@ -488,12 +646,36 @@ func staging() -> BattleStaging:
 func toggle_roster_window() -> void:
 	if _roster_window == null or _duel != null:
 		return
+	# Só uma janela central por vez — abertas juntas se sobrepõem na tela.
+	if _set_window != null and _set_window.is_open():
+		_set_window.close()
 	_roster_window.toggle()
 	if _roster_window.is_open():
 		# A seleção pendurada atrás da janela não teria como ser cancelada por
 		# clique enquanto ela estivesse aberta.
 		_clear_selection()
 		_refresh_roster_window()
+
+
+## Abre/fecha a janela do set do jogador (tecla `E`). Público pelo mesmo
+## motivo dos outros pontos de entrada: teste headless não sintetiza tecla.
+func toggle_set_window() -> void:
+	if _set_window == null or _duel != null:
+		return
+	if _roster_window != null and _roster_window.is_open():
+		_roster_window.close()
+	_set_window.toggle()
+	if _set_window.is_open():
+		_clear_selection()
+		_set_window.refresh(_db, _relic)
+
+
+## Esconde/reexibe o painel de bolsa (tecla `V`) — puramente cosmético, não
+## desliga mineração nem qualquer outra função da bolsa.
+func toggle_inventory_panel() -> void:
+	_inventory_hidden = not _inventory_hidden
+	if _inventory_panel:
+		_inventory_panel.visible = not _inventory_hidden
 
 
 ## Manda a criatura do slot à frente. Ignora silenciosamente slot vazio ou o
@@ -717,6 +899,8 @@ func _hide_world_hud() -> void:
 		_active_panel.visible = false
 	if _roster_window:
 		_roster_window.close()
+	if _set_window:
+		_set_window.close()
 	if _inventory_panel:
 		_inventory_panel.visible = false
 	if _mine_label:
@@ -728,8 +912,10 @@ func _show_world_hud() -> void:
 		_hint.visible = true
 	if _active_panel:
 		_active_panel.visible = true
+	# Respeita a escolha do jogador (`V`) — reabrir a loja/posto não deve
+	# trazer a bolsa de volta se ele pediu pra escondê-la.
 	if _inventory_panel:
-		_inventory_panel.visible = true
+		_inventory_panel.visible = not _inventory_hidden
 
 
 # ---------------------------------------------------------------------------
@@ -785,6 +971,62 @@ func _on_creature_engaged(actor: CreatureActor) -> void:
 		_camera.enter_battle()
 	# Congela exploração e IA; o overlay segue processando.
 	get_tree().paused = true
+
+
+## Engata o duelo de arena — mesmo corpo de `_on_creature_engaged`, sem as
+## partes de spawner selvagem (não há ator para remover/repor no mapa: o
+## duelista continua lá depois, refazer a arena é permitido). `is_wild =
+## false` desliga captura em `Battle` (`battle.gd:_do_capture`); a vitória é
+## lida em `_on_duel_closed`, que concede o Glifo.
+func _on_arena_engaged(actor: ArenaActor) -> void:
+	if _duel != null:
+		return  # já há um combate em curso
+
+	if _roster.alive_count() == 0:
+		_clear_selection()
+		_show_mine_msg("Nenhuma criatura de pe. Espere se recuperarem.")
+		return
+
+	_engaged_arena = actor
+	_clear_selection()
+	_hide_world_hud()
+
+	var packed: PackedScene = load(DUEL_SCENE)
+	_duel = packed.instantiate() as DuelScreen
+	_duel.player_code = _roster.active()
+	_duel.player_party = _roster.to_party()
+	_duel.player_active_index = _roster.active_index()
+	_duel.relic = _relic
+	_duel.enemy_code = actor.opponent_code
+	_duel.duel_level = actor.opponent_level
+	_duel.is_wild = false
+	_duel.closed.connect(_on_duel_closed)
+
+	var layer := CanvasLayer.new()
+	layer.name = "DuelLayer"
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	layer.add_child(_duel)
+	add_child(layer)
+
+	# Sem criatura selvagem para encenar contra — a arena não tem o
+	# equivalente a `CreatureActor` no mundo, só o duelista parado. A
+	# encenação segue com o par jogador/companheira igual, sem lado inimigo.
+	_end_staging()
+
+	if _camera:
+		_camera.enter_battle()
+	get_tree().paused = true
+
+
+## Fala com o guardião do portal. Sem `can_pass()`, barra e explica o porquê;
+## com, reconhece o Glifo — mas nunca troca de cena: não existe conteúdo de
+## Titanor pra ir (documento `glifos-e-portais`, "fora de escopo").
+func _on_portal_guardian_engaged(actor: PortalGuardianActor) -> void:
+	if actor.can_pass():
+		_show_mine_msg("O Guardiao reconhece o Glifo e se afasta — mas %s ainda nao existe neste build."
+			% actor.destination_label)
+	else:
+		_show_mine_msg("O Guardiao barra a passagem: prove que esta pronto na arena.")
 
 
 ## Põe a companheira e a criatura selvagem frente a frente enquanto o duelo
@@ -884,7 +1126,15 @@ func _on_duel_closed(outcome: int) -> void:
 					% [_roster.size(), _roster.capacity()])
 		else:
 			_engaged_actor.reset_engagement()
+	elif _engaged_arena:
+		# Sem ator de spawner para repor/remover — o duelista fica no mapa
+		# vencendo ou perdendo. `grant_glyph` devolve `false` num refight
+		# depois de já ter o Glifo, então isto não reanuncia nem duplica.
+		if outcome == Battle.Outcome.PLAYER_WON and _progress:
+			if _progress.grant_glyph(_engaged_arena.grants_glyph):
+				_show_mine_msg("Glifo %s obtido." % _engaged_arena.grants_glyph.capitalize())
 	_engaged_actor = null
+	_engaged_arena = null
 
 	if outcome == Battle.Outcome.PLAYER_LOST:
 		_show_mine_msg("Seu time caiu. Recuperando %d%% por minuto."
@@ -915,11 +1165,14 @@ func _grant_drops(fought: Battle) -> String:
 	return "Encontrado: %s" % ", ".join(names)
 
 
-## Concede XP de vitória à criatura que terminou a luta em campo — a
-## finalizadora, não o time inteiro (ver comentário de escolha em
-## `grant_xp_at`). Mesma exigência dupla de sempre: XP cheio e material da
-## própria classe da criatura disponível na bolsa. Devolve a mensagem pronta,
-## ou "" se não subiu nada digno de aviso.
+## Concede XP de vitória a todas as criaturas que participaram da luta — não
+## só quem terminou nela em campo (ver `Battle.xp_participants`). O total é
+## calculado do jeito de sempre (`xpYield * nível / yieldDivisor`) e é um pool
+## fixo: trocar mais criaturas na luta não cria XP, só muda entre quem ele se
+## reparte (`ProgressionMath.distribute_xp`). Cada participante passa
+## individualmente pela própria exigência dupla de sempre — XP cheio e
+## material da própria classe — em `grant_xp_at`. Devolve a mensagem pronta
+## com uma linha por criatura, ou "" se não houve XP a conceder.
 func _grant_creature_xp(fought: Battle) -> String:
 	if fought == null or _db == null or _inventory == null:
 		return ""
@@ -933,15 +1186,35 @@ func _grant_creature_xp(fought: Battle) -> String:
 	if gained <= 0:
 		return ""
 
-	var idx := fought.player_active_index
-	var result := _roster.grant_xp_at(idx, gained, _inventory)
-	var name := _creature_name(_roster.code_at(idx))
-	if result["leveled_up"]:
-		return "%s subiu para o nivel %d!" % [name, int(result["new_level"])]
-	if result["waiting_material"]:
-		var cls := str(_db.creature(_roster.code_at(idx)).get("class", ""))
-		return "%s: XP cheio, falta %s." % [name, _db.item_name(_db.class_material_item(cls))]
-	return ""
+	var participants := fought.xp_participants()
+	if participants.is_empty():
+		# Não deveria acontecer numa vitória — alguém teve de agir para vencer
+		# — mas cai para quem terminou em campo em vez de perder o XP da luta
+		# em silêncio.
+		participants = [{"index": fought.player_active_index, "contribution": 0}]
+
+	var contributions: Array = []
+	for p in participants:
+		contributions.append(int(p["contribution"]))
+	var shares := ProgressionMath.distribute_xp(gained, contributions)
+
+	var lines: Array[String] = []
+	for i in participants.size():
+		var idx := int(participants[i]["index"])
+		var amount := int(shares[i])
+		if amount <= 0:
+			continue
+		var result := _roster.grant_xp_at(idx, amount, _inventory)
+		var name := _creature_name(_roster.code_at(idx))
+		var line := "%s +%d XP" % [name, amount]
+		if result["leveled_up"]:
+			line += " (subiu para o nivel %d!)" % int(result["new_level"])
+		elif result["waiting_material"]:
+			var cls := str(_db.creature(_roster.code_at(idx)).get("class", ""))
+			line += " (XP cheio, falta %s)" % _db.item_name(_db.class_material_item(cls))
+		lines.append(line)
+
+	return "  ·  ".join(lines)
 
 
 ## Concede XP de captura ao relicário equipado e sobe de nível se der — precisa

@@ -82,13 +82,13 @@ O que trava a decisão não é a implementação, é o contrato: a câmera hoje 
 
 ### 5. Relicário e progressão — pontas soltas do redesenho de captura
 
-A mecânica está de pé — captura, XP de relicário e de criatura, drops, storage, posto — mas três coisas ficaram deliberadamente em aberto quando o sistema entrou:
+A mecânica está de pé — captura, XP de relicário e de criatura por participação, drops, storage, posto, set do jogador — mas algumas coisas seguem deliberadamente em aberto:
 
-- **Aquisição de relicário não existe.** Todo jogador começa com `RLC-001` fixo em código (`WorldRoot.STARTER_RELIC_CODE`), e o posto deixa trocar para **qualquer** modelo do catálogo sem checar posse — mesmo furo que já era assumido no handoff de design do Relicário, só que agora visível em jogo em vez de escondido atrás de "fora de escopo". Loot de dungeon, arena, crafting ou quest são os candidatos óbvios; nenhum foi decidido.
-- **Qual stat o buff de combate afeta não foi fechado pelo design.** A implementação escolheu `attack_modifier` (`DuelScreen._apply_relic_buff`) porque o hook já existia e o campo não podia ficar inerte — mas é decisão de código preenchendo lacuna, não confirmação de que ataque é o certo. Se o design decidir por defesa, velocidade ou algo do Despertar, é um ponto de aplicação só para mudar.
-- **Números de XP e custo de material são placeholders sem playtest**, dos dois lados (`relic_rules.xpPerCapture/xpCurveBase/xpCurveExponent/materialCostBase/materialCostLevelStep` e o mesmo bloco em `progression_rules`). Vale a mesma ressalva que já existia para a regeneração de HP: mexer nesses números muda o ritmo do jogo inteiro, e ninguém jogou o suficiente para saber se a barra enche rápido ou devagar demais.
+- **Aquisição de relicário *especializado* não existe.** O starter (`RLC-000`, neutro — sem elemento/classe, `slotCapacity 2`) resolve o boot; `RLC-001/002/003` (um por classe, com buff de combate zerado — ver abaixo) continuam sem forma de conquista. O posto deixa trocar para **qualquer** modelo do catálogo sem checar posse, mesmo furo de sempre, só visível em jogo em vez de escondido atrás de "fora de escopo". Loot de dungeon, arena, crafting ou quest são os candidatos óbvios; nenhum foi decidido. A primeira escolha relevante de especialização está prevista como recompensa da arena final do mapa — também fora de escopo ainda.
+- **O buff de combate do Relicário foi removido do sistema**, não só adiado: o equipamento agora só cobre captura, afinidade de captura, slots e progressão própria — nenhum bônus direto de status em batalha (`DuelScreen._apply_relic_buff` saiu, `attack_modifier` não é mais tocado pelo relicário). `relic-stats.combatBuffBase/PerLevel` seguem no catálogo, sempre `0` nos modelos atuais — não removidos por ficarem sem consumidor, só desligados. Se o jogo ganhar buff de combate no futuro, é peça de outro slot do set do jogador, não deste.
+- **Números de XP e custo de material são placeholders sem playtest**, dos dois lados (`relic_rules.xpPerCapture/xpCurveBase/xpCurveExponent/materialCostBase/materialCostLevelStep` e o mesmo bloco em `progression_rules`) — mesma ressalva que já existia para a regeneração de HP. Some-se a eles `ProgressionMath.XP_BASE_SHARE_RATIO` (hoje `0.2`/`0.8` entre parcela base e parcela por contribuição na divisão de XP entre participantes de uma vitória): também sem playtest, também um ponto só para mudar quando o número fechar.
 
-Nenhum dos três bloqueia jogar — o sistema funciona de ponta a ponta sem eles fechados. Bloqueiam é declarar a mecânica "pronta" em vez de "jogável".
+Nenhum bloqueia jogar — o sistema funciona de ponta a ponta sem eles fechados. Bloqueiam é declarar a mecânica "pronta" em vez de "jogável".
 
 ---
 
@@ -106,7 +106,7 @@ Agora tem sentido: os minérios têm preço, e o comerciante pode vender as plan
 
 É um contêiner: construído antes do conteúdo, é um cômodo vazio. Depois do comerciante e da construção, tem o que guardar.
 
-É também onde o duelo contra IA finalmente acontece. `Battle` já aceita `is_wild = false`, que desliga captura e trata o adversário como criatura de outro domador — o caminho existe e nunca foi usado em jogo. A arena é majoritariamente **conteúdo** (a tabela `npcs` já existe, com `role = duelist`) mais reuso da tela de duelo.
+**A primeira arena já existe**, fora de ordem em relação ao resto deste item — documento `glifos-e-portais` no bestiário. `Battle.is_wild = false` (que desliga captura e trata o adversário como criatura de outro domador) tinha o caminho pronto e nunca usado em jogo; agora tem consumidor: `ArenaActor` + `NPC-002` (`role = duelist`) + `WorldRoot._on_arena_engaged`, concedendo o Glifo Daleth numa vitória. O que falta desta peça não é mais "existe arena?" — é vilarejo de verdade ao redor dela (hoje é um ponto isolado no mapa, mesmo estágio de posto do Relicário e comerciante) e uma segunda arena quando Titanor tiver mapa (Glifo Zayin está definido no bestiário, sem onde morar ainda).
 
 ### Arte — em paralelo, não no fim
 
@@ -134,6 +134,7 @@ Números escolhidos com raciocínio mas sem playtest. Todos ajustáveis por `PAT
 | Bônus de captura do Relicário | mesmo elemento +15, mesma classe +10, elemento em desvantagem −15 (pontos percentuais) | `relic_rules` |
 | XP por captura / curva de nível do Relicário | 20 por captura, `xpCurveBase` 10, `xpCurveExponent` 1.5 | `relic_rules` |
 | Custo de material por nível (Relicário e criatura) | base 1 unidade, +1 a cada 20 níveis | `relic_rules.materialCost*` / `progression_rules.itemCost*` |
+| Parcela base × parcela por contribuição no XP de vitória | 20 % base (dividida igual entre participantes) / 80 % por contribuição | `ProgressionMath.XP_BASE_SHARE_RATIO` — **em código**, não veio do bestiário |
 
 A regeneração é a primeira que eu mexeria depois de jogar: seis criaturas se recuperando em paralelo pode tornar a espera irrelevante, ou o contrário — ficar parado olhando a HUD.
 

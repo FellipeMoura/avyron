@@ -43,6 +43,7 @@ var _biome_mining: Dictionary = {}  # biomeCode -> {itemCode: float}
 ## vêm daqui.
 var _items: Dictionary = {}         # code -> Dictionary
 var _merchants: Dictionary = {}     # code -> Dictionary
+var _duelists: Dictionary = {}      # code -> Dictionary
 
 ## Modelos de Relicário — código -> Dictionary já achatado com `relic_stats`
 ## pelo exportador (elemento, classe, slotCapacity, curvas de captura/buff).
@@ -98,6 +99,7 @@ func load_bundle(path: String = BUNDLE_PATH) -> String:
 	_index_mining(bundle.get("mining", null))
 	_items = _index_by_code(bundle.get("items", []))
 	_merchants = _index_by_code(bundle.get("merchants", []))
+	_duelists = _index_by_code(bundle.get("duelists", []))
 	_relics = _index_by_code(bundle.get("relics", []))
 	economy = bundle.get("economy", {})
 
@@ -347,6 +349,27 @@ func merchants_in_map(map_code: String) -> Array:
 	return out
 
 
+# --- duelistas (arena) ---
+
+func duelist(code: String) -> Dictionary:
+	return _duelists.get(code, {})
+
+
+func duelist_codes() -> Array:
+	return _duelists.keys()
+
+
+## Duelistas de um mapa, para o mundo saber quem instanciar como arena.
+## Mesmo padrão de `merchants_in_map` — qual criatura o duelista usa e qual
+## Glifo ele concede não vêm daqui, ver comentário de `ArenaActor`.
+func duelists_in_map(map_code: String) -> Array:
+	var out: Array = []
+	for code in _duelists:
+		if str(_duelists[code].get("map", "")) == map_code:
+			out.append(_duelists[code])
+	return out
+
+
 func creature_count() -> int:
 	return _creatures.size()
 
@@ -497,6 +520,21 @@ func stats_at_level(creature_code: String, level: int) -> Dictionary:
 ## cai no neutro), mas era coincidência, não lógica.
 static func ability_element(ability: Dictionary) -> String:
 	var value: Variant = ability.get("element", null)
+	return "" if value == null else str(value)
+
+
+## Mesmo problema, para o `element`/`class` de um modelo de Relicário: desde
+## que o starter neutro existe (documento `relicario`), um relic pode chegar
+## do bundle com `element: null` e/ou `class: null` — sem isso, `str(null)`
+## viraria a string "<null>", que casaria com nada e faria o starter parecer
+## "tem afinidade com um código inexistente" em vez de "sem afinidade".
+static func relic_element_code(relic: Dictionary) -> String:
+	var value: Variant = relic.get("element", null)
+	return "" if value == null else str(value)
+
+
+static func relic_class_code(relic: Dictionary) -> String:
+	var value: Variant = relic.get("class", null)
 	return "" if value == null else str(value)
 
 

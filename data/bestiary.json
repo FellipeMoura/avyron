@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.178",
-  "generatedAt": "2026-08-10T20:32:28.250Z",
+  "dataVersion": "0.205",
+  "generatedAt": "2026-08-11T22:03:22.245Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -181,9 +181,21 @@
   "maps": [
     {
       "code": "PZ-01",
-      "name": "PZ-01",
+      "name": "Aetheris I — Mundo dos Mares",
       "era": "paleozoic",
       "sortOrder": 1
+    },
+    {
+      "code": "PZ-02",
+      "name": "Aetheris II — Conquista das Margens",
+      "era": "paleozoic",
+      "sortOrder": 2
+    },
+    {
+      "code": "PZ-03",
+      "name": "Aetheris III — Domínio Terrestre",
+      "era": "paleozoic",
+      "sortOrder": 3
     }
   ],
   "biomes": [
@@ -191,6 +203,66 @@
       "code": "BIO-001",
       "name": "Mar raso",
       "predominantElements": "Agua"
+    },
+    {
+      "code": "BIO-002",
+      "name": "Costa Primordial",
+      "predominantElements": "Agua + Terra"
+    },
+    {
+      "code": "BIO-003",
+      "name": "Jardins Recifais",
+      "predominantElements": "Agua + Natureza"
+    },
+    {
+      "code": "BIO-004",
+      "name": "Mar Profundo",
+      "predominantElements": "Agua"
+    },
+    {
+      "code": "BIO-005",
+      "name": "Estuário",
+      "predominantElements": "Agua + Terra"
+    },
+    {
+      "code": "BIO-006",
+      "name": "Pântano Primitivo",
+      "predominantElements": "Agua + Natureza"
+    },
+    {
+      "code": "BIO-007",
+      "name": "Floresta Ribeirinha",
+      "predominantElements": "Natureza + Terra"
+    },
+    {
+      "code": "BIO-008",
+      "name": "Planalto Rochoso",
+      "predominantElements": "Terra + Natureza"
+    },
+    {
+      "code": "BIO-009",
+      "name": "Floresta Carbonífera",
+      "predominantElements": "Natureza + Agua"
+    },
+    {
+      "code": "BIO-010",
+      "name": "Pântano de Carvão",
+      "predominantElements": "Natureza + Terra"
+    },
+    {
+      "code": "BIO-011",
+      "name": "Bosque Seco Permiano",
+      "predominantElements": "Natureza + Terra"
+    },
+    {
+      "code": "BIO-012",
+      "name": "Ermos Permianos",
+      "predominantElements": "Terra + Fogo"
+    },
+    {
+      "code": "BIO-013",
+      "name": "Campos Basálticos",
+      "predominantElements": "Fogo + Terra"
     }
   ],
   "abilities": [
@@ -805,7 +877,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-003.v4.glb",
+      "modelUrl": "/models/CRT-003.glb",
       "stats": {
         "hp": 50,
         "attack": 45,
@@ -1006,7 +1078,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-006.glb",
       "stats": {
         "hp": 55,
         "attack": 55,
@@ -1073,7 +1145,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-007.glb",
       "stats": {
         "hp": 75,
         "attack": 80,
@@ -1140,7 +1212,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-008.glb",
       "stats": {
         "hp": 85,
         "attack": 60,
@@ -1274,7 +1346,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-010.glb",
       "stats": {
         "hp": 60,
         "attack": 65,
@@ -1341,7 +1413,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-011.glb",
       "stats": {
         "hp": 40,
         "attack": 45,
@@ -1400,15 +1472,15 @@
     },
     {
       "code": "CRT-013",
-      "name": "Aegirocassis",
-      "baseSpecies": "Aegirocassis",
+      "name": "Maldybulakia",
+      "baseSpecies": "Maldybulakia",
       "class": "CLS-001",
-      "element": "ELE-002",
+      "element": "ELE-005",
       "map": "PZ-01",
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-013.glb",
       "stats": {
         "hp": 90,
         "attack": 40,
@@ -1427,7 +1499,7 @@
       },
       "abilities": [
         {
-          "code": "HAB-004",
+          "code": "HAB-013",
           "learnLevel": 1
         },
         {
@@ -1435,7 +1507,7 @@
           "learnLevel": 8
         },
         {
-          "code": "HAB-005",
+          "code": "HAB-014",
           "learnLevel": 12
         },
         {
@@ -1443,11 +1515,11 @@
           "learnLevel": 20
         },
         {
-          "code": "HAB-006",
+          "code": "HAB-015",
           "learnLevel": 28
         },
         {
-          "code": "HAB-027",
+          "code": "HAB-030",
           "learnLevel": 1
         }
       ],
@@ -1458,12 +1530,7 @@
           "condition": "Derrota em combate"
         }
       ],
-      "awakening": {
-        "code": "DSP-013",
-        "name": "Aegirocassis Colossus",
-        "type": "reinforcement",
-        "referenceSpecies": null
-      }
+      "awakening": null
     },
     {
       "code": "CRT-014",
@@ -2212,7 +2279,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Diapsídeo esguio quadrupede com pernas longas relativas ao corpo (adaptação corredora); cauda longa como contrapeso; cabeça pequena com fenestras cranianas visíveis. Silhueta atlética.",
-      "modelUrl": "/models/CRT-025.v1.glb",
+      "modelUrl": null,
       "stats": {
         "hp": 45,
         "attack": 45,
@@ -2911,6 +2978,19 @@
   ],
   "relics": [
     {
+      "code": "RLC-000",
+      "name": "Relicario Basico",
+      "element": null,
+      "class": null,
+      "notes": "Starter neutro: sem elemento, sem classe. Ensina captura e gerenciamento de time antes da primeira especializacao (recompensa de arena, fora de escopo aqui). Ver documento relicario.",
+      "slotCapacity": 2,
+      "baseCaptureRate": 80,
+      "captureRatePerLevel": 4,
+      "maxLevel": 30,
+      "combatBuffBase": 0,
+      "combatBuffPerLevel": 0
+    },
+    {
       "code": "RLC-001",
       "name": "Relicario de Agua - Loricati",
       "element": "ELE-002",
@@ -2977,6 +3057,15 @@
           "price": 600
         }
       ]
+    }
+  ],
+  "duelists": [
+    {
+      "code": "NPC-002",
+      "name": "Campeao da Arena",
+      "faction": null,
+      "map": "PZ-01",
+      "notes": "NPC da arena de Aetheris I. Vencer o duelo concede o Glifo Daleth (ver documento glifos-e-portais). Combate is_wild=false, sem captura."
     }
   ],
   "mining": {

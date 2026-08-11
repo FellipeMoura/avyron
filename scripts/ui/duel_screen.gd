@@ -52,6 +52,12 @@ var player_code := ""
 var enemy_code := ""
 var duel_level := DEFAULT_LEVEL
 
+## `false` numa arena (documento `glifos-e-portais`): duelo contra domador,
+## não contra criatura selvagem — sem captura. `Battle` já recusa a tentativa
+## com segurança (`battle.gd:_do_capture`), então isto só precisa chegar até
+## o construtor; nenhuma outra ramificação depende disto aqui.
+var is_wild := true
+
 ## O time do jogador vindo do mundo: `[{code, hp}]` na ordem dos slots, mais
 ## quem começa em campo. Vazio faz a tela cair no `player_code` sozinho, que é
 ## como ela roda em playtest (`F6`) — sem mundo, não há time.
@@ -220,7 +226,7 @@ func _start_new_duel() -> void:
 			b = codes[_rng.randi() % codes.size()]
 
 	var foe := Combatant.from_bestiary(_db, b, duel_level)
-	battle = Battle.new(_db, party, foe)
+	battle = Battle.new(_db, party, foe, is_wild)
 
 	# Entrar com a criatura desmaiada travaria a luta na substituição no
 	# primeiro quadro. Quem está caída fica no banco, e o mundo já barra o
@@ -249,7 +255,6 @@ func _build_party(codes: Array) -> Array:
 		if c == null:
 			continue
 		c.hp = clampi(int(entry.get("hp", c.max_hp)), 0, c.max_hp)
-		_apply_relic_buff(c)
 		party.append(c)
 
 	if party.is_empty():
@@ -257,24 +262,9 @@ func _build_party(codes: Array) -> Array:
 		if a == "":
 			a = codes[_rng.randi() % codes.size()]
 		var solo := Combatant.from_bestiary(_db, a, duel_level)
-		_apply_relic_buff(solo)
 		party.append(solo)
 
 	return party
-
-
-## Buff passivo do relicário equipado, pra criatura do elemento ou classe
-## dele — propriedade fixa do equipamento, não depende de contra quem a
-## criatura está lutando. Aplicado em `attack_modifier`, o hook que já existe
-## pra buff/debuff; qual stat exatamente é decisão em aberto no documento
-## `relicario` — esta é a escolha de implementação enquanto isso não fecha.
-func _apply_relic_buff(c: Combatant) -> void:
-	if c == null or relic == null:
-		return
-	var matches := c.element == relic.element_code(_db) or c.creature_class == relic.class_code(_db)
-	if not matches:
-		return
-	c.attack_modifier *= 1.0 + relic.combat_buff(_db) / 100.0
 
 
 func _input(event: InputEvent) -> void:

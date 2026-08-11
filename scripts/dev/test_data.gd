@@ -308,9 +308,14 @@ func _test_relics_contract(db: BestiaryData) -> void:
 	var bad_stats: Array = []
 	for code in db.relic_codes():
 		var r := db.relic(code)
-		if db.element(str(r.get("element", ""))).is_empty():
+		# "" é o starter neutro (documento `relicario`) — ausência válida, não
+		# referência quebrada. Só um código presente que não resolve a nada é
+		# invalido.
+		var element_code := BestiaryData.relic_element_code(r)
+		if element_code != "" and db.element(element_code).is_empty():
 			bad_element.append(code)
-		if db.creature_class(str(r.get("class", ""))).is_empty():
+		var class_code := BestiaryData.relic_class_code(r)
+		if class_code != "" and db.creature_class(class_code).is_empty():
 			bad_class.append(code)
 		# Campos numéricos achatados de relic_stats pelo exportador — ausência
 		# de qualquer um significa relic sem a linha em relic_stats.
@@ -355,10 +360,21 @@ func _test_relic_math(db: BestiaryData) -> void:
 	_check("resistance(catchRate=1)", RelicMath.resistance(1), 255)
 
 	var rr := db.relic_rules()
-	var code: String = db.relic_codes()[0]
+	# Precisa de um modelo *especializado* — o starter neutro (`RLC-000`, sem
+	# elemento/classe) não serve pra testar bônus de mesmo elemento/classe ou
+	# desvantagem, então pula ele em vez de assumir índice 0.
+	var code := ""
+	for candidate in db.relic_codes():
+		var r := db.relic(candidate)
+		if BestiaryData.relic_element_code(r) != "" and BestiaryData.relic_class_code(r) != "":
+			code = candidate
+			break
+	if code == "":
+		print("  (pulado — nenhum relic especializado no bundle)")
+		return
 	var relic := db.relic(code)
-	var relic_element := str(relic["element"])
-	var relic_class := str(relic["class"])
+	var relic_element := BestiaryData.relic_element_code(relic)
+	var relic_class := BestiaryData.relic_class_code(relic)
 	var rate := db.relic_capture_rate_at_level(code, 1)
 
 	# Criatura neutra: elemento e classe diferentes dos do relicário, sem

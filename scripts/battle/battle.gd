@@ -40,6 +40,13 @@ var log_events: Array = []
 
 var rng := RandomNumberGenerator.new()
 
+## Registro de participação de XP, alinhado por índice com `player_party` —
+## não com quem está em campo agora. Uma troca no meio da luta não apaga o
+## crédito de quem já agiu ou apanhou antes dela; é por isso que isto vive
+## pelo tempo da batalha inteira, e não dentro de `Combatant` (que é
+## descartado a cada luta de qualquer forma). Ver `xp_participants`.
+var _xp_participation: Array = []
+
 
 func _init(bestiary: BestiaryData, party: Array, opponent: Combatant, wild: bool = true) -> void:
 	db = bestiary
@@ -48,6 +55,8 @@ func _init(bestiary: BestiaryData, party: Array, opponent: Combatant, wild: bool
 	enemy = opponent
 	is_wild = wild
 	rng.randomize()
+	for i in player_party.size():
+		_xp_participation.append({"participated": false, "damage_dealt": 0, "damage_taken": 0})
 
 
 func player_active() -> Combatant:
@@ -229,6 +238,11 @@ func _do_capture(action: BattleAction, is_player: bool) -> void:
 		_log("capture_failed", enemy, {"text": "nao da para capturar a criatura de outro domador"})
 		return
 
+	# Tentar capturar é uma ação válida da ativa, sucesso ou não — conta para
+	# participação de XP mesmo numa luta que termina em `CAPTURED` (que não
+	# gera XP de qualquer forma, só drop; o registro aqui é por consistência).
+	_mark_participation(player_active_index, 0, 0)
+
 	var chance := RelicMath.capture_chance(
 		db, action.relic_rate, action.relic_element, action.relic_class,
 		enemy.catch_rate, enemy.element, enemy.creature_class
@@ -260,6 +274,12 @@ func _do_ability(action: BattleAction, is_player: bool) -> void:
 		return
 
 	actor.consume_use(action.ability_code)
+	# Ação válida executada, hit ou miss — é o que basta para participação
+	# (documento de XP por participação: "executou uma ação válida em
+	# combate"). Só a metade do jogador entra no registro; o lado selvagem
+	# não acumula XP.
+	if is_player:
+		_mark_participation(player_active_index, 0, 0)
 
 	if rng.randf() * 100.0 >= float(ability["accuracy"]):
 		_log("miss", actor, {"text": "%s errou %s" % [actor.display_name, str(ability["name"])]})
@@ -267,12 +287,12 @@ func _do_ability(action: BattleAction, is_player: bool) -> void:
 
 	var effect := str(ability["effectCode"])
 	if effect == "damage":
-		_apply_damage(actor, target, ability)
+		_apply_damage(actor, target, ability, is_player)
 	else:
-		_apply_status(actor, target, ability, effect)
+		_apply_status(actor, target, ability, effect, is_player)
 
 
-func _apply_damage(actor: Combatant, target: Combatant, ability: Dictionary) -> void:
+func _apply_damage(actor: Combatant, target: Combatant, ability: Dictionary, is_player: bool) -> void:
 	# Golpe sem elemento não recebe nem sofre multiplicador — utilitários
 	# como Bote batem igual contra qualquer alvo.
 	var ability_element := BestiaryData.ability_element(ability)
@@ -287,7 +307,16 @@ func _apply_damage(actor: Combatant, target: Combatant, ability: Dictionary) -> 
 		elem_mult, rules, variance
 	)
 
+	var hp_before := target.hp
 	target.hp = maxi(0, target.hp - dmg)
+	# Dano efetivo — a perda real de HP, sem contar overkill. É o que conta
+	# para contribuição de XP (documento de XP por participação); `dmg` cru
+	# seguiria contando um golpe de 100 contra 17 de HP como 100.
+	var effective := hp_before - target.hp
+	if is_player:
+		_mark_participation(player_active_index, effective, 0)
+	else:
+		_mark_participation(player_active_index, 0, effective)
 
 	# A carga sobe dos dois lados, mas quem apanha enche o dobro de quem bate.
 	target.add_charge(
@@ -317,7 +346,7 @@ func _apply_damage(actor: Combatant, target: Combatant, ability: Dictionary) -> 
 	})
 
 
-func _apply_status(actor: Combatant, target: Combatant, ability: Dictionary, effect: String) -> void:
+func _apply_status(actor: Combatant, target: Combatant, ability: Dictionary, effect: String, is_player: bool) -> void:
 	var value := float(ability["effectValue"])
 	var name := str(ability["name"])
 
@@ -333,11 +362,17 @@ func _apply_status(actor: Combatant, target: Combatant, ability: Dictionary, eff
 		"debuff_attack":
 			target.attack_modifier = clampf(
 				target.attack_modifier * (1.0 - value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+			# Debuff é hostil — quem leva participa de XP mesmo sem perder HP
+			# (documento de XP por participação: "recebido uma ação hostil").
+			if not is_player:
+				_mark_participation(player_active_index, 0, 0)
 			_log("debuff", actor, {"text": "%s usa %s: ataque de %s -%d%%"
 				% [actor.display_name, name, target.display_name, int(value)]})
 		"debuff_defense":
 			target.defense_modifier = clampf(
 				target.defense_modifier * (1.0 - value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+			if not is_player:
+				_mark_participation(player_active_index, 0, 0)
 			_log("debuff", actor, {"text": "%s usa %s: defesa de %s -%d%%"
 				% [actor.display_name, name, target.display_name, int(value)]})
 		"heal":
@@ -378,6 +413,42 @@ func _log(type: String, actor: Combatant, extra: Dictionary) -> void:
 	var event := {"round": round_number, "type": type, "actor": actor.code if actor else ""}
 	event.merge(extra)
 	log_events.append(event)
+
+
+# ---------------------------------------------------------------------------
+# participação e contribuição — XP de vitória
+#
+# Registro bruto só; a fórmula de distribuição (parcela base + parcela por
+# contribuição, arredondamento que conserva o total) fica em `ProgressionMath`,
+# mesma separação de sempre entre "esta classe indexa/registra estado" e
+# "aquela decide a fórmula". Quem consome isto é `WorldRoot`, só depois que a
+# luta termina em vitória — `Battle` não sabe nada sobre XP em si.
+# ---------------------------------------------------------------------------
+
+func _mark_participation(index: int, dealt_delta: int, taken_delta: int) -> void:
+	if index < 0 or index >= _xp_participation.size():
+		return
+	var p: Dictionary = _xp_participation[index]
+	p["participated"] = true
+	p["damage_dealt"] = int(p["damage_dealt"]) + dealt_delta
+	p["damage_taken"] = int(p["damage_taken"]) + taken_delta
+
+
+## Índice (em `player_party`) e contribuição de cada criatura que participou
+## da luta — agiu validamente ou levou uma ação hostil enquanto em campo, a
+## qualquer momento da batalha, não só quem terminou nela. Contribuição =
+## dano causado efetivo + dano sofrido efetivo (sem overkill, ver
+## `_apply_damage`). Vazio se, por algum motivo, ninguém chegou a agir.
+func xp_participants() -> Array:
+	var out: Array = []
+	for i in _xp_participation.size():
+		var p: Dictionary = _xp_participation[i]
+		if bool(p.get("participated", false)):
+			out.append({
+				"index": i,
+				"contribution": int(p.get("damage_dealt", 0)) + int(p.get("damage_taken", 0)),
+			})
+	return out
 
 
 # ---------------------------------------------------------------------------

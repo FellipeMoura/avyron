@@ -79,6 +79,9 @@ Screenshot de verificação: crie um `scripts/dev/shot_*.gd` descartável, rode 
 - **ROADMAP.md** — o que está pendente e em que ordem
 - **`scripts/data/bestiary_data.gd`** — o contrato com o bundle
 - **`scripts/battle/battle.gd`** — a máquina de turnos, e o comentário sobre `replace_active` vs `_do_switch`
+- **`scripts/world/player_progress.gd`** — o único estado que persiste em disco hoje (Glifos); autoload `Progress`, nunca referenciado pelo identificador global bare fora deste arquivo (mesmo motivo de `Bestiary`)
+- **`scripts/world/arena_actor.gd`** / **`portal_guardian_actor.gd`** — arena e guardião do portal (documento `glifos-e-portais` no bestiário)
 - **`scripts/dev/test_data.gd`** — o guarda do contrato; rode depois de todo `game:export`
+- **`scripts/dev/test_glyphs.gd`** — `PlayerProgress` isolado + a condição de concessão de Glifo (vitória de arena, nunca vitória selvagem)
 - **`../game/CLAUDE.md`** — o briefing do bestiário
 - **`../game/docs/DATA_WORKFLOW.md`** — como inserir e corrigir dados

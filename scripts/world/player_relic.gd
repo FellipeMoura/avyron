@@ -36,11 +36,11 @@ func display_name(db: BestiaryData) -> String:
 
 
 func element_code(db: BestiaryData) -> String:
-	return str(_data(db).get("element", ""))
+	return BestiaryData.relic_element_code(_data(db))
 
 
 func class_code(db: BestiaryData) -> String:
-	return str(_data(db).get("class", ""))
+	return BestiaryData.relic_class_code(_data(db))
 
 
 func slot_capacity(db: BestiaryData) -> int:
