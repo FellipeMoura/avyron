@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://76rgakoa6e0u"
-path="res://.godot/imported/CRT-010.glb-079a79a6ef2208ba241dc93ece55db92.scn"
+uid="uid://bm52jmktflr15"
+path="res://.godot/imported/CRT-019.glb-bf94ba767c11d4fabd75c429ba92d87e.scn"
 
 [deps]
 
-source_file="res://CRT-010.glb"
-dest_files=["res://.godot/imported/CRT-010.glb-079a79a6ef2208ba241dc93ece55db92.scn"]
+source_file="res://CRT-019.glb"
+dest_files=["res://.godot/imported/CRT-019.glb-bf94ba767c11d4fabd75c429ba92d87e.scn"]
 
 [params]
 

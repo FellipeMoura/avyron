@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cdrvgwu3logcq"
-path="res://.godot/imported/CRT-010_normal.jpg-6ae45c0194b9c599eeff6ed4e87d4327.ctex"
+uid="uid://cy0kbg7q5dsx8"
+path="res://.godot/imported/CRT-003_normal.jpg-52d8df69b8a475e79f10ae36960811a4.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "f286f050f26cc7087552ea765dd2e7d1"
+"md5": "775caa4cdffd50900ae82f2c026109e2"
 }
 
 [deps]
 
-source_file="res://CRT-010_normal.jpg"
-dest_files=["res://.godot/imported/CRT-010_normal.jpg-6ae45c0194b9c599eeff6ed4e87d4327.ctex"]
+source_file="res://CRT-003_normal.jpg"
+dest_files=["res://.godot/imported/CRT-003_normal.jpg-52d8df69b8a475e79f10ae36960811a4.ctex"]
 
 [params]
 
