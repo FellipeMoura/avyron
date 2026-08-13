@@ -105,7 +105,7 @@ static func build(
 static func update_hint(hint: Label, actor_count: int) -> void:
 	if hint == null:
 		return
-	hint.text = ("WASD anda · Shift corre · F minera · T time · E set · V bolsa · " +
+	hint.text = ("WASD anda · F minera · T time · E set · V bolsa · " +
 		"clique numa criatura para ver, clique de novo para lutar   (%d no mapa)") % actor_count
 
 

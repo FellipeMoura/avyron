@@ -43,8 +43,6 @@ func _setup_input_map() -> void:
 	_action("move_right", [KEY_D, KEY_RIGHT], JOY_AXIS_LEFT_X,  1.0)
 	_action("move_up",    [KEY_W, KEY_UP],    JOY_AXIS_LEFT_Y, -1.0)
 	_action("move_down",  [KEY_S, KEY_DOWN],  JOY_AXIS_LEFT_Y,  1.0)
-	# Correr: shift no teclado, gatilho direito no gamepad.
-	_action("run", [KEY_SHIFT], JOY_AXIS_TRIGGER_RIGHT, 1.0)
 
 
 func _action(name: String, keycodes: Array, axis: int, axis_value: float) -> void:

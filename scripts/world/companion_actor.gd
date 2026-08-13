@@ -52,14 +52,15 @@ const TRAIL_SPACING := 0.25
 ##
 ## Um controlador proporcional puro nunca zera o erro: em regime, a companheira
 ## fica parada no ponto em que a velocidade que o ganho pede iguala a do
-## jogador. Isso **não** é defeito aqui — é o que faz a coleira esticar quando
-## ele corre e encolher quando ele para. Com 7.0, ela anda ~2,4 m atrás ao
-## caminhar, ~2,8 m ao correr, e recolhe para ~1,3 m parada.
+## jogador. Isso **não** é defeito aqui — é o que faz a coleira esticar
+## enquanto ele anda e encolher quando ele para. Com 7.0, ela anda ~3,3 m
+## atrás ao caminhar (`WALK_SPEED` 5.2) e recolhe para ~2,3 m parada.
 const CATCH_UP_GAIN := 7.0
 
-## Teto acima da corrida do jogador — sem essa folga ela nunca recupera o
-## terreno perdido enquanto ele corre, e a coleira estica para sempre.
-const MAX_SPEED := PlayerController.RUN_SPEED * 1.12
+## Teto acima do passo do jogador — sem essa folga ela nunca recupera o
+## terreno perdido na largada (ver `_test_start_delay`), e a coleira estica
+## para sempre.
+const MAX_SPEED := PlayerController.WALK_SPEED * 1.12
 
 ## Mais lenta que a do jogador (0,15 s até andar): a rampa é a segunda metade
 ## do atraso na largada, depois da folga da coleira.

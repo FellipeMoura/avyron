@@ -11,7 +11,10 @@ extends Camera3D
 ## O **zoom**, ao contrário do ângulo, é ajustável — num lugar só. Batalha e
 ## chefe são proporções do mesmo `base_size`, então mexer nele move os três
 ## juntos, que é o comportamento desejado: são enquadramentos do mesmo rig,
-## nunca cortes para outra câmera.
+## nunca cortes para outra câmera. O scroll do mouse entra como mais uma
+## modulação desse mesmo `size`, não como uma câmera paralela — guardado como
+## multiplicador (`_zoom_mult`) para sobreviver às transições de batalha em
+## vez de ser descartado a cada uma.
 ##
 ## Especificação: documentos `camera-e-perspectiva` e
 ## `escala-e-camera-de-batalha` no bestiário.
@@ -62,14 +65,26 @@ const RIG_DISTANCE := 20.0
 
 @export var target_path: NodePath
 
+## Passo por notch de scroll, e faixa do multiplicador sobre `base_size`.
+## Faixa relativa (não tamanho absoluto) de propósito: continua válida se
+## `base_size` for retunado depois, sem precisar remedir os limites.
+const ZOOM_STEP := 0.1
+const ZOOM_MULT_MIN := 0.5
+const ZOOM_MULT_MAX := 2.0
+
 var _target: Node3D
 var _lookahead := Vector3.ZERO
 var _transition_tween: Tween
+var _zoom_mult := 1.0
+## Trava o scroll durante a batalha: a câmera já está sob o tween de combate
+## (`PROCESS_MODE_ALWAYS`, roda com o mundo pausado — ver `WorldRoot`), e
+## scroll nesse meio-tempo brigaria com ele por `size` quadro a quadro.
+var _in_battle := false
 
 
 func _ready() -> void:
 	projection = PROJECTION_ORTHOGONAL
-	size = base_size
+	size = _zoomed_base_size()
 	# Ortográfica com alvo à frente: o near precisa ser negativo o bastante
 	# para não recortar o que está entre a câmera e o ponto de foco.
 	near = 0.05
@@ -125,13 +140,18 @@ func _rig_position(focus: Vector3) -> Vector3:
 # ---------------------------------------------------------------------------
 
 func enter_battle() -> void:
-	_tween_transition(base_size * battle_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
+	_in_battle = true
+	_tween_transition(_zoomed_base_size() * battle_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
 
 func enter_boss_battle() -> void:
-	_tween_transition(base_size * boss_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
+	_in_battle = true
+	_tween_transition(_zoomed_base_size() * boss_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
 
 func exit_battle() -> void:
-	_tween_transition(base_size, PITCH_DEGREES, zoom_out_duration)
+	_in_battle = false
+	# Volta para o zoom que o jogador tinha escolhido, não para o `base_size`
+	# cru — senão todo duelo resetaria o scroll dele.
+	_tween_transition(_zoomed_base_size(), PITCH_DEGREES, zoom_out_duration)
 
 
 ## Tween paralelo de zoom (`size`) e pitch (`rotation_degrees:x`). Um único
@@ -146,6 +166,32 @@ func _tween_transition(target_size: float, target_pitch: float, duration: float)
 	_transition_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_transition_tween.tween_property(self, "size", target_size, duration)
 	_transition_tween.tween_property(self, "rotation_degrees:x", target_pitch, duration)
+
+
+# ---------------------------------------------------------------------------
+# zoom por scroll
+# ---------------------------------------------------------------------------
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _in_battle or not (event is InputEventMouseButton and event.pressed):
+		return
+	match event.button_index:
+		MOUSE_BUTTON_WHEEL_UP:
+			_adjust_zoom(-ZOOM_STEP)
+		MOUSE_BUTTON_WHEEL_DOWN:
+			_adjust_zoom(ZOOM_STEP)
+
+
+## Roda pra cima aproxima (`size` menor — ver docstring de `base_size`);
+## roda pra baixo afasta. O estado é o multiplicador, nunca `size` direto,
+## porque `enter_battle` precisa dele sobrevivendo à animação de batalha.
+func _adjust_zoom(delta_mult: float) -> void:
+	_zoom_mult = clampf(_zoom_mult + delta_mult, ZOOM_MULT_MIN, ZOOM_MULT_MAX)
+	size = _zoomed_base_size()
+
+
+func _zoomed_base_size() -> float:
+	return base_size * _zoom_mult
 
 
 # ---------------------------------------------------------------------------

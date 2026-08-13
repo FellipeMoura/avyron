@@ -75,11 +75,11 @@ func _report() -> void:
 	_check_true("nao afundou no chao", absf(_player.global_position.y - _start_pos.y) < 0.1,
 		"y = %.2f" % _player.global_position.y)
 
-	# Velocidade de caminhada: 4 m/s. A aceleração de 0.15 s puxa a média um
-	# pouco para baixo, então a faixa aceita começa em 3 m/s.
+	# Velocidade de caminhada: 5.2 m/s (WALK_SPEED). A aceleração de 0.15 s
+	# puxa a média um pouco para baixo, então a faixa aceita começa em 3.9 m/s.
 	var seconds := float(_elapsed_physics) / Engine.physics_ticks_per_second
 	var speed := moved.length() / seconds
-	_check_true("velocidade proxima de andar (4 m/s)", speed > 3.0 and speed < 4.5,
+	_check_true("velocidade proxima de andar (5.2 m/s)", speed > 3.9 and speed < 5.9,
 		"%.2f m/s" % speed)
 
 	var cam_moved := _camera.global_position - _start_cam

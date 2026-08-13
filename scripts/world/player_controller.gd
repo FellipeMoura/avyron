@@ -1,17 +1,18 @@
 class_name PlayerController
 extends CharacterBody3D
 
-## Locomoção do domador. Livre, não presa a grid.
+## Locomoção do domador. Livre, não presa a grid, velocidade única — sem
+## correr.
 ##
-## As velocidades e os tempos abaixo estão travados porque os ciclos de
-## animação `walk` (~0.85 s por passo) e `run` (~0.50 s) foram calibrados a
-## partir deles. Mudar a velocidade sem recalibrar os loops produz
-## foot-sliding visível.
+## As velocidades e os tempos abaixo estão travados porque o ciclo de
+## animação `walk` (~0.85 s por passo, medido no `WALK_SPEED` anterior de
+## 4.0) foi calibrado a partir deles. `WALK_SPEED` subiu 30% sem recalibrar
+## esse ciclo — quando a animação real entrar, o tempo de passo precisa ser
+## remedido neste valor novo, ou o pé desliza no chão visivelmente.
 ##
 ## Especificação: documento `movimento-e-controles` no bestiário.
 
-const WALK_SPEED := 4.0
-const RUN_SPEED := 7.0
+const WALK_SPEED := 5.2
 
 ## Tempo de 0 até a velocidade de caminhada, e de qualquer velocidade até 0.
 const ACCEL_TIME := 0.15
@@ -29,9 +30,6 @@ func _physics_process(delta: float) -> void:
 	var input := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 	var direction := IsoCamera.screen_to_world_direction(input)
 
-	var running := Input.is_action_pressed("run")
-	var max_speed := RUN_SPEED if running else WALK_SPEED
-
 	# Aceleração e frenagem são definidas por tempo, não por força: é assim
 	# que os documentos especificam, e é o que mantém o feel igual
 	# independente da velocidade alvo.
@@ -41,7 +39,7 @@ func _physics_process(delta: float) -> void:
 		horizontal = horizontal.move_toward(Vector3.ZERO, brake)
 	else:
 		var accel := (WALK_SPEED / ACCEL_TIME) * delta
-		horizontal = horizontal.move_toward(direction * max_speed, accel)
+		horizontal = horizontal.move_toward(direction * WALK_SPEED, accel)
 		_face_direction(direction, delta)
 
 	velocity.x = horizontal.x
@@ -65,6 +63,6 @@ func _face_direction(direction: Vector3, delta: float) -> void:
 
 
 ## Velocidade horizontal atual, para a máquina de animação escolher entre
-## `idle`, `walk` e `run`.
+## `idle` e `walk`.
 func ground_speed() -> float:
 	return Vector3(velocity.x, 0.0, velocity.z).length()

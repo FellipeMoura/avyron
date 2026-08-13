@@ -15,6 +15,7 @@ var _checks := 0
 func _init() -> void:
 	_test_input_map()
 	_test_direction_math()
+	_test_scroll_zoom()
 	_test_main_scene()
 
 	print("")
@@ -48,7 +49,7 @@ func _check_true(label: String, condition: bool, detail: String = "") -> void:
 
 func _test_input_map() -> void:
 	print("input map:")
-	for action in ["move_left", "move_right", "move_up", "move_down", "run"]:
+	for action in ["move_left", "move_right", "move_up", "move_down"]:
 		_check_true("acao '%s' existe" % action, InputMap.has_action(action))
 
 	# O ponto crítico: uma tecla sintética precisa casar com a ação. Se o
@@ -63,11 +64,6 @@ func _test_input_map() -> void:
 	d.physical_keycode = KEY_D
 	d.pressed = true
 	_check_true("D dispara move_right", InputMap.event_is_action(d, "move_right"))
-
-	var shift := InputEventKey.new()
-	shift.physical_keycode = KEY_SHIFT
-	shift.pressed = true
-	_check_true("Shift dispara run", InputMap.event_is_action(shift, "run"))
 
 	# Gamepad: eixo esquerdo horizontal.
 	var stick := InputEventJoypadMotion.new()
@@ -118,6 +114,58 @@ func _test_direction_math() -> void:
 
 	# O movimento nunca sai do plano do chão.
 	_check_true("direcao fica no plano do chao", absf(w_dir.y) < 0.0001)
+
+
+func _test_scroll_zoom() -> void:
+	print("zoom por scroll:")
+	var cam := IsoCamera.new()
+	root.add_child(cam)
+	# `_init()` roda antes da árvore estar viva (mesma pegadinha do
+	# `_initialize()` documentada no CLAUDE.md) — `add_child` aqui não
+	# dispara `_ready()` a tempo, então chama à mão.
+	cam._ready()
+
+	_check_true("comeca no base_size", absf(cam.size - cam.base_size) < 0.001,
+		"%.3f" % cam.size)
+
+	var wheel_up := InputEventMouseButton.new()
+	wheel_up.button_index = MOUSE_BUTTON_WHEEL_UP
+	wheel_up.pressed = true
+	cam._unhandled_input(wheel_up)
+	_check_true("roda pra cima aproxima (size menor)", cam.size < cam.base_size,
+		"%.3f" % cam.size)
+
+	var wheel_down := InputEventMouseButton.new()
+	wheel_down.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel_down.pressed = true
+	for _i in 30:
+		cam._unhandled_input(wheel_down)
+	_check_true("roda pra baixo trava no teto do multiplicador",
+		absf(cam._zoom_mult - IsoCamera.ZOOM_MULT_MAX) < 0.001, "%.3f" % cam._zoom_mult)
+	_check_true("size acompanha o teto", absf(cam.size - cam._zoomed_base_size()) < 0.001)
+
+	for _i in 30:
+		cam._unhandled_input(wheel_up)
+	_check_true("roda pra cima trava no piso do multiplicador",
+		absf(cam._zoom_mult - IsoCamera.ZOOM_MULT_MIN) < 0.001, "%.3f" % cam._zoom_mult)
+
+	# Composição com a batalha: o zoom escolhido pelo jogador sobrevive à
+	# transição, e o scroll fica travado enquanto ela dura.
+	cam._zoom_mult = 0.8
+	cam.size = cam._zoomed_base_size()
+	cam.enter_battle()
+	_check_true("entrar em batalha trava o scroll", cam._in_battle)
+	cam._unhandled_input(wheel_down)
+	_check_true("scroll ignorado durante a batalha",
+		absf(cam._zoom_mult - 0.8) < 0.001, "%.3f" % cam._zoom_mult)
+
+	cam.exit_battle()
+	_check_true("sair da batalha destrava o scroll", not cam._in_battle)
+	cam._unhandled_input(wheel_down)
+	_check_true("scroll funciona de novo depois",
+		cam._zoom_mult > 0.8, "%.3f" % cam._zoom_mult)
+
+	cam.free()
 
 
 func _test_main_scene() -> void:
