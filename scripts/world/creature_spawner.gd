@@ -35,7 +35,6 @@ signal creature_engaged(actor: CreatureActor)
 ## para atualizar o hint com a contagem corrente.
 signal population_changed()
 
-var _player: Node3D
 var _rng := RandomNumberGenerator.new()
 var _actors: Array[CreatureActor] = []
 var _pool: Array = []
@@ -48,10 +47,6 @@ var _seed_counter := 0
 
 func _ready() -> void:
 	_rng.seed = spawn_seed
-	_player = get_parent().get_node_or_null("Player")
-	if _player == null:
-		push_error("CreatureSpawner: nenhum nó Player irmão encontrado")
-		return
 	populate()
 
 
@@ -81,7 +76,7 @@ func _spawn_one() -> bool:
 	if spot == Vector3.INF:
 		return false
 
-	var actor := CreatureActor.create(data, spot, _player, spawn_seed + _seed_counter)
+	var actor := CreatureActor.create(data, spot, spawn_seed + _seed_counter)
 	_seed_counter += 1
 	actor.name = "%s_%d" % [str(data["code"]), _seed_counter]
 	actor.engaged.connect(_on_engaged)

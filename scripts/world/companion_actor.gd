@@ -283,11 +283,12 @@ func _bob(delta: float) -> void:
 func _build_visual() -> void:
 	if _mesh_root:
 		_mesh_root.queue_free()
-	var visual := CreatureActor.build_capsule_visual(size_meters, element_code)
+	var visual := CreatureActor.build_visual(size_meters, element_code, creature_code)
 	_mesh_root = Node3D.new()
 	_mesh_root.name = "Visual"
 	_mesh_root.add_child(visual["mesh"])
-	_mesh_root.add_child(visual["nose"])
+	if visual["nose"] != null:
+		_mesh_root.add_child(visual["nose"])
 	add_child(_mesh_root)
 
 	# A cápsula do CreatureActor sobe meia-altura via `position.y` do próprio
