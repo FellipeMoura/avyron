@@ -35,6 +35,10 @@ signal creature_engaged(actor: CreatureActor)
 ## para atualizar o hint com a contagem corrente.
 signal population_changed()
 
+## Consulta de altura para spawnar apoiado no relevo. Nulo (bancadas de teste
+## sem terreno) = comportamento antigo, chão em y = 0.
+var terrain: MapTerrain
+
 var _rng := RandomNumberGenerator.new()
 var _actors: Array[CreatureActor] = []
 var _pool: Array = []
@@ -75,6 +79,8 @@ func _spawn_one() -> bool:
 	var spot := _find_spot(_current_positions())
 	if spot == Vector3.INF:
 		return false
+	if terrain:
+		spot.y = terrain.height_at(spot)
 
 	var actor := CreatureActor.create(data, spot, spawn_seed + _seed_counter)
 	_seed_counter += 1
@@ -96,6 +102,10 @@ func _find_spot(placed: Array[Vector3]) -> Vector3:
 		# Longe do ponto de partida do jogador, para ele não abrir o jogo
 		# já dentro de um encontro.
 		if candidate.length() < 6.0:
+			continue
+		# A costa é solo de NPCs e portais — mob não nasce lá. A margem de
+		# 3 m cobre a deriva de patrulha (HOME_LEASH) até a beira da rampa.
+		if terrain and terrain.on_coast(candidate, 3.0):
 			continue
 		var ok := true
 		for p in placed:

@@ -81,7 +81,9 @@ func _ready() -> void:
 	collision.shape = shape
 	add_child(collision)
 
-	position.y = HEIGHT * 0.5
+	# Soma, não atribuição: o spot chega já na altura do terreno (a costa é
+	# elevada) e o corpo sobe meia cápsula a partir dali.
+	position.y += HEIGHT * 0.5
 
 
 func _process(delta: float) -> void:

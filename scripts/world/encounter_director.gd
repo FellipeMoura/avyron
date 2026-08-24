@@ -149,6 +149,10 @@ func engage_wild(actor: CreatureActor, relic: PlayerRelic, encounter_level: int)
 
 	if _camera:
 		_camera.enter_battle()
+		# Vão entre a companheira e a selvagem no centro do quadro, não o
+		# jogador — mesmo par que `_begin_staging` encena.
+		if _companion and is_instance_valid(_companion):
+			_camera.set_battle_focus(_companion, actor)
 	# Congela exploração e IA; o overlay segue processando.
 	_parent.get_tree().paused = true
 
@@ -197,6 +201,10 @@ func engage_arena(actor: ArenaActor, relic: PlayerRelic) -> void:
 
 	if _camera:
 		_camera.enter_battle()
+		# O duelista de arena não anda: parado ali é o próprio "adversário
+		# encenado", o mesmo papel que a selvagem cumpre em `engage_wild`.
+		if _companion and is_instance_valid(_companion):
+			_camera.set_battle_focus(_companion, actor)
 	_parent.get_tree().paused = true
 
 

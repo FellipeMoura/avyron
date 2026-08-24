@@ -98,7 +98,7 @@ Na primeira vez você precisa importar o projeto — depois é só abrir do Proj
 
 Se pedir para escolher a Main Scene na primeira execução, aponte para `scenes/main.tscn` — está fixado no `project.godot`, mas versões novas do Godot às vezes perguntam mesmo assim.
 
-**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, **F minera**, **T abre o time**, **E abre o set do jogador**, **V esconde/reexibe a bolsa**, câmera isométrica travada seguindo com lookahead. A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele, com bob leve — puramente visual, sem colisão nem clique.
+**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, **F minera**, **T abre o time**, **E abre o set do jogador**, **V esconde/reexibe a bolsa**, câmera isométrica travada seguindo com lookahead. O cenário do PZ-01 (ambiência subaquática + recifes) é vestido em runtime por `MapDressing.apply`, e o chão chapado da cena é substituído pelo relevo do `MapTerrain` — ver "Assets 3D". A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele — puramente visual, sem colisão nem clique; corpo rigado anima `Idle`/`Walk` pela marcha, cápsula usa o bob leve.
 
 ### Como a companheira segue
 
@@ -419,9 +419,32 @@ Os três argumentos opcionais sobrescrevem, nesta ordem: constante de dano, dura
 
 ## Assets 3D
 
-Os modelos servidos pelo app web estão comprimidos com **Draco**, que é otimização de entrega para browser. **Para o jogo, importe o `.glb` mestre sem compressão** — o Godot recomprime no formato dele na importação, e o Draco só adiciona um passo de decodificação e um ponto de falha.
+O corpo de cada criatura vem do **`modelUrl` do bundle**, não de convenção de nome. `CreatureActor.model_path` resolve nesta ordem:
 
-Orçamento por asset, conforme `direcao-3d-arte`:
+1. **`res://models/<caminho do modelUrl>`** — espelhado do bestiário pelo `pnpm game:export`, que copia todo `.glb` referenciado junto com o `bestiary.json`. Hoje são os placeholders animados do Quaternius (CC0), compartilhados N:1 — várias criaturas apontam o mesmo arquivo, e é o catálogo que decide qual corpo cada uma usa (botão "vincular/alterar modelo" na ficha do bestiário).
+2. **`res://CRT-XXX.glb` na raiz** — legado dos modelos Meshy, sem animação. Só vale quando a criatura não tem `modelUrl` resolvível.
+3. **Cápsula** colorida pelo elemento — o fallback de sempre.
+
+Depois de um export com modelos novos, rode `--headless --import` (ou abra o editor) para o Godot importá-los antes de dar play.
+
+**Props de bioma** chegam pelo mesmo export, em `models/biomes/` (preparados por `pnpm models:biomes` no bestiário). `megakit/` (Stylized Nature MegaKit do Quaternius, CC0) veste o terrestre: vegetação e pedras em escala real (CommonTree ~7 m) — samambaias escaladas 2,5–3× e cogumelos 3–4× dão a vegetação carbonífera do PZ-03; são `.gltf` com texturas **compartilhadas** de propósito (o Godot deduplica recursos por caminho; `.glb` embutiria uma cópia da casca em cada árvore). `aquatic/` (11 props gerados no Meshy) cobre o marinho do PZ-01: corais, algas e formações em `.glb` individuais, **normalizados em ~1×1×1 pelo Meshy** — a escala de cada peça é decisão da cena (recifes 2–5×, o arco 8–9× como landmark).
+
+Quem aplica isso é **`scripts/world/map_dressing.gd`** (`MapDressing.apply`, chamado por `WorldRoot._ready`, mesmo padrão RefCounted/static do `WorldPopulator`): ambiência subaquática (fog azul `~0.011`, luz fria), landmarks fixos à mão (com colisão cilíndrica só nos maciços — o arco é passagem por baixo) e vegetação miúda espalhada com semente fixa, respeitando um raio livre em torno dos pontos do `WorldPopulator` e da origem do jogador. Layout é posição de cena, não de bestiário — o catálogo diz *o que* vive no mapa; o mundo diz *onde*.
+
+### Relevo e solo
+
+**`scripts/world/map_terrain.gd`** substitui em runtime o `Ground` chapado de `main.tscn` (mesmo nome de nó — o clique de mundo e o `test_world` continuam funcionando): uma grade de 61×61 a 1 m que gera malha, colisão (`HeightMapShape3D`) e a consulta `height_at` **da mesma fonte**, então visual, física e consulta nunca discordam. O desenho é deliberado:
+
+- **Centro plano (altura 0) até `FLAT_RADIUS` = 16 m** — todo o gameplay que assume plano (POIs do `WorldPopulator`, origem do jogador, encenação de duelo) vive aí e continua correto sem mudar.
+- **Colinas suaves (até 2,5 m, ruído com semente fixa) só na zona externa**, e um **rim de borda (+3,5 m)** que fecha a leitura do mapa na câmera ortográfica — relevo é apresentação com colisão, não labirinto.
+- **Uma costa na borda -Z**: platô raso (+1,6 m, rampa entre z −16 e −21) reservado a NPCs e portais — comerciante e posto do Relicário vivem lá (`WorldPopulator`), o spawner não deixa criatura nascer na faixa (`MapTerrain.on_coast`, com margem para a deriva de patrulha) e o `MapDressing` não espalha bioma nela. O shader pinta a faixa emersa num tom seco (`color_coast`), com a base da rampa continuando molhada.
+- Corpos com física (jogador, selvagens) seguem o relevo pela colisão; quem não tem física pergunta: a companheira (`terrain.height_at` no lugar do antigo `GROUND_Y`, que virou fallback de bancada), o spawner (nasce apoiado) e os props do `MapDressing`.
+
+O **solo** é um shader próprio (`shaders/terrain_ground.gdshader`): dois tons misturados por ruído em espaço de mundo (sem UV) + um terceiro tom nas inclinações, com a paleta por mapa vinda de `MapDressing.ground_palette`. Armadilha registrada: a frente de um triângulo no Godot é a ordem **horária** — na ordem OpenGL (anti-horária) o chão inteiro é backface-culled e o mapa flutua sobre o fundo.
+
+**Animação.** Os clipes chegam com o vocabulário normalizado na conversão do bestiário (`convert-placeholders.mjs`): `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death`, mais extras por família — quadrúpedes têm `Eating`, voadores não têm `Walk` e seguem no `Idle` de flutuação. A criatura selvagem nasce em `Idle` e patrulha em `Walk`; a companheira troca de clipe pelo próprio ritmo de marcha e desliga o bob sintético quando o corpo tem rig. O importador de glTF não marca loop em nada, então `LOOPED_CLIPS` em `creature_actor.gd` marca só os clipes contínuos — nunca `Death`.
+
+Orçamento por asset para os modelos definitivos, conforme `direcao-3d-arte`:
 
 | Papel | Triângulos | Textura |
 |---|---|---|
@@ -429,11 +452,11 @@ Orçamento por asset, conforme `direcao-3d-arte`:
 | Regular | 2k–4k | 512² |
 | Enxame | 500–1.5k | 256² |
 
-Oito loops de animação obrigatórios por criatura a 24 fps: `idle`, `walk`, `run`, `attack_primary`, `attack_secondary`, `hurt`, `death`, `victory`.
+Loops mínimos por criatura definitiva, a 24 fps, **nos mesmos nomes do vocabulário normalizado** — o código já os consome por esses nomes: `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death`. Extras como `Yes`/`No`/`Wave` (feedback de captura/vitória) são bem-vindos.
 
 Criaturas Loricati usam **rig flutuante** — sem rig locomotor por perna, deslizamento com bob vertical de ~5 cm. Cobre ~60% do elenco atual.
 
-Modelos-fonte ainda não estão versionados aqui: 8–27 MB cada bloqueiam o histórico para sempre. Configurar `git-lfs` antes de commitar o primeiro.
+Os `.glb` espelhados em `models/` são versionados via **git-lfs** (`.gitattributes` já cobre `*.glb`; confira `git lfs status` antes do commit — blob commitado direto fica no histórico para sempre). Os `CRT-XXX.glb` da raiz viraram peso morto de 8–27 MB cada desde que todo o elenco tem `modelUrl`; podem ser arquivados fora do repo. Quando os modelos definitivos voltarem (animados), importe o `.glb` mestre — o do bestiário serve texturas KTX2 otimizadas para browser, que não é o que o Godot quer.
 
 ## Convenção de escala
 

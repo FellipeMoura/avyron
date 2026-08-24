@@ -74,9 +74,10 @@ const TURN_SPEED := 7.0
 ## Abaixo disto ela conta como parada, e passa a encarar o domador.
 const IDLE_SPEED := 0.05
 
-## Altura do chão. Mesma suposição de mapa plano que o `CreatureSpawner` faz ao
-## nascer criatura em `Vector3(x, 0.0, z)`; quando houver relevo, os dois viram
-## consulta de terreno juntos.
+## Altura do chão SEM terreno — fallback para bancadas de teste que montam a
+## companheira sem mundo. Com o relevo, `WorldRoot` injeta `terrain` e o Y
+## vira consulta (`_ground_y`), exatamente a evolução que este comentário
+## prometia quando o mapa ainda era plano.
 ##
 ## Estar aqui conserta um erro de um metro: a companheira grudava o Y no
 ## `global_position` do jogador, que é o **centro da cápsula** dele (~0,9 m), e
@@ -96,9 +97,13 @@ var creature_code := ""
 var display_name := ""
 var element_code := ""
 var size_meters := 1.8
+var model_url := ""
+## Injetado por `WorldRoot` depois do spawn; nulo em bancada = chão plano.
+var terrain: MapTerrain
 
 var _player: Node3D
 var _mesh_root: Node3D
+var _anim: AnimationPlayer
 var _base_y := 0.0
 
 ## Posições por onde o jogador passou, da mais antiga para a mais recente.
@@ -122,6 +127,9 @@ static func create(db: BestiaryData, code: String, player: Node3D) -> CompanionA
 	actor.display_name = str(c["name"])
 	actor.element_code = str(c["element"])
 	actor.size_meters = float(c["stats"]["sizeMeters"])
+	# Mesmo cuidado do CreatureActor: `modelUrl` null não pode virar "<null>".
+	var url: Variant = c.get("modelUrl")
+	actor.model_url = url if url is String else ""
 	actor._player = player
 	return actor
 
@@ -137,10 +145,14 @@ func _ready() -> void:
 	# quadro a coloca na origem do mundo e ela atravessa o mapa correndo.
 	var behind := _player.global_transform.basis.z  # +Z é a retaguarda: a frente é -Z
 	global_position = _player.global_position + behind * FOLLOW_DISTANCE
-	global_position.y = GROUND_Y
+	global_position.y = _ground_y()
 	_heading = -behind
 	rotation.y = atan2(-_heading.x, -_heading.z)
 	_seed_trail(behind)
+
+
+func _ground_y() -> float:
+	return terrain.height_at(global_position) if terrain else GROUND_Y
 
 
 ## Semeia o rastro como se o jogador já tivesse vindo em linha reta até aqui.
@@ -166,10 +178,12 @@ func _process(delta: float) -> void:
 	_advance(delta)
 	_face(delta)
 	_bob(delta)
+	_update_clip()
 
 	# Apoiada no chão, como qualquer criatura do mapa. O `_advance` já trabalha
-	# só no plano; isto é a garantia de que nada de fora empurrou o Y.
-	global_position.y = GROUND_Y
+	# só no plano; isto é a garantia de que nada de fora empurrou o Y — e,
+	# com relevo, é o que a faz acompanhar a colina sem precisar de física.
+	global_position.y = _ground_y()
 
 
 # ---------------------------------------------------------------------------
@@ -272,6 +286,10 @@ func _face(delta: float) -> void:
 func _bob(delta: float) -> void:
 	if _mesh_root == null:
 		return
+	# Corpo com rig anima a própria respiração; o bob sintético por cima
+	# leria como um modelo quicando num pistão.
+	if _anim != null:
+		return
 	var motion := clampf(_speed / PlayerController.WALK_SPEED, 0.0, 1.6)
 	_bob_phase += delta * TAU * BOB_HZ * (1.0 + motion)
 	_mesh_root.position.y = _base_y + sin(_bob_phase) * BOB_AMPLITUDE * (1.0 + motion * 1.5)
@@ -281,10 +299,21 @@ func _bob(delta: float) -> void:
 # corpo
 # ---------------------------------------------------------------------------
 
+## Anda ↔ para seguindo a marcha real, com o mesmo contrato do CreatureActor:
+## sem clipe correspondente (cápsula, ou voador sem `Walk`), nada muda.
+func _update_clip() -> void:
+	if _anim == null:
+		return
+	var clip := "Walk" if _speed >= IDLE_SPEED else "Idle"
+	if _anim.has_animation(clip) and _anim.current_animation != clip:
+		_anim.play(clip, 0.2)
+
+
 func _build_visual() -> void:
 	if _mesh_root:
 		_mesh_root.queue_free()
-	var visual := CreatureActor.build_visual(size_meters, element_code, creature_code)
+	var visual := CreatureActor.build_visual(size_meters, element_code, creature_code, model_url)
+	_anim = visual["anim"]
 	_mesh_root = Node3D.new()
 	_mesh_root.name = "Visual"
 	_mesh_root.add_child(visual["mesh"])
@@ -310,4 +339,6 @@ func set_creature(db: BestiaryData, code: String) -> void:
 	display_name = str(c["name"])
 	element_code = str(c["element"])
 	size_meters = float(c["stats"]["sizeMeters"])
+	var url: Variant = c.get("modelUrl")
+	model_url = url if url is String else ""
 	_build_visual()

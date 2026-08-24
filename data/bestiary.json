@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.205",
-  "generatedAt": "2026-08-11T22:03:22.245Z",
+  "dataVersion": "0.262",
+  "generatedAt": "2026-08-24T20:05:08.355Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -743,7 +743,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-001.glb",
+      "modelUrl": "/models/placeholders/flying/Glub.glb",
       "stats": {
         "hp": 50,
         "attack": 35,
@@ -810,7 +810,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-002.glb",
+      "modelUrl": "/models/placeholders/flying/Squidle.glb",
       "stats": {
         "hp": 65,
         "attack": 70,
@@ -877,7 +877,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-003.glb",
+      "modelUrl": "/models/placeholders/flying/Pigeon.glb",
       "stats": {
         "hp": 50,
         "attack": 45,
@@ -944,7 +944,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-004.glb",
+      "modelUrl": "/models/placeholders/flying/Goleling.glb",
       "stats": {
         "hp": 60,
         "attack": 30,
@@ -1011,7 +1011,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-005.glb",
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
       "stats": {
         "hp": 45,
         "attack": 50,
@@ -1078,7 +1078,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-006.glb",
+      "modelUrl": "/models/placeholders/flying/Tribal.glb",
       "stats": {
         "hp": 55,
         "attack": 55,
@@ -1145,7 +1145,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-007.glb",
+      "modelUrl": "/models/placeholders/flying/Ghost.glb",
       "stats": {
         "hp": 75,
         "attack": 80,
@@ -1212,7 +1212,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-008.glb",
+      "modelUrl": "/models/placeholders/flying/Armabee_Evolved.glb",
       "stats": {
         "hp": 85,
         "attack": 60,
@@ -1279,7 +1279,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
-      "modelUrl": "/models/CRT-009.glb",
+      "modelUrl": "/models/placeholders/flying/Hywirl.glb",
       "stats": {
         "hp": 45,
         "attack": 55,
@@ -1346,7 +1346,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-010.glb",
+      "modelUrl": "/models/placeholders/flying/Dragon_Evolved.glb",
       "stats": {
         "hp": 60,
         "attack": 65,
@@ -1413,7 +1413,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-011.glb",
+      "modelUrl": "/models/placeholders/flying/Ghost_Skull.glb",
       "stats": {
         "hp": 40,
         "attack": 45,
@@ -1480,7 +1480,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-013.glb",
+      "modelUrl": "/models/placeholders/flying/Goleling_Evolved.glb",
       "stats": {
         "hp": 90,
         "attack": 40,
@@ -1542,7 +1542,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-014.glb",
+      "modelUrl": "/models/placeholders/flying/Glub_Evolved.glb",
       "stats": {
         "hp": 60,
         "attack": 50,
@@ -1609,7 +1609,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": "/models/CRT-015.glb",
+      "modelUrl": "/models/placeholders/flying/Alpaking_Evolved.glb",
       "stats": {
         "hp": 45,
         "attack": 50,
@@ -1676,7 +1676,7 @@
       "biome": "BIO-001",
       "role": null,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/flying/Dragon.glb",
       "stats": {
         "hp": 55,
         "attack": 60,
@@ -1743,7 +1743,7 @@
       "biome": null,
       "role": "hero",
       "silhouetteNote": "Vela dorsal alta e triangular sustentada por espinhos ósseos alongados; corpo quadrupede robusto, cauda longa afinada; cabeça alongada com dentes carniceiros diferenciados. Silhueta dominada pela vela — sinapsídeo comumente confundido com dinossauro.",
-      "modelUrl": "/models/CRT-017.glb",
+      "modelUrl": "/models/placeholders/big/MushroomKing.glb",
       "stats": {
         "hp": 75,
         "attack": 75,
@@ -1810,7 +1810,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Vela dorsal com travessas ósseas transversais formando padrão de grade sobre os espinhos; corpo quadrupede baixo e denso, cauda curta; cabeça pequena de herbívoro. Contraponto visual ao Dimetrodon — mesma vela, padrão diferente, papel oposto.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Bunny.glb",
       "stats": {
         "hp": 80,
         "attack": 40,
@@ -1877,7 +1877,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Corpo atarracado e baixo, quatro membros curtos e robustos; cabeça grande com bico córneo curto e um par de presas caniniformes pequenas apontando para baixo; sem crista, sem vela. Silhueta compacta em barril — sobrevivente icônico da extinção Permo-Triássica.",
-      "modelUrl": "/models/CRT-019.glb",
+      "modelUrl": "/models/placeholders/big/Orc_Skull.glb",
       "stats": {
         "hp": 70,
         "attack": 45,
@@ -1944,7 +1944,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Cabeça bulbosa com crânio espesso arredondado adaptado a combate de topada; corpo curvado com dorso arqueado tipo urso-tatu, membros curtos; cauda curta. Silhueta corcunda dominante.",
-      "modelUrl": "/models/CRT-020.glb",
+      "modelUrl": "/models/placeholders/big/Cactoro.glb",
       "stats": {
         "hp": 85,
         "attack": 55,
@@ -2011,7 +2011,7 @@
       "biome": null,
       "role": "hero",
       "silhouetteNote": "Corpo esguio quadrupede tipo grande felino; cabeça alongada com par de caninos superiores enormes que ultrapassam a mandíbula fechada; cauda longa. Silhueta de predador-lâmina — contraste direto com Moschops.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Monkroose.glb",
       "stats": {
         "hp": 70,
         "attack": 85,
@@ -2078,7 +2078,7 @@
       "biome": null,
       "role": "hero",
       "silhouetteNote": "Corpo cilíndrico desproporcionalmente gigantesco em barril; cabeça minúscula em relação ao corpo; membros curtos afastados; cauda curta. Silhueta cômica: pequena cabeça sobre corpo bola — bom mini-boss territorial.",
-      "modelUrl": "/models/CRT-022.glb",
+      "modelUrl": "/models/placeholders/big/Orc.glb",
       "stats": {
         "hp": 100,
         "attack": 45,
@@ -2145,7 +2145,7 @@
       "biome": null,
       "role": "hero",
       "silhouetteNote": "Corpo quadrupede blindado com fileiras de placas ósseas ao longo do dorso e flancos; cabeça larga com espinhos e verrugas ósseas laterais; membros grossos; cauda curta. Silhueta quadrada e couraçada — tanque de área.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Alien.glb",
       "stats": {
         "hp": 95,
         "attack": 55,
@@ -2212,7 +2212,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Pequeno lagartiforme quadrupede (~20 cm de comprimento total), corpo delgado, cauda longa afinada; cabeça triangular pequena. Silhueta neutra de réptil basal — criatura comum/inicial de mapa.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Ninja.glb",
       "stats": {
         "hp": 40,
         "attack": 40,
@@ -2279,7 +2279,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Diapsídeo esguio quadrupede com pernas longas relativas ao corpo (adaptação corredora); cauda longa como contrapeso; cabeça pequena com fenestras cranianas visíveis. Silhueta atlética.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Frog.glb",
       "stats": {
         "hp": 45,
         "attack": 45,
@@ -2346,7 +2346,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Corpo alongado hidrodinâmico, cauda achatada em remo lateral; membros modificados em nadadeiras; focinho fino e alongado com dentes agulha finos e numerosos. Silhueta aquática — cobre nicho anfíbio.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Tribal.glb",
       "stats": {
         "hp": 55,
         "attack": 50,
@@ -2413,7 +2413,7 @@
       "biome": null,
       "role": "regular",
       "silhouetteNote": "Quadrupede robusto baixo, corpo denso e musculoso; cabeça larga com maxilares fortes e várias fileiras de dentes; sem cristas nem placas visíveis. Silhueta compacta e discreta — comum forte.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/BlueDemon.glb",
       "stats": {
         "hp": 55,
         "attack": 50,
@@ -2480,7 +2480,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": "Pequeno reptil quadrupede com membranas de planeio sustentadas por costelas alongadas nas laterais do tronco; cabeca pequena com crista ossea baixa; cauda longa fina. Silhueta alada quando em glide, contraste aereo aos repteis terrestres do elenco.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Birb.glb",
       "stats": {
         "hp": 40,
         "attack": 55,
@@ -2541,7 +2541,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": "Diapsideo esguio de pescoco alongado e cabeca pequena triangular; corpo quadrupede moderado, cauda longa afilada. Silhueta de pescoco como traco distintivo, generalista de porte medio do Permiano.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Demon.glb",
       "stats": {
         "hp": 60,
         "attack": 55,
@@ -2602,7 +2602,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": "Corpo quadrupede alongado tipo crocodiliano primitivo; focinho comprido e estreito com dentes conicos numerosos; membros curtos afastados do corpo; cauda longa. Silhueta rasteira de emboscada, predador de Terra em contraponto agil ao Scutosaurus blindado.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Dino.glb",
       "stats": {
         "hp": 70,
         "attack": 70,
@@ -2658,12 +2658,12 @@
       "name": "Sphenacodon",
       "baseSpecies": "Sphenacodon",
       "class": "CLS-002",
-      "element": "ELE-001",
+      "element": "ELE-005",
       "map": "PZ-01",
       "biome": null,
       "role": null,
       "silhouetteNote": "Vela dorsal baixa e rudimentar, menos proeminente que a do Dimetrodon; corpo quadrupede esguio de sinapsideo carnivoro; cauda longa afinada; cabeca alongada com dentes diferenciados. Silhueta-irma do Dimetrodon, mesma familia, porte menor.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Fish.glb",
       "stats": {
         "hp": 60,
         "attack": 65,
@@ -2682,7 +2682,7 @@
       },
       "abilities": [
         {
-          "code": "HAB-001",
+          "code": "HAB-013",
           "learnLevel": 1
         },
         {
@@ -2690,7 +2690,7 @@
           "learnLevel": 8
         },
         {
-          "code": "HAB-002",
+          "code": "HAB-014",
           "learnLevel": 12
         },
         {
@@ -2698,18 +2698,18 @@
           "learnLevel": 20
         },
         {
-          "code": "HAB-003",
+          "code": "HAB-015",
           "learnLevel": 28
         },
         {
-          "code": "HAB-026",
+          "code": "HAB-030",
           "learnLevel": 1
         }
       ],
       "drops": [],
       "awakening": {
         "code": "DSP-031",
-        "name": "Sphenacodon Ardente",
+        "name": "Sphenacodon Fulgurante",
         "type": "reinforcement",
         "referenceSpecies": null
       }
@@ -2724,7 +2724,7 @@
       "biome": null,
       "role": null,
       "silhouetteNote": "Pequeno cinodonte quase-mamifero, corpo baixo e alongado tipo furao; cabeca curta com mandibula robusta; postura semi-ereta com membros sob o corpo. Silhueta agil e escavadora, contemporaneo do Lystrosaurus na travessia Permo-Triassica.",
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/big/Frog.glb",
       "stats": {
         "hp": 45,
         "attack": 50,

@@ -50,6 +50,7 @@ extends Node3D
 
 var _camera: IsoCamera
 var _player: Node3D
+var _terrain: MapTerrain
 var _spawner: CreatureSpawner
 ## Espelha o duelo aberto em `_encounter`. Existe como campo próprio (em vez
 ## de só `_encounter.is_duel_open()`) porque os testes headless leem
@@ -137,9 +138,22 @@ func _ready() -> void:
 	if _relic:
 		_roster.set_capacity(_relic.slot_capacity(_db))
 
+	# O relevo entra ANTES de tudo que pergunta altura ou se apoia no chão.
+	# O `Ground` chapado da cena sai e o terreno assume o mesmo nome — o
+	# clique de mundo continua batendo num StaticBody e `test_world` continua
+	# achando o nó. `free()` imediato (não `queue_free`) porque o nome será
+	# reutilizado neste mesmo quadro.
+	var flat_ground := get_node_or_null("Ground")
+	if flat_ground:
+		flat_ground.free()
+	_terrain = MapTerrain.create(MapDressing.ground_palette(map_code))
+	_terrain.name = "Ground"
+	add_child(_terrain)
+
 	_spawner = CreatureSpawner.new()
 	_spawner.name = "CreatureSpawner"
 	_spawner.level = encounter_level
+	_spawner.terrain = _terrain
 	# O mapa é do mundo, não do spawner: quem povoa e quem minera têm de
 	# concordar sobre onde o jogador está.
 	_spawner.map_code = map_code
@@ -156,11 +170,17 @@ func _ready() -> void:
 	# daqui. A conexão do sinal `engaged` continua sendo decisão de WorldRoot:
 	# quem povoa não é quem decide o que acontece ao interagir.
 	_companion = WorldPopulator.spawn_companion(self, _db, _roster, _player)
-	_merchants = WorldPopulator.spawn_merchants(self, _db, map_code, _on_merchant_engaged)
-	_relic_station = WorldPopulator.spawn_relic_station(self, _on_relic_station_engaged)
+	if _companion:
+		_companion.terrain = _terrain
+	_merchants = WorldPopulator.spawn_merchants(self, _db, map_code, _on_merchant_engaged, _terrain)
+	_relic_station = WorldPopulator.spawn_relic_station(self, _on_relic_station_engaged, _terrain)
 	_arenas = WorldPopulator.spawn_arenas(self, _db, map_code, _on_arena_engaged)
 	_portal_guardian = WorldPopulator.spawn_portal_guardian(
 		self, _progress, _on_portal_guardian_engaged)
+
+	# O cenário (ambiente + props de bioma) entra por último e é apresentação
+	# pura: nada dele emite sinal, entra em fórmula ou guarda estado.
+	MapDressing.apply(self, map_code, _terrain)
 
 	# Ciclo de vida do duelo — engate, encenação, fechamento, drop/XP/glifo —
 	# vive em `EncounterDirector`. `_duel` continua espelhado aqui via

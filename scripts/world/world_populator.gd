@@ -12,15 +12,18 @@ extends RefCounted
 ## `WorldRoot` (ou `EncounterDirector`) — este arquivo só cria e devolve; a
 ## conexão do sinal `engaged` é passada de fora via `Callable`.
 
-## Onde o comerciante fica. Posição de cena, não de bestiário: o catálogo diz
-## quem existe e em que mapa, o layout do mundo diz onde. Quando houver
-## vilarejo modelado, isto vira um marcador na cena.
-const MERCHANT_SPOT := Vector3(6.0, 0.0, -6.0)
+## Onde o comerciante fica: na COSTA — o platô da borda -Z que o `MapTerrain`
+## reserva para NPCs e portais, sem bioma natural e sem spawn de criatura.
+## Posição de cena, não de bestiário: o catálogo diz quem existe e em que
+## mapa, o layout do mundo diz onde. O `y` das consts é 0 de propósito: quem
+## resolve a altura é o terreno, na hora de spawnar.
+const MERCHANT_SPOT := Vector3(4.0, 0.0, -23.0)
 
 ## Idem, pro posto do Relicário — depositar/retirar do storage e trocar de
 ## modelo só funcionam perto daqui (documento `relicario`: "exige estar em
-## um ponto fixo"). Mesmo raciocínio de placeholder que o comerciante já é.
-const RELIC_STATION_SPOT := Vector3(9.0, 0.0, -6.0)
+## um ponto fixo"). Vizinho do comerciante na costa: os serviços do mapa
+## ficam na mesma "vila" de praia.
+const RELIC_STATION_SPOT := Vector3(8.5, 0.0, -23.0)
 
 ## Idem, pra arena e pro guardião do portal (documento `glifos-e-portais`).
 ## Guardião fica mais longe dos outros pontos de interação — ele marca a
@@ -48,13 +51,16 @@ const PORTAL_DESTINATION_LABEL := "Titanor"
 ## Instancia os comerciantes que o bestiário coloca neste mapa. Zero é estado
 ## normal — um mapa sem comerciante é um mapa sem comerciante, não um erro.
 static func spawn_merchants(
-	parent: Node3D, db: BestiaryData, map_code: String, on_engaged: Callable
+	parent: Node3D, db: BestiaryData, map_code: String, on_engaged: Callable,
+	terrain: MapTerrain = null
 ) -> Array[MerchantActor]:
 	var merchants: Array[MerchantActor] = []
 	if db == null:
 		return merchants
 	var spot := MERCHANT_SPOT
 	for data in db.merchants_in_map(map_code):
+		if terrain:
+			spot.y = terrain.height_at(spot)
 		var actor := MerchantActor.create(data, spot)
 		actor.name = "Merchant_%s" % str(data.get("code", ""))
 		actor.engaged.connect(on_engaged)
@@ -70,8 +76,13 @@ static func spawn_merchants(
 ## dado do bestiário (não existe `npc_role` pra isso ainda), então não há
 ## "zero é normal" aqui: sem storage não há como esvaziar slots pra trocar de
 ## modelo, e essa regra do design doc precisa de um lugar pra valer.
-static func spawn_relic_station(parent: Node3D, on_engaged: Callable) -> RelicStationActor:
-	var station := RelicStationActor.create(RELIC_STATION_SPOT)
+static func spawn_relic_station(
+	parent: Node3D, on_engaged: Callable, terrain: MapTerrain = null
+) -> RelicStationActor:
+	var spot := RELIC_STATION_SPOT
+	if terrain:
+		spot.y = terrain.height_at(spot)
+	var station := RelicStationActor.create(spot)
 	station.name = "RelicStation"
 	station.engaged.connect(on_engaged)
 	parent.add_child(station)

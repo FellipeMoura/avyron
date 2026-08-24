@@ -43,6 +43,7 @@ var creature_code := ""
 var display_name := ""
 var element_code := ""
 var size_meters := 1.8
+var model_url := ""
 
 var state: State = State.IDLE
 var _home := Vector3.ZERO
@@ -57,6 +58,7 @@ var _material: StandardMaterial3D
 var _mesh_instances: Array[MeshInstance3D] = []
 var _highlight_material: StandardMaterial3D
 var _selected := false
+var _anim: AnimationPlayer
 
 
 ## Cor por elemento. Placeholder honesto: a paleta final vem da banda
@@ -71,10 +73,39 @@ const ELEMENT_COLORS := {
 	"ELE-006": Color("#8FB8C9"),  # Gelo
 }
 
-## Convenção do repositório: o modelo de `CRT-XXX` vive na raiz do projeto
-## como `CRT-XXX.glb`, mesmo nome do `modelUrl` do bestiário sem o prefixo
-## `/models/`. Sem arquivo no caminho, `build_visual` cai para a cápsula.
+## Localização do modelo, em ordem de prioridade:
+##
+## 1. O `modelUrl` do bundle (`/models/...`), espelhado pelo `pnpm game:export`
+##    em `res://models/...`. É assim que os placeholders compartilhados chegam:
+##    várias criaturas podem apontar o mesmo `.glb`, e é o bestiário — não uma
+##    convenção de nome — que decide qual corpo cada uma usa.
+## 2. Legado: `CRT-XXX.glb` na raiz do projeto (os modelos do Meshy, sem
+##    animação). Só vale quando a criatura não tem `modelUrl` resolvível.
+##
+## Sem arquivo em nenhum dos dois, `build_visual` cai para a cápsula.
 const MODEL_PATH_FORMAT := "res://%s.glb"
+const MODEL_URL_PREFIX := "/models/"
+const MODEL_DIR := "res://models/"
+
+## Clipes que devem rodar em loop. O importador de glTF não marca loop em
+## nada, então um `Idle` tocado cru congela no último quadro; e marcar TODOS
+## seria pior — `Death` em loop é uma criatura morrendo para sempre. A lista
+## segue o vocabulário normalizado dos placeholders (ver
+## `convert-placeholders.mjs` no bestiário).
+const LOOPED_CLIPS := ["Idle", "Idle2", "IdleLow", "Walk", "Run", "Eating", "Jump_Idle"]
+
+
+## Resolve o caminho do `.glb` de uma criatura, ou "" quando não há arquivo.
+static func model_path(creature_code_value: String, model_url_value: String) -> String:
+	if model_url_value.begins_with(MODEL_URL_PREFIX):
+		var bundled := MODEL_DIR + model_url_value.trim_prefix(MODEL_URL_PREFIX)
+		if ResourceLoader.exists(bundled):
+			return bundled
+	if creature_code_value != "":
+		var legacy := MODEL_PATH_FORMAT % creature_code_value
+		if ResourceLoader.exists(legacy):
+			return legacy
+	return ""
 
 
 static func create(data: Dictionary, at: Vector3, seed_value: int) -> CreatureActor:
@@ -83,6 +114,10 @@ static func create(data: Dictionary, at: Vector3, seed_value: int) -> CreatureAc
 	a.display_name = str(data["name"])
 	a.element_code = str(data["element"])
 	a.size_meters = float(data["stats"]["sizeMeters"])
+	# `modelUrl` é null no bundle quando a criatura não tem modelo — e
+	# `str(null)` viraria a string "<null>", que passaria no begins_with.
+	var url: Variant = data.get("modelUrl")
+	a.model_url = url if url is String else ""
 	a._home = at
 	a.position = at
 	a._rng.seed = seed_value
@@ -95,10 +130,11 @@ func _ready() -> void:
 
 
 func _build_body() -> void:
-	var visual := build_visual(size_meters, element_code, creature_code)
+	var visual := build_visual(size_meters, element_code, creature_code, model_url)
 	_mesh = visual["mesh"]
 	_material = visual["material"]
 	_mesh_instances = visual["mesh_instances"]
+	_anim = visual["anim"]
 	add_child(_mesh)
 	if visual["nose"] != null:
 		add_child(visual["nose"])
@@ -114,7 +150,10 @@ func _build_body() -> void:
 	_collision.shape = shape
 	add_child(_collision)
 
-	position.y = height * 0.5
+	# Soma, não atribuição: o spawner entrega `at` já na altura do terreno, e
+	# o corpo sobe meia cápsula A PARTIR dali. Atribuir zeraria o relevo e a
+	# criatura nasceria enterrada em qualquer colina.
+	position.y += height * 0.5
 
 	if not _mesh_instances.is_empty():
 		_highlight_material = _build_highlight_material(element_code)
@@ -153,17 +192,17 @@ static func capsule_dimensions(size_meters: float) -> Dictionary:
 ## vertical da cápsula de colisão — é o que permite `CompanionActor` posicionar
 ## os dois tipos de corpo com o mesmo `position.y = height * 0.5`, sem saber
 ## qual dos dois recebeu.
-static func build_visual(size_meters: float, element_code: String, creature_code: String) -> Dictionary:
+static func build_visual(size_meters: float, element_code: String, creature_code: String, model_url_value: String = "") -> Dictionary:
 	var dims := capsule_dimensions(size_meters)
-	var model := _build_model_visual(creature_code, size_meters, dims)
+	var model := _build_model_visual(model_path(creature_code, model_url_value), size_meters, dims)
 	if not model.is_empty():
 		return model
 	return build_capsule_visual(size_meters, element_code)
 
 
-## Tenta montar o visual a partir de `res://<código>.glb`. Devolve dicionário
-## vazio quando o arquivo não existe ou não traz nenhuma malha — quem chama
-## cai para a cápsula nesse caso.
+## Tenta montar o visual a partir do caminho resolvido por `model_path`.
+## Devolve dicionário vazio quando não há caminho ou o arquivo não traz
+## nenhuma malha — quem chama cai para a cápsula nesse caso.
 ##
 ## A escala do arquivo é desconhecida a priori (o pipeline de exportação não
 ## garante 1 unidade = 1 metro), então esta função mede o AABB combinado das
@@ -171,11 +210,8 @@ static func build_visual(size_meters: float, element_code: String, creature_code
 ## não a altura, que carrega o "tamanho" de um artrópode comprido e baixo como
 ## Eurypterus. Depois recentra em X/Z e apoia a base em Y no mesmo ponto onde a
 ## cápsula apoiaria, para colisão e visual concordarem sobre onde é o chão.
-static func _build_model_visual(creature_code: String, size_meters: float, dims: Dictionary) -> Dictionary:
-	if creature_code == "":
-		return {}
-	var path := MODEL_PATH_FORMAT % creature_code
-	if not ResourceLoader.exists(path):
+static func _build_model_visual(path: String, size_meters: float, dims: Dictionary) -> Dictionary:
+	if path == "":
 		return {}
 	var packed := load(path) as PackedScene
 	if packed == null:
@@ -223,14 +259,43 @@ static func _build_model_visual(creature_code: String, size_meters: float, dims:
 	wrapper.name = "Model"
 	wrapper.add_child(instance)
 
+	# Os placeholders chegam rigados com o vocabulário normalizado de clipes
+	# (Idle/Walk/Run/Attack/...). O corpo já nasce em `Idle`; quem move a
+	# criatura troca de clipe via `_play_clip`. Modelo sem AnimationPlayer
+	# (os .glb legados do Meshy) fica parado, como sempre ficou.
+	var anim := _find_animation_player(instance)
+	if anim != null:
+		_prepare_animations(anim)
+		if anim.has_animation("Idle"):
+			anim.play("Idle")
+
 	return {
 		"mesh": wrapper,
 		"nose": null,
 		"material": null,
 		"mesh_instances": mesh_instances,
+		"anim": anim,
 		"height": height,
 		"radius": dims["radius"],
 	}
+
+
+static func _find_animation_player(node: Node) -> AnimationPlayer:
+	if node is AnimationPlayer:
+		return node
+	for child in node.get_children():
+		var found := _find_animation_player(child)
+		if found != null:
+			return found
+	return null
+
+
+## Marca loop nos clipes contínuos — ver `LOOPED_CLIPS` sobre por que não são
+## todos. Mexe no recurso Animation da instância importada, não no arquivo.
+static func _prepare_animations(player: AnimationPlayer) -> void:
+	for anim_name in player.get_animation_list():
+		if String(anim_name) in LOOPED_CLIPS:
+			player.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
 
 
 static func _collect_mesh_instances(node: Node) -> Array[MeshInstance3D]:
@@ -326,6 +391,7 @@ static func build_capsule_visual(size_meters: float, element_code: String) -> Di
 		"nose": nose,
 		"material": material,
 		"mesh_instances": [] as Array[MeshInstance3D],
+		"anim": null,
 		"height": height,
 		"radius": radius,
 	}
@@ -361,10 +427,12 @@ func _enter_idle() -> void:
 	state = State.IDLE
 	_timer = _rng.randf_range(IDLE_MIN, IDLE_MAX)
 	velocity = Vector3.ZERO
+	_play_clip("Idle")
 
 
 func _enter_patrol() -> void:
 	state = State.PATROL
+	_play_clip("Walk")
 	# Ancora o alvo na POSIÇÃO ATUAL, não em `_home`. O esquema antigo pegava
 	# alvo em `_home + offset`, e uma criatura que tivesse drifted para o
 	# extremo oeste do seu círculo podia receber o próximo alvo no extremo
@@ -418,6 +486,16 @@ func _face(direction: Vector3, delta: float) -> void:
 	var d := direction.normalized()
 	# -Z é a frente no Godot, como no controlador do jogador.
 	rotation.y = lerp_angle(rotation.y, atan2(-d.x, -d.z), clampf(8.0 * delta, 0.0, 1.0))
+
+
+## Troca o clipe corrente com um blend curto. Silencioso quando o corpo é
+## cápsula (`_anim` nulo) ou o modelo não tem o clipe — voadores não têm
+## `Walk`, por exemplo, e seguem no `Idle` de flutuação.
+func _play_clip(clip: String) -> void:
+	if _anim == null:
+		return
+	if _anim.has_animation(clip) and _anim.current_animation != clip:
+		_anim.play(clip, 0.2)
 
 
 ## Permite reengajar depois de uma batalha resolvida.

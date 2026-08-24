@@ -6,7 +6,7 @@ Contexto para trabalhar neste repositório. Complementa o `README.md`, que descr
 
 O **jogo**, em Godot 4.7.x (GDScript, Forward+). Câmera isométrica ortográfica travada em 30°/45°, exploração em tempo real, combate por turnos 1v1 com troca livre disputado no mesmo espaço do mapa.
 
-O **catálogo** — criaturas, habilidades, itens, números de balanceamento — vive no repositório irmão em `../game`, e chega aqui como `data/bestiary.json` via `pnpm game:export`. Este repo é código e asset; aquele é conteúdo.
+O **catálogo** — criaturas, habilidades, itens, números de balanceamento — vive no repositório irmão em `../avyron-bestiary`, e chega aqui via `pnpm game:export`, que grava `data/bestiary.json` **e** espelha em `models/` todo `.glb` que o bundle referencia por `modelUrl`, mais os props de bioma em `models/biomes/` (diretório inteiro — `.gltf` com texturas compartilhadas, deduplicadas na importação). Este repo é código e asset; aquele é conteúdo — inclusive a decisão de qual corpo 3D cada criatura usa.
 
 O bestiário **roda local** desde a versão 0.104. O deploy em produção foi aposentado — ele existia para um Claude web alimentar o catálogo por HTTP, e quem escreve hoje roda na mesma máquina.
 
@@ -60,7 +60,8 @@ Screenshot de verificação: crie um `scripts/dev/shot_*.gd` descartável, rode 
 
 - **Português** em tudo que o jogador lê e em todo comentário de código. Identificadores em inglês, seguindo o Godot.
 - **Escala real: 1 metro = 1 unidade.** Um trilobita de 15 cm é pequeno, um Arthropleura de 2,5 m é grande. Sem exagero dramático.
-- **Cápsulas são placeholder**, e o que já é definitivo é tudo o mais — escala, máquina de estados, raio de detecção. Trocar por `.glb` não mexe em lógica.
+- **O corpo vem do `modelUrl` do bundle**, resolvido por `CreatureActor.model_path` nesta ordem: `res://models/<modelUrl>` (espelhado pelo export — hoje os placeholders animados do Quaternius, compartilhados N:1 entre criaturas), depois o legado `res://CRT-XXX.glb` na raiz (Meshy, sem animação), e por fim a cápsula colorida pelo elemento. O que já é definitivo é tudo o mais — escala, máquina de estados, raio de detecção — e independe de qual fonte o corpo usou.
+- **Clipes de animação seguem o vocabulário normalizado** (`Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death`…), garantido na conversão pelo bestiário. O importador de glTF não marca loop em nada: `CreatureActor._prepare_animations` marca só os clipes contínuos (`LOOPED_CLIPS`) — nunca `Death`. Trocar de clipe é sempre via `_play_clip`/`_update_clip`, que silenciam quando o clipe não existe (voadores não têm `Walk`).
 - **Terminologia travada:** "Despertar Ancestral" é o único termo. *Evolução* e *Forma Ancestral* estão descontinuados e a API do bestiário rejeita com 422.
 - Comentário explica **por quê**, não o quê. Os comentários deste repo carregam o histórico das decisões — quando mudar uma, atualize o comentário junto ou ele vira mentira.
 
@@ -83,5 +84,8 @@ Screenshot de verificação: crie um `scripts/dev/shot_*.gd` descartável, rode 
 - **`scripts/world/arena_actor.gd`** / **`portal_guardian_actor.gd`** — arena e guardião do portal (documento `glifos-e-portais` no bestiário)
 - **`scripts/dev/test_data.gd`** — o guarda do contrato; rode depois de todo `game:export`
 - **`scripts/dev/test_glyphs.gd`** — `PlayerProgress` isolado + a condição de concessão de Glifo (vitória de arena, nunca vitória selvagem)
-- **`../game/CLAUDE.md`** — o briefing do bestiário
-- **`../game/docs/DATA_WORKFLOW.md`** — como inserir e corrigir dados
+- **`scripts/world/creature_actor.gd`** — resolução de modelo (`model_path`), montagem do visual e animação; `CompanionActor` consome o mesmo contrato
+- **`scripts/world/map_dressing.gd`** — ambiência e props de cenário por mapa (apresentação pura, padrão `WorldPopulator`); o layout do PZ-01 vive aqui
+- **`scripts/world/map_terrain.gd`** — relevo com colisão e a consulta `height_at`; centro plano até 16 m (onde vive o gameplay de chão plano), colinas e rim só na zona externa, e a costa da borda -Z (`on_coast`) reservada a NPCs/portais — sem bioma, sem spawn. Malha, física e consulta saem da mesma grade — nunca discordam
+- **`../avyron-bestiary/CLAUDE.md`** — o briefing do bestiário
+- **`../avyron-bestiary/docs/DATA_WORKFLOW.md`** — como inserir e corrigir dados

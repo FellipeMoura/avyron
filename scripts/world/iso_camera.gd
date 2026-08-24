@@ -76,6 +76,13 @@ var _target: Node3D
 var _lookahead := Vector3.ZERO
 var _transition_tween: Tween
 var _zoom_mult := 1.0
+
+## Os dois combatentes, durante a batalha. Enquanto ambos estiverem
+## presentes, o foco da câmera é o vão entre eles, não `_target` — é o que
+## joga o jogador para a margem do quadro e deixa o duelo no meio, que é a
+## composição de duelo (a exploração continua centrada no jogador).
+var _focus_a: Node3D
+var _focus_b: Node3D
 ## Trava o scroll durante a batalha: a câmera já está sob o tween de combate
 ## (`PROCESS_MODE_ALWAYS`, roda com o mundo pausado — ver `WorldRoot`), e
 ## scroll nesse meio-tempo brigaria com ele por `size` quadro a quadro.
@@ -104,19 +111,26 @@ func set_target(node: Node3D) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not _target:
+	var focus: Vector3
+	if _focus_a and is_instance_valid(_focus_a) and _focus_b and is_instance_valid(_focus_b):
+		# Sem lookahead aqui: os dois combatentes assentam parados (ou quase),
+		# e adiantar o quadro na direção de um deles puxaria o vão para o lado
+		# de quem se moveu por último em vez de manter os dois enquadrados.
+		_lookahead = Vector3.ZERO
+		focus = (_focus_a.global_position + _focus_b.global_position) * 0.5
+	elif _target:
+		var desired_lookahead := Vector3.ZERO
+		if _target is CharacterBody3D:
+			var v: Vector3 = (_target as CharacterBody3D).velocity
+			v.y = 0.0
+			if v.length_squared() > 0.01:
+				desired_lookahead = v.normalized() * lookahead_distance
+
+		_lookahead = _lookahead.lerp(desired_lookahead, clampf(lookahead_smoothing * delta, 0.0, 1.0))
+		focus = _target.global_position + _lookahead
+	else:
 		return
 
-	var desired_lookahead := Vector3.ZERO
-	if _target is CharacterBody3D:
-		var v: Vector3 = (_target as CharacterBody3D).velocity
-		v.y = 0.0
-		if v.length_squared() > 0.01:
-			desired_lookahead = v.normalized() * lookahead_distance
-
-	_lookahead = _lookahead.lerp(desired_lookahead, clampf(lookahead_smoothing * delta, 0.0, 1.0))
-
-	var focus := _target.global_position + _lookahead
 	global_position = global_position.lerp(
 		_rig_position(focus), clampf(follow_smoothing * delta, 0.0, 1.0)
 	)
@@ -149,9 +163,29 @@ func enter_boss_battle() -> void:
 
 func exit_battle() -> void:
 	_in_battle = false
+	clear_battle_focus()
 	# Volta para o zoom que o jogador tinha escolhido, não para o `base_size`
 	# cru — senão todo duelo resetaria o scroll dele.
 	_tween_transition(_zoomed_base_size(), PITCH_DEGREES, zoom_out_duration)
+
+
+## Prende o foco da câmera ao vão entre os dois combatentes em vez de
+## `_target`. Chamado pelo diretor de encontro junto com `enter_battle`, com
+## a companheira e o adversário (selvagem ou duelista de arena) — os mesmos
+## dois corpos que `BattleStaging` encena. Se um dos dois faltar (playtest
+## sem companheira, por exemplo), a câmera silenciosamente continua em
+## `_target`, o mesmo padrão de "sem plateia, sem correção" de
+## `BattleStaging.trainer_error`.
+func set_battle_focus(a: Node3D, b: Node3D) -> void:
+	_focus_a = a
+	_focus_b = b
+
+
+## Devolve o foco a `_target`. Chamado ao sair da batalha; também limpo aqui
+## dentro por `exit_battle`, para nenhum chamador esquecer de destravar.
+func clear_battle_focus() -> void:
+	_focus_a = null
+	_focus_b = null
 
 
 ## Tween paralelo de zoom (`size`) e pitch (`rotation_degrees:x`). Um único
