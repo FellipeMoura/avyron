@@ -119,6 +119,17 @@ func _check_spawn() -> void:
 			too_close += 1
 	_check("nenhuma nasce em cima do jogador", too_close, 0)
 
+	# Nem em terra seca. Os dois trechos emersos do PZ-01 — a costa e a ilha
+	# da arena — são adro de NPC, e criatura marinha de pé neles contradiz o
+	# mapa inteiro. O keep-out vive no `_find_spot`; é aqui que ele é cobrado.
+	var terrain := _world.get_node_or_null("Ground") as MapTerrain
+	if terrain:
+		var on_dry := 0
+		for a in actors:
+			if terrain.on_coast(a.global_position) or terrain.on_island(a.global_position):
+				on_dry += 1
+		_check("nenhuma nasce na costa nem na ilha", on_dry, 0)
+
 	# Escolhe a mais próxima como alvo do teste.
 	var best := 1e9
 	for a in actors:

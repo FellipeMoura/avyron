@@ -1,7 +1,8 @@
 extends SceneTree
 
-## Prova a encenação do duelo: os dois combatentes se encaram e convergem para
-## a distância de duelo, venham de longe ou de cima um do outro.
+## Prova a encenação do duelo: os três corpos ANDAM até os postos de batalha,
+## apoiados no relevo, e param frente a frente na distância de duelo — venham de
+## longe ou de cima um do outro.
 ##
 ## A pergunta que esta suíte responde é "a imagem mostra o que o overlay
 ## narra?". O combate acontece no mesmo espaço do mapa, então o par que aparece
@@ -14,7 +15,15 @@ extends SceneTree
 ## a fazer todo o trabalho, a briga escorrega para o lado do mais lento e a
 ## asserção do ponto médio é a que pega.
 ##
+## O segundo bloco que importa é o do **relevo** (`_test_terrain`). A encenação
+## empurrava só X/Z, e com o mapa em ladeira isso enterrava os corpos: os dois
+## `CharacterBody3D` eram expulsos pela despenetração quando o mundo despausava,
+## e o domador, cujo posto é derivado para fora do par, chegava a sair da malha.
+## Sem terreno injetado o Y continua intocado — é o contrato que as bancadas de
+## geometria pura usam, e as asserções de "não tocou na altura" o prendem.
+##
 ##     godot --headless --script res://scripts/dev/test_staging.gd
+
 
 const STARTER := "CRT-002"
 const LEVEL := 10
@@ -36,9 +45,36 @@ const ENGINE_FRAME_CAP := 20000
 const TRAINER_RADIUS := 0.35
 
 ## Quadros extras para o domador assentar depois que o par já parou. Ele parte
-## de um canto qualquer da bancada e anda a `TRAINER_SPEED`; isto é folga, não
-## medida.
+## de um canto qualquer da bancada e persegue um posto que se move junto com a
+## criatura, no ritmo proporcional do `TRAINER_GAIN`; isto é folga, não medida.
 const TRAINER_SETTLE_STEPS := 500
+
+
+## Corpo de bancada que implementa o contrato de encenação: declara o próprio
+## apoio no chão e guarda a última marcha recebida.
+##
+## `Node3D` derivado, e não os atores de verdade, pelo mesmo motivo de sempre —
+## `CharacterBody3D` traria física, gravidade e colisão para dentro de uma
+## medida que não é sobre nada disso. Mas com os dois métodos, porque agora há
+## duas coisas a provar que um `Node3D` pelado não prova: que a encenação apoia
+## cada corpo pela regra DELE (os três divergem) e que ela entrega marcha para
+## o clipe em vez de deslizar em pose de repouso.
+class StagedBody extends Node3D:
+	var ground_offset := 0.0
+	var last_gait := -1.0
+	var animating := false
+
+	func staged_ground_offset() -> float:
+		return ground_offset
+
+	func staged_gait(speed: float) -> void:
+		last_gait = speed
+
+	func staged_animating(enabled: bool) -> void:
+		animating = enabled
+
+
+
 
 var _world: WorldRoot
 var _db: BestiaryData
@@ -78,6 +114,8 @@ func _process(_delta: float) -> bool:
 			_test_symmetry()
 			_test_trainer()
 			_test_degenerate()
+			_test_animating()
+			_test_terrain()
 			_test_world_wiring()
 			_phase = "settling"
 			_settle_frames = 0
@@ -257,13 +295,15 @@ func _test_symmetry() -> void:
 	_check_true("os dois andam o mesmo tanto", absf(walked_a - walked_c) < 0.02,
 		"%.2f vs %.2f" % [walked_a, walked_c])
 
-	# O Y de cada corpo segue regra própria — a selvagem sobe meia cápsula, a
-	# companheira fica no chão com o mesh deslocado. A encenação trabalha no
-	# plano e não pode desfazer nenhuma das duas.
+	# Sem relevo injetado, a encenação não escreve altura nenhuma — é o contrato
+	# que vale nesta bancada, e o que separa "trabalha no plano" de "achata os
+	# corpos". Com terreno o Y passa a ser assunto dela, e quem prende isso é
+	# `_test_terrain`, com a regra de apoio de cada corpo.
 	_check_true("a altura de a nao foi tocada", is_equal_approx(a.global_position.y, 0.0),
 		"%.3f" % a.global_position.y)
 	_check_true("a altura de b nao foi tocada", is_equal_approx(c.global_position.y, 1.4),
 		"%.3f" % c.global_position.y)
+
 
 
 func _test_trainer() -> void:
@@ -321,10 +361,10 @@ func _test_trainer() -> void:
 		"%.2f vs %.2f" % [_flat(t.global_position - b.global_position).length(),
 			_flat(a.global_position - b.global_position).length()])
 
-	# A altura do domador é o centro da cápsula dele. A encenação trabalha no
-	# plano e não pode achatá-lo no chão.
+	# Idem: sem relevo, a altura do domador é problema de quem o pôs ali.
 	_check_true("a altura dele nao foi tocada", is_equal_approx(t.global_position.y, 0.9),
 		"%.3f" % t.global_position.y)
+
 
 	# O posto é derivado, não negociado: o domador não entra na correção
 	# simétrica, então a presença dele não pode mover o ponto do encontro.
@@ -374,9 +414,141 @@ func _test_degenerate() -> void:
 		(zero["staging"] as BattleStaging).current_distance(), before)
 
 
+## O clipe certo não bastava: `AnimationPlayer` é pausável, e durante a
+## abertura do duelo o mundo está parado — o clipe ficava **selecionado e
+## congelado no quadro zero**, com os três corpos atravessando a cena numa pose
+## estática. Medido antes da correção: `current_animation_position` = 0,000 em
+## todos os quadros da caminhada.
+##
+## O modo é ligado enquanto a encenação está na árvore e desligado quando ela
+## sai — e ela sai ANTES de o mundo despausar, senão um corpo continuaria
+## animando fora do controle dela.
+func _test_animating() -> void:
+	print("os corpos animam com o mundo pausado:")
+	var bench := _bench(Vector3(-6.0, 0.0, 0.0), Vector3(6.0, 0.0, 0.0))
+	for key in ["a", "b", "trainer"]:
+		_check_true("%s recebeu o modo de animar pausado" % key,
+			(bench[key] as StagedBody).animating)
+
+	# `free()` e não `queue_free()`: a remoção diferida só rodaria no quadro
+	# seguinte, e o teste conferiria o estado errado no mesmo quadro.
+	var bodies := [bench["a"], bench["b"], bench["trainer"]]
+	(bench["staging"] as BattleStaging).free()
+	for i in bodies.size():
+		_check_true("e o devolveu ao sair da arvore (%d)" % i,
+			not (bodies[i] as StagedBody).animating)
+
+
+# ---------------------------------------------------------------------------
+# relevo
+# ---------------------------------------------------------------------------
+
+
+## O bug que esta seção prende: a encenação empurrava X/Z e deixava o Y como
+## estava. Enquanto o mapa era plano isso era correto; com `MapTerrain` passou a
+## enterrar os corpos em qualquer ladeira — e a maioria dos duelos começa numa,
+## porque a selvagem nasce num raio de 22 m e a zona plana acaba em 16.
+func _test_terrain() -> void:
+	print("com relevo, os corpos andam apoiados no chao:")
+	var ground := MapTerrain.create(MapDressing.ground_palette("PZ-01"))
+	root.add_child(ground)
+
+	# Fora do raio plano, onde há colina de verdade.
+	var bench := _bench(Vector3(18.0, 0.0, 18.0), Vector3(24.0, 0.0, 20.0), true, ground)
+	var s: BattleStaging = bench["staging"]
+	var a: StagedBody = bench["a"]
+	var b: StagedBody = bench["b"]
+	var t: StagedBody = bench["trainer"]
+
+	# Um passo só: o corpo que engatou o duelo já fora do lugar tem de se
+	# consertar no primeiro quadro, não ao longo da luta.
+	s.step(STEP)
+	_check_true("um quadro basta para apoiar", _grounded(a, ground) and _grounded(b, ground),
+		"a %.3f / b %.3f" % [a.global_position.y, b.global_position.y])
+	_check_true("e a marcha chega ao corpo para virar clipe", a.last_gait > 0.1,
+		"%.2f m/s" % a.last_gait)
+
+	_settle(s)
+	for _i in TRAINER_SETTLE_STEPS:
+		if s.trainer_error() <= BattleStaging.TOLERANCE:
+			break
+		s.step(STEP)
+
+	# Cada um pela regra DELE: a companheira com a origem no chão, a selvagem e
+	# o domador no centro das próprias cápsulas. Uma média entre as três daria
+	# um corpo enterrado e outro flutuando.
+	_check_true("a companheira apoia na regra dela", _grounded(a, ground),
+		"%.3f (chao %.3f + 0)" % [a.global_position.y, ground.height_at(a.global_position)])
+	_check_true("a selvagem apoia na regra dela", _grounded(b, ground),
+		"%.3f (chao %.3f + 1.4)" % [b.global_position.y, ground.height_at(b.global_position)])
+	_check_true("o domador apoia na regra dele", _grounded(t, ground),
+		"%.3f (chao %.3f + 0.9)" % [t.global_position.y, ground.height_at(t.global_position)])
+
+	# A asserção que descreve o sintoma: nenhum corpo dentro da colina. É o
+	# afundamento que a despenetração transformava em "preso no solo" ou
+	# "arremessado" no quadro em que o mundo despausava.
+	for body in [a, b, t]:
+		var node: Node3D = body
+		_check_true("ninguem fica abaixo do relevo",
+			node.global_position.y >= ground.height_at(node.global_position) - 0.001)
+
+	# Parado é parado: assentada a cena, a marcha entregue zera e o corpo volta
+	# ao clipe de repouso em vez de correr no lugar.
+	s.step(STEP)
+	_check_true("assentado, a marcha entregue e zero", a.last_gait < 0.01,
+		"%.4f m/s" % a.last_gait)
+
+	_test_bounds(ground)
+	ground.queue_free()
+
+
+## O posto do domador é derivado para FORA do par — atrás da própria criatura,
+## no sentido oposto ao adversário. Com o duelo engatado perto da borda de
+## spawn, isso o projetava além dos ±30 m da malha, onde não há chão nenhum:
+## era literalmente cair do mapa.
+func _test_bounds(ground: MapTerrain) -> void:
+	print("perto da borda, ninguem sai da malha:")
+	var limit := float(MapTerrain.SIZE) * 0.5 - MapTerrain.BOUNDS_MARGIN
+
+	# `b` a oeste de `a` empurra o posto do domador para leste, na direção da
+	# borda — e os dois ainda se afastam, porque 6 m é menos que a distância de
+	# duelo.
+	var bench := _bench(Vector3(26.0, 0.0, 0.0), Vector3(20.0, 0.0, 0.0), true, ground)
+	var s: BattleStaging = bench["staging"]
+	var t: StagedBody = bench["trainer"]
+
+	_settle(s)
+	for _i in TRAINER_SETTLE_STEPS:
+		if s.trainer_error() <= BattleStaging.TOLERANCE:
+			break
+		s.step(STEP)
+
+	for body in [bench["a"], bench["b"], t]:
+		var node: Node3D = body
+		_check_true("o corpo fica dentro da malha",
+			absf(node.global_position.x) <= limit + 0.001
+				and absf(node.global_position.z) <= limit + 0.001,
+			"(%.2f, %.2f) limite %.1f" % [node.global_position.x, node.global_position.z, limit])
+
+	# O limite entra no PONTO DE DESTINO, não só na hora de escrever a posição:
+	# um posto inalcançável deixaria o domador empurrando a parede para sempre,
+	# correndo no lugar, e `trainer_error` nunca zeraria — a fase de espera da
+	# suíte esperaria a batalha inteira.
+	_check_true("e o domador ainda assenta no posto aparado",
+		s.trainer_error() <= BattleStaging.TOLERANCE, "%.3f m" % s.trainer_error())
+
+
+## O corpo está apoiado quando o Y é a altura do terreno mais o apoio que ele
+## mesmo declara.
+func _grounded(body: StagedBody, ground: MapTerrain) -> bool:
+	var expected := ground.height_at(body.global_position) + body.ground_offset
+	return absf(body.global_position.y - expected) < 0.001
+
+
 # ---------------------------------------------------------------------------
 # mundo
 # ---------------------------------------------------------------------------
+
 
 func _test_world_wiring() -> void:
 	print("no WorldRoot:")
@@ -484,28 +656,32 @@ func _companion_size() -> float:
 
 # ---------------------------------------------------------------------------
 
-## Bancada mínima: dois `Node3D` nas posições dadas, com a encenação montada
-## sobre eles. Node3D solto em vez dos atores reais de propósito — o que está
-## sob teste é a geometria do afastamento, e um `CharacterBody3D` traria física,
-## gravidade e colisão para dentro de uma medida que não é sobre nada disso.
+## Bancada mínima: dois corpos nas posições dadas, com a encenação montada
+## sobre eles. `ground` nulo (o padrão) é a bancada de geometria pura — sem
+## relevo a encenação não escreve altura nenhuma, que é o contrato antigo e o
+## que as asserções de "a altura não foi tocada" prendem.
 ##
-## As alturas são as dos corpos de verdade (companheira no chão, selvagem meia
-## cápsula acima) justamente para provar que a encenação não as toca.
-func _bench(at_a: Vector3, at_b: Vector3, with_trainer := true) -> Dictionary:
-	var a := Node3D.new()
-	var b := Node3D.new()
+## As alturas de partida são as dos corpos de verdade (companheira no chão,
+## selvagem meia cápsula acima, domador no centro da própria cápsula), e os
+## apoios declarados batem com elas — é assim que o teste de relevo consegue
+## exigir que cada um seja reapoiado pela regra dele, e não por uma média.
+func _bench(at_a: Vector3, at_b: Vector3, with_trainer := true,
+		ground: MapTerrain = null) -> Dictionary:
+	var a := StagedBody.new()
+	var b := StagedBody.new()
+	a.ground_offset = 0.0
+	b.ground_offset = 1.4
 	root.add_child(a)
 	root.add_child(b)
 	a.global_position = Vector3(at_a.x, 0.0, at_a.z)
 	b.global_position = Vector3(at_b.x, 1.4, at_b.z)
 	var s := BattleStaging.create(a, 1.8, b, 1.8)
+	s.terrain = ground
 
-	# O domador nasce num canto qualquer, e no Y do centro da cápsula dele
-	# (0,9 m). A altura errada é o defeito que a encenação não pode introduzir,
-	# então ela precisa estar certa e diferente das outras duas desde o começo.
-	var t: Node3D = null
+	var t: StagedBody = null
 	if with_trainer:
-		t = Node3D.new()
+		t = StagedBody.new()
+		t.ground_offset = 0.9
 		root.add_child(t)
 		t.global_position = Vector3(3.0, 0.9, -4.0)
 		s.set_trainer(t, TRAINER_RADIUS)
@@ -515,6 +691,7 @@ func _bench(at_a: Vector3, at_b: Vector3, with_trainer := true) -> Dictionary:
 	# também chamaria, e cada passo contaria dobrado.
 	s.set_process(false)
 	return {"a": a, "b": b, "staging": s, "trainer": t}
+
 
 
 ## Roda até assentar. Devolve quantos quadros levou — `MAX_STEPS` significa que

@@ -28,7 +28,13 @@ const RELIC_STATION_SPOT := Vector3(8.5, 0.0, -23.0)
 ## Idem, pra arena e pro guardião do portal (documento `glifos-e-portais`).
 ## Guardião fica mais longe dos outros pontos de interação — ele marca a
 ## borda do mapa, não um serviço no meio dele.
-const ARENA_SPOT := Vector3(-6.0, 0.0, -6.0)
+##
+## A arena fica no topo da ILHA (`MapTerrain.ISLAND_*`), o único chão seco
+## fora da vila da costa: um platô de 8 m de diâmetro cercado de mar, que é a
+## imagem que "arena" pede e que a costa — adro de loja e portal — não dava.
+## O `x`/`z` tem de caber no topo plano (raio 4 m); o `y` continua 0 porque
+## quem resolve altura é o terreno, na hora de spawnar.
+const ARENA_SPOT := Vector3(0.0, 0.0, -2.8)
 const PORTAL_SPOT := Vector3(-6.0, 0.0, -14.0)
 
 ## Conteúdo da arena única desta era: contra quem o jogador luta, em que
@@ -93,13 +99,20 @@ static func spawn_relic_station(
 ## (`role = duelist`, documento `glifos-e-portais`). Zero é normal, mesmo
 ## raciocínio de `spawn_merchants` — hoje só existe um nesta era.
 static func spawn_arenas(
-	parent: Node3D, db: BestiaryData, map_code: String, on_engaged: Callable
+	parent: Node3D, db: BestiaryData, map_code: String, on_engaged: Callable,
+	terrain: MapTerrain = null
 ) -> Array[ArenaActor]:
 	var arenas: Array[ArenaActor] = []
 	if db == null:
 		return arenas
 	var spot := ARENA_SPOT
 	for data in db.duelists_in_map(map_code):
+		# A altura vem do terreno como já vinha para o comerciante. Deixou de
+		# ser opcional quando a arena subiu na ilha: `ground_on_spot()` SOMA
+		# meia altura ao `y` do spot, então com `y = 0` o duelista nasceria
+		# 2,6 m dentro do platô.
+		if terrain:
+			spot.y = terrain.height_at(spot)
 		var actor := ArenaActor.create(
 			data, spot, ARENA_OPPONENT_CODE, ARENA_OPPONENT_LEVEL, ARENA_GRANTS_GLYPH)
 		actor.name = "Arena_%s" % str(data.get("code", ""))
@@ -114,10 +127,17 @@ static func spawn_arenas(
 ## do bestiário (sem `npc_role` que sirva ainda). Fixo nesta era: é ele quem
 ## bloqueia a progressão até Titanor.
 static func spawn_portal_guardian(
-	parent: Node3D, progress: PlayerProgress, on_engaged: Callable
+	parent: Node3D, progress: PlayerProgress, on_engaged: Callable,
+	terrain: MapTerrain = null
 ) -> PortalGuardianActor:
+	# Hoje o posto dele está em chão de altura zero e o terreno não muda nada;
+	# entra pelo mesmo caminho da arena porque o ROADMAP prevê mudá-lo para a
+	# costa, e lá a altura deixa de ser zero.
+	var spot := PORTAL_SPOT
+	if terrain:
+		spot.y = terrain.height_at(spot)
 	var guardian := PortalGuardianActor.create(
-		PORTAL_SPOT, PORTAL_REQUIRED_GLYPH, PORTAL_DESTINATION_LABEL, progress)
+		spot, PORTAL_REQUIRED_GLYPH, PORTAL_DESTINATION_LABEL, progress)
 	guardian.name = "PortalGuardian"
 	guardian.engaged.connect(on_engaged)
 	parent.add_child(guardian)
@@ -162,10 +182,6 @@ static func spawn_companion(
 ##        slotCapacity        — 2
 ##        baseCaptureRate, captureRatePerLevel, maxLevel
 ##                            — tuning em aberto, qualquer valor razoável serve
-##        combatBuffBase, combatBuffPerLevel
-##                            — sem função em combate desde este patch
-##                              (`duel_screen.gd` não aplica mais), podem ficar
-##                              em 0 ou o default do schema
 ##   4. `pnpm game:export` para o bundle pegar o modelo novo.
 ##
 ## Até isso existir, o jogador entra sem relicário equipado — captura fica

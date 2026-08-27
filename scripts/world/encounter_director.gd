@@ -35,6 +35,14 @@ var _progress: PlayerProgress
 var _db: BestiaryData
 var _mine_rng: RandomNumberGenerator
 
+## Relevo do mapa, repassado à encenação para ela apoiar os corpos no chão e
+## respeitar a borda. Atribuído por `WorldRoot` depois do `setup`, como já
+## acontece com `CreatureSpawner.terrain` e `CompanionActor.terrain` — fora do
+## `setup` porque é a única dependência que pode legitimamente faltar (bancada
+## de teste sem mundo), e enfiá-la numa lista de dezesseis parâmetros
+## obrigatórios só esconderia isso.
+var terrain: MapTerrain
+
 var _show_message: Callable
 var _hide_world_hud: Callable
 var _show_world_hud: Callable
@@ -135,6 +143,7 @@ func engage_wild(actor: CreatureActor, relic: PlayerRelic, encounter_level: int)
 	duel.enemy_code = actor.creature_code
 	duel.duel_level = encounter_level
 	duel.closed.connect(_on_duel_closed)
+	duel.rendered.connect(_sync_awakening_auras)
 	_set_duel(duel)
 
 	# CanvasLayer para o overlay ficar acima do 3D sem herdar a pausa do
@@ -186,6 +195,7 @@ func engage_arena(actor: ArenaActor, relic: PlayerRelic) -> void:
 	duel.duel_level = actor.opponent_level
 	duel.is_wild = false
 	duel.closed.connect(_on_duel_closed)
+	duel.rendered.connect(_sync_awakening_auras)
 	_set_duel(duel)
 
 	var layer := CanvasLayer.new()
@@ -221,6 +231,8 @@ func _begin_staging(actor: CreatureActor) -> void:
 		return
 	_staging = BattleStaging.create(
 		_companion, _companion.size_meters, actor, actor.size_meters)
+	_staging.terrain = terrain
+
 	# O domador entra na composição atrás da própria criatura. Sem jogador a
 	# encenação segue valendo para o par que luta.
 	if _player:
@@ -247,12 +259,53 @@ func _end_staging() -> void:
 	_staging = null
 
 
+## Espelha nos corpos 3D quem está em Despertar Ancestral. Ligado ao sinal
+## `rendered` da tela, que dispara a cada mudança de estado da batalha.
+##
+## O estado é LIDO da batalha, não acumulado a partir dos eventos do log. É a
+## diferença entre um espelho e uma máquina de estados paralela: despertar,
+## reverter por tempo, cair em combate e trocar de criatura são quatro
+## caminhos que apagam a aura, e reagir a evento exigiria acertar os quatro.
+## `set_awakening_aura` já ignora chamada repetida, então reespelhar todo
+## quadro de turno não custa nada.
+##
+## Chamado por NOME, como o resto do contrato de corpo movido de fora — a
+## bancada de `Node3D` solto das suítes não precisa implementar a aura para
+## ser encenada.
+##
+## O lado inimigo pode não ter corpo: numa arena o adversário é um duelista
+## parado, sem `CreatureActor` equivalente no mundo (ver `engage_arena`). Aí
+## só o lado do jogador acende, e é o comportamento certo — inventar um corpo
+## para pendurar a aura seria pior que não mostrá-la.
+func _sync_awakening_auras() -> void:
+	if _duel == null or _duel.battle == null:
+		return
+	var hero: Combatant = _duel.battle.player_active()
+	if hero != null:
+		_set_body_aura(_companion, hero.is_awakened)
+	if _duel.battle.enemy != null:
+		_set_body_aura(_engaged_actor, _duel.battle.enemy.is_awakened)
+
+
+func _set_body_aura(body: Node, active: bool) -> void:
+	if body == null or not is_instance_valid(body):
+		return
+	if body.has_method("set_awakening_aura"):
+		body.call("set_awakening_aura", active)
+
+
 func _on_duel_closed(outcome: int) -> void:
 	_parent.get_tree().paused = false
 	# A encenação sai antes de o mundo voltar a andar. Deixá-la viva um quadro
 	# a mais poria a perseguição da criatura e a trilha da companheira
 	# disputando o mesmo `global_position` com ela.
 	_end_staging()
+	# A aura é do duelo. Apagar os dois lados aqui, e não confiar no caminho de
+	# cada desfecho, é o que garante que ninguém volte ao mapa aceso: a
+	# selvagem tem `reset_engagement`, mas só na derrota e na fuga — e a
+	# companheira não tem caminho nenhum.
+	_set_body_aura(_companion, false)
+	_set_body_aura(_engaged_actor, false)
 	if _camera:
 		_camera.exit_battle()
 

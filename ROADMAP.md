@@ -1,8 +1,21 @@
 # Roadmap
 
-O que está pendente, em que ordem, e por quê. Cobre os dois repositórios — o jogo aqui, o catálogo em `../game`.
+O que está pendente, em que ordem, e por quê. Cobre os dois repositórios — o jogo aqui, o catálogo em `../avyron-bestiary`.
 
-Atualizado em: bundle `dataVersion 0.178`. O catálogo segue em edição contínua por outra sessão em paralelo — este número já deve estar defasado quando você ler.
+Saúde estrutural (duplicação, contratos que mentem, guardas que não guardam) não mora aqui — mora em [AUDITORIA.md](AUDITORIA.md).
+
+Atualizado em: bundle `dataVersion 0.262`. O catálogo segue em edição contínua por outra sessão em paralelo — este número já deve estar defasado quando você ler.
+
+---
+
+## Fechado na rodada do mapa (2026-08)
+
+O PZ-01 saiu de "chão liso com cápsulas" para um mapa vestido — o detalhe de cada peça está no README ("Assets 3D" e "Relevo e solo"):
+
+- **Elenco inteiro com corpo animado**: 31/31 criaturas vinculadas N:1 aos placeholders do Quaternius (vocabulário de clipes normalizado, botão "vincular/alterar modelo" na ficha do bestiário), resolvidas por `modelUrl` com fallback em cápsula.
+- **Cenário do PZ-01**: props aquáticos do Meshy + `MapDressing` (landmarks + scatter com semente), relevo com colisão e consulta (`MapTerrain`), costa na borda -Z para NPCs/portais, e iluminação fragmentada por altura (murk subaquática × costa quente).
+- **Ilha da arena** no meio do mapa: platô de 8 m (+2,6 m) com rampa andável (38°), o duelista em cima e a origem do jogador junto — o jogo abre em terra seca e desce para o mar. Segue as mesmas regras do trecho emerso da costa: predicado próprio (`on_island`), keep-out de spawn, sem scatter de bioma, tom seco no shader e omni de preenchimento.
+- Pontas soltas que esta rodada abriu: portais/guardião ainda ao pé da rampa em vez de na costa (a armadilha do apoio no chão que isso tinha — dois arquivos a editar em vez de um — saiu com `InteractableActor.ground_on_spot()`: hoje é só mover o `PORTAL_SPOT`, e o terreno já é passado no `WorldPopulator`); PZ-02/PZ-03 sem receita de dressing (o MegaKit já está no pipeline esperando por elas); mob pode vagar até a beira da rampa em casos raros (keep-out cobre o spawn, não a patrulha inteira — vale igual para a ilha).
 
 ---
 
@@ -28,17 +41,11 @@ sudo rm /etc/nginx/sites-enabled/bestiary
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-### 3. Modelos 3D e o Git LFS no repositório do bestiário
+### 3. Git LFS no repositório do bestiário
 
-**A convenção de nome mudou:** os modelos antigos com sufixo (`CRT-001.v2.glb`, `CRT-002.v4.glb`) foram removidos, e os novos entram como **`CRT-XXX.glb`**, sem versão no nome.
+**Atualizado (rodada do mapa):** as partes (a) e (b) que viviam aqui morreram de causas naturais — `publish-models.mjs` foi removido do repo, e os `model_url` órfãos foram limpos pelo `syncModels` (que hoje só gerencia o padrão `CRT-XXX.glb` e preserva os vínculos N:1 de placeholder). Todo o elenco aponta para placeholders vivos. O que resta deste item é só o LFS:
 
-Três consequências, todas silenciosas:
-
-**a) `scripts/publish-models.mjs` virou no-op.** O seletor é `/^(CRT-\d+)\.v(\d+)\.glb$/` — só casa com a forma antiga. Com nomes sem sufixo ele não encontra nada e imprime *"no local .glb files matched — nothing to do"*, que lê como sucesso. O script também aponta para `bestiary.sysnode.com.br`, que está aposentado. Está morto por dois motivos; ou se conserta (regex nova + alvo local) ou se remove.
-
-**b) Sete criaturas têm `model_url` apontando para arquivos apagados.** No snapshot: `CRT-001`, `002`, `003`, `009`, `017`, `019`, `025` → `/models/CRT-XXX.vN.glb`. É dado a corrigir via `PATCH /creatures/{code}` quando os modelos novos entrarem, seguido de `pnpm db:dump`.
-
-**c) A janela para migrar ao LFS abriu.** Estado do histórico do repositório `game`:
+**A janela para migrar ao LFS continua aberta.** Estado do histórico do repositório do bestiário:
 
 | | |
 |---|---|
@@ -84,8 +91,8 @@ O que trava a decisão não é a implementação, é o contrato: a câmera hoje 
 
 A mecânica está de pé — captura, XP de relicário e de criatura por participação, drops, storage, posto, set do jogador — mas algumas coisas seguem deliberadamente em aberto:
 
-- **Aquisição de relicário *especializado* não existe.** O starter (`RLC-000`, neutro — sem elemento/classe, `slotCapacity 2`) resolve o boot; `RLC-001/002/003` (um por classe, com buff de combate zerado — ver abaixo) continuam sem forma de conquista. O posto deixa trocar para **qualquer** modelo do catálogo sem checar posse, mesmo furo de sempre, só visível em jogo em vez de escondido atrás de "fora de escopo". Loot de dungeon, arena, crafting ou quest são os candidatos óbvios; nenhum foi decidido. A primeira escolha relevante de especialização está prevista como recompensa da arena final do mapa — também fora de escopo ainda.
-- **O buff de combate do Relicário foi removido do sistema**, não só adiado: o equipamento agora só cobre captura, afinidade de captura, slots e progressão própria — nenhum bônus direto de status em batalha (`DuelScreen._apply_relic_buff` saiu, `attack_modifier` não é mais tocado pelo relicário). `relic-stats.combatBuffBase/PerLevel` seguem no catálogo, sempre `0` nos modelos atuais — não removidos por ficarem sem consumidor, só desligados. Se o jogo ganhar buff de combate no futuro, é peça de outro slot do set do jogador, não deste.
+- **Aquisição de relicário *especializado* não existe.** O starter (`RLC-000`, neutro — sem elemento/classe, `slotCapacity 2`) resolve o boot; `RLC-001/002/003` (um por classe — ver abaixo) continuam sem forma de conquista. O posto deixa trocar para **qualquer** modelo do catálogo sem checar posse, mesmo furo de sempre, só visível em jogo em vez de escondido atrás de "fora de escopo". Loot de dungeon, arena, crafting ou quest são os candidatos óbvios; nenhum foi decidido. A primeira escolha relevante de especialização está prevista como recompensa da arena final do mapa — também fora de escopo ainda.
+- **O buff de combate do Relicário foi removido do sistema**, não só adiado: o equipamento agora só cobre captura, afinidade de captura, slots e progressão própria — nenhum bônus direto de status em batalha (`DuelScreen._apply_relic_buff` saiu, `attack_modifier` não é mais tocado pelo relicário). `relic-stats.combatBuffBase/PerLevel` **saíram do banco** em 2026-08 (migration `0014`), junto com o campo `buff` que o posto do Relicário ainda exibia. Se o jogo ganhar buff de combate no futuro, é peça de outro slot do set do jogador, não deste — e nasce com consumidor, não antes dele.
 - **Números de XP e custo de material são placeholders sem playtest**, dos dois lados (`relic_rules.xpPerCapture/xpCurveBase/xpCurveExponent/materialCostBase/materialCostLevelStep` e o mesmo bloco em `progression_rules`) — mesma ressalva que já existia para a regeneração de HP. Some-se a eles `ProgressionMath.XP_BASE_SHARE_RATIO` (hoje `0.2`/`0.8` entre parcela base e parcela por contribuição na divisão de XP entre participantes de uma vitória): também sem playtest, também um ponto só para mudar quando o número fechar.
 
 Nenhum bloqueia jogar — o sistema funciona de ponta a ponta sem eles fechados. Bloqueiam é declarar a mecânica "pronta" em vez de "jogável".
@@ -106,15 +113,20 @@ Agora tem sentido: os minérios têm preço, e o comerciante pode vender as plan
 
 É um contêiner: construído antes do conteúdo, é um cômodo vazio. Depois do comerciante e da construção, tem o que guardar.
 
-**A primeira arena já existe**, fora de ordem em relação ao resto deste item — documento `glifos-e-portais` no bestiário. `Battle.is_wild = false` (que desliga captura e trata o adversário como criatura de outro domador) tinha o caminho pronto e nunca usado em jogo; agora tem consumidor: `ArenaActor` + `NPC-002` (`role = duelist`) + `WorldRoot._on_arena_engaged`, concedendo o Glifo Daleth numa vitória. O que falta desta peça não é mais "existe arena?" — é vilarejo de verdade ao redor dela (hoje é um ponto isolado no mapa, mesmo estágio de posto do Relicário e comerciante) e uma segunda arena quando Titanor tiver mapa (Glifo Zayin está definido no bestiário, sem onde morar ainda).
+**A primeira arena já existe**, fora de ordem em relação ao resto deste item — documento `glifos-e-portais` no bestiário. `Battle.is_wild = false` (que desliga captura e trata o adversário como criatura de outro domador) tinha o caminho pronto e nunca usado em jogo; agora tem consumidor: `ArenaActor` + `NPC-002` (`role = duelist`) + `WorldRoot._on_arena_engaged`, concedendo o Glifo Daleth numa vitória. Ela ganhou **lugar próprio** desde então: o topo da ilha no meio do mapa, cercado de mar. O que falta desta peça não é mais "existe arena?" nem "onde ela fica?" — é o que se constrói em cima da ilha (estrutura de arena de verdade, arquibancada, algum acesso encenado; hoje é o duelista de pé em duas pedras) e uma segunda arena quando Titanor tiver mapa (Glifo Zayin está definido no bestiário, sem onde morar ainda).
 
 ### Arte — em paralelo, não no fim
 
-É o único item que **não bloqueia em decisão de código**, e o de maior prazo: oito loops de animação por criatura (`idle`, `walk`, `run`, `attack_primary`, `attack_secondary`, `hurt`, `death`, `victory`), 26 criaturas.
+É o único item que **não bloqueia em decisão de código**, e o de maior prazo: os loops de animação por criatura, no **vocabulário normalizado que o código já consome** (`Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death` — ver README, "Assets 3D"), para todo o elenco.
 
-Pôr por último desperdiça o paralelismo. Já está em andamento — ver item 3 acima.
+**A lacuna de curto prazo fechou com os placeholders animados** (rodada do mapa): 31/31 criaturas têm corpo rigado em jogo hoje. O que esta frente entrega agora é identidade, não funcionalidade — os modelos definitivos (Meshy animado ou arte própria) substituem placeholder por placeholder via `modelUrl`, sem tocar em código.
 
-**Ressalva:** se o que pesa é olhar cápsula cinza, o **modelo do jogador** é peça avulsa e vale adiantar. É o que se olha 100 % do tempo, é um asset só, e não depende de nenhuma decisão acima.
+**Meia identidade já chegou sem asset novo** (rodada da paleta): os placeholders são recoloridos pela rampa do elemento e o Despertar Ancestral acende aura da cor do elemento — ver README, "Cor por elemento e a aura do Despertar". Isso desanuvia a leitura de longe (27 dos 30 corpos dividiam dois atlas) e **não substitui** esta frente: matiz separa elemento, silhueta separa criatura, e duas criaturas do mesmo elemento com o mesmo corpo continuam sendo a mesma criatura para o jogador. O que a paleta compra é tempo. Duas pendências herdadas dela:
+
+- **A rampa foi autorada contra o PZ-01**, cujo ambiente é aquático e esverdeado. Mapa novo com dominante diferente pode engolir um elemento — a tela `/elements` do bestiário mostra a rampa contra os fundos reais do mapa, e é lá que se confere antes de gravar.
+- **`spread` está em 0,12–0,22 sem playtest.** É o quanto uma criatura pode variar dentro da família; alto demais e duas criaturas do mesmo elemento param de ler como parentes, baixo demais e ficam idênticas. Número de conteúdo, ajustável na tela, ainda sem alguém tendo jogado o suficiente para dizer.
+
+**Ressalva (resolvida):** o modelo do jogador foi adiantado — e virou sistema, não asset. Jogador e NPCs humanos agora montam de um kit modular com esqueleto compartilhado (`CharacterRig`, documento `personagens-humanos` no bestiário): o jogador usa `PlayerController.DEFAULT_RECIPE`, os dois NPCs vestem receitas do catálogo (`npc_appearances`), e a cápsula ficou como fallback de receita vazia. O que restou desta frente: tela de criação de personagem (a receita já é dado; falta a UI que edita o que vira save), tint de paleta no shader toon para multiplicar variedade, e ligar o clipe `Throw` ao arremesso de captura.
 
 ---
 
@@ -131,6 +143,10 @@ Números escolhidos com raciocínio mas sem playtest. Todos ajustáveis por `PAT
 | Margem do comerciante | `sellRatio` 0.4 | `economy_rules` |
 | Distância do companheiro | 2,6 m parado / 3,6 m correndo | `CompanionActor.FOLLOW_DISTANCE` — apresentação, fica em código |
 | Recuo do domador em combate | ~3,25 m (era 6,5 m) | `BattleStaging.TRAINER_SPREAD` — apresentação, fica em código |
+| Marcha em que o corpo passa a correr | 2,2 m/s (o jogador se move a 5,2, então corre sempre) | `CharacterRig.RUN_THRESHOLD` — apresentação, fica em código |
+| Altura do nadador sobre o leito | 0,9 m | `CharacterRig.SWIM_LIFT` — apresentação, fica em código |
+| Cota da superfície da água no PZ-01 | 1,25 m (a MESMA que fragmenta a névoa) | `MapDressing.PZ01_WATER_LINE` — vestimenta de bioma, fica em código |
+
 | Bônus de captura do Relicário | mesmo elemento +15, mesma classe +10, elemento em desvantagem −15 (pontos percentuais) | `relic_rules` |
 | XP por captura / curva de nível do Relicário | 20 por captura, `xpCurveBase` 10, `xpCurveExponent` 1.5 | `relic_rules` |
 | Custo de material por nível (Relicário e criatura) | base 1 unidade, +1 a cada 20 níveis | `relic_rules.materialCost*` / `progression_rules.itemCost*` |

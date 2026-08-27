@@ -17,6 +17,12 @@ uniform vec3 color_coast : source_color = vec3(0.70, 0.64, 0.49);
 uniform float coast_band_start = 14.0;
 uniform float coast_band_full = 19.0;
 uniform float coast_dry_level = 0.9;
+// A ilha do miolo usa o MESMO tom seco da costa, em faixa radial em vez de
+// banda de Z. Raio de base 0 = mapa sem ilha, e o trecho nem roda. Os valores
+// chegam do MapTerrain (é a geografia dele que levanta a malha).
+uniform vec2 island_center = vec2(0.0);
+uniform float island_top_radius = 0.0;
+uniform float island_base_radius = 0.0;
 uniform float noise_scale = 0.045;
 
 varying vec2 world_xz;
@@ -38,8 +44,13 @@ void fragment() {
 	float fine = texture(noise_tex, world_xz * noise_scale * 7.0).r;
 	float n = broad * 0.7 + fine * 0.3;
 	vec3 c = mix(color_base, color_alt, smoothstep(0.35, 0.65, n));
-	float coastal = smoothstep(coast_band_start, coast_band_full, -world_xz.y)
-		* smoothstep(coast_dry_level * 0.5, coast_dry_level, world_y);
+	float dry_gate = smoothstep(coast_dry_level * 0.5, coast_dry_level, world_y);
+	float coastal = smoothstep(coast_band_start, coast_band_full, -world_xz.y) * dry_gate;
+	if (island_base_radius > 0.0) {
+		float d = distance(world_xz, island_center);
+		coastal = max(coastal,
+			(1.0 - smoothstep(island_top_radius, island_base_radius, d)) * dry_gate);
+	}
 	c = mix(c, color_coast, coastal);
 	c = mix(c, color_slope, smoothstep(0.18, 0.45, slope) * (1.0 - coastal * 0.6));
 	ALBEDO = c;

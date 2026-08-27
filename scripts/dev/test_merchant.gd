@@ -47,6 +47,8 @@ func _process(_delta: float) -> bool:
 			_test_purse()
 			_test_shop_screen()
 			_test_world_wiring()
+			_test_modal_guard()
+			_test_actor_grounding()
 			_phase = "done"
 		"done":
 			_finish()
@@ -222,13 +224,13 @@ func _test_world_wiring() -> void:
 	# Longe demais: o clique avisa e nao abre.
 	var player: Node3D = _world.get_node_or_null("Player")
 	merchant.global_position = player.global_position + Vector3(50, 0, 0)
-	_world.handle_click_on_merchant(merchant)
+	_world.handle_click_on_interactable(merchant)
 	_check_true("de longe nao abre a loja",
 		_world.get_node_or_null("ShopLayer") == null)
 
 	# Perto: abre e congela o mundo.
 	merchant.global_position = player.global_position + Vector3(2, 0, 0)
-	_world.handle_click_on_merchant(merchant)
+	_world.handle_click_on_interactable(merchant)
 	_check_true("de perto abre a loja", _world.get_node_or_null("ShopLayer") != null)
 	_check_true("o mundo congelou", root.get_tree().paused)
 
@@ -248,6 +250,135 @@ func _test_world_wiring() -> void:
 	_check_true("e a loja deixa de estar aberta", _world.get("_shop") == null)
 	_check_true("a HUD do mapa voltou",
 		(_world.get_node_or_null("HudLayer/InventoryPanel") as Control).visible)
+
+
+
+## Com um overlay modal por cima, todo ponto de entrada público do mundo fica
+## inerte — e volta a funcionar quando ele fecha.
+##
+## Em jogo quem segura isso é o pause (`WorldRoot._modal_open` explica), que
+## impede o evento de chegar. Estes pontos são públicos porque teste headless
+## não sintetiza mouse nem tecla, então eles pulam o pause e batem direto no
+## guarda — que é justamente o que precisa de prova: ele estava escrito à mão
+## em dez lugares e em quatro composições diferentes, e nada acusava a
+## divergência.
+##
+## O posto do Relicário é o modal escolhido aqui de propósito: é o único que
+## nenhuma outra suíte abre.
+func _test_modal_guard() -> void:
+	print("guarda modal:")
+	var player: Node3D = _world.get_node_or_null("Player")
+	var station: RelicStationActor = null
+	for child in _world.get_children():
+		if child is RelicStationActor:
+			station = child as RelicStationActor
+			break
+	_check_true("o posto do relicario nasceu no mapa", station != null)
+	if station == null:
+		return
+
+	station.global_position = player.global_position + Vector3(2, 0, 0)
+	_world.handle_click_on_interactable(station)
+	_check_true("de perto abre o posto",
+		_world.get_node_or_null("RelicStationLayer") != null)
+	_check_true("e congela o mundo", root.get_tree().paused)
+
+	var inv := _world.inventory()
+	var items_before := inv.total_items()
+	_world._mine_cooldown = 0.0
+	_world.trigger_mine()
+	_check("nao minera com o posto aberto", inv.total_items(), items_before)
+
+	_world.toggle_roster_window()
+	_check_true("a janela do time nao abre por cima",
+		not (_world.get("_roster_window") as RosterWindow).is_open())
+
+	_world.toggle_set_window()
+	_check_true("a janela do set nao abre por cima",
+		not (_world.get("_set_window") as PlayerSetWindow).is_open())
+
+	# Outro ator interativo do mapa não pode engatar por baixo do posto.
+	var merchant: MerchantActor = null
+	for child in _world.get_children():
+		if child is MerchantActor:
+			merchant = child as MerchantActor
+			break
+	if merchant:
+		merchant.global_position = player.global_position + Vector3(2, 0, 0)
+		_world.handle_click_on_interactable(merchant)
+		# Estado síncrono, não o nó: o `ShopLayer` do teste anterior ainda pode
+		# estar na árvore, porque `queue_free` é diferido. `_shop` cai na hora.
+		_check_true("a loja nao abre por baixo do posto", _world.get("_shop") == null)
+
+	var layer := _world.get_node_or_null("RelicStationLayer")
+	var screen: RelicStationScreen = layer.get_child(0)
+	screen.closed.emit()
+	_check_true("fechar solta o mundo", not root.get_tree().paused)
+	_check_true("e o posto deixa de estar aberto", _world.get("_relic_screen") == null)
+
+	# E o mundo volta a responder — sem isto o teste passaria com um guarda
+	# travado em "sempre bloqueado".
+	_world.toggle_roster_window()
+	_check_true("com o posto fechado, a janela do time abre",
+		(_world.get("_roster_window") as RosterWindow).is_open())
+	_world.toggle_roster_window()
+
+## Os quatro pontos fixos apoiam o corpo no chão pela mesma conta, e ela
+## respeita a altura do terreno no ponto.
+##
+## `InteractableActor.ground_on_spot()` **soma** meia altura ao `y` que veio no
+## spot, em vez de atribuir. Enquanto todo ator estiver em chão plano (`y = 0`)
+## as duas contas dão o mesmo número — e foi assim que a divergência passou:
+## comerciante e posto somavam (estão na costa, elevada), arena e guardião
+## atribuíam (estão no centro plano), e os dois pares acertavam por
+## coincidência de posição.
+##
+## O ROADMAP tem "mover portais/guardião para a costa" em aberto. Este teste é
+## o que faz essa mudança ser de um arquivo só: com atribuição, um ator em
+## terreno elevado afunda até a altura do chão plano.
+func _test_actor_grounding() -> void:
+	print("apoio no chao:")
+	var ground := 2.4   # altura de costa plausível, longe de zero
+
+	var merchant := MerchantActor.create({"code": "NPC-999", "name": "Teste"},
+		Vector3(0.0, ground, 0.0))
+	_world.add_child(merchant)
+	_check_true("comerciante sobe meia altura a partir do terreno",
+		is_equal_approx(merchant.position.y, ground + MerchantActor.HEIGHT * 0.5),
+		"%.2f" % merchant.position.y)
+
+	var station := RelicStationActor.create(Vector3(0.0, ground, 0.0))
+	_world.add_child(station)
+	_check_true("posto sobe meia altura a partir do terreno",
+		is_equal_approx(station.position.y, ground + RelicStationActor.HEIGHT * 0.5),
+		"%.2f" % station.position.y)
+
+	# Estes dois são os que atribuíam. Em chão plano nada mudou; aqui a
+	# diferença aparece.
+	var arena := ArenaActor.create({"code": "NPC-998", "name": "Teste"},
+		Vector3(0.0, ground, 0.0), "CRT-021", 18, "DALETH")
+	_world.add_child(arena)
+	_check_true("arena sobe meia altura a partir do terreno",
+		is_equal_approx(arena.position.y, ground + ArenaActor.HEIGHT * 0.5),
+		"%.2f" % arena.position.y)
+
+	var guardian := PortalGuardianActor.create(Vector3(0.0, ground, 0.0),
+		"DALETH", "Titanor", null)
+	_world.add_child(guardian)
+	_check_true("guardiao sobe meia altura a partir do terreno",
+		is_equal_approx(guardian.position.y, ground + PortalGuardianActor.HEIGHT * 0.5),
+		"%.2f" % guardian.position.y)
+
+	# E em chão plano o resultado segue o de sempre — a mudança não move nada
+	# do que já estava colocado.
+	var flat := RelicStationActor.create(Vector3.ZERO)
+	_world.add_child(flat)
+	_check_true("em chao plano continua em meia altura",
+		is_equal_approx(flat.position.y, RelicStationActor.HEIGHT * 0.5),
+		"%.2f" % flat.position.y)
+
+	for a in [merchant, station, arena, guardian, flat]:
+		a.queue_free()
 
 
 

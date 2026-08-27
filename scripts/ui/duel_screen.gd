@@ -46,6 +46,16 @@ const LOG_MIN_WIDTH := 380
 ## voltar a cena, destravar a câmera, liberar a criatura para reengajar.
 signal closed(outcome: int)
 
+## Emitido no fim de cada `_render()` — que numa máquina de turnos é o único
+## momento em que algo muda de estado.
+##
+## Existe para a apresentação 3D reagir sem esta tela conhecer corpo nenhum:
+## quem acende a aura do Despertar Ancestral é `EncounterDirector`, que sabe
+## quais nós representam os dois lados. Sinal, e não leitura por quadro, pelo
+## mesmo motivo de `Battle` ser `RefCounted` puro — entre um turno e outro não
+## há o que amostrar, e um `_process` só para isso inventaria trabalho.
+signal rendered
+
 ## Preenchidos por quem abre a tela como overlay. Vazios = sorteio livre, que
 ## é o comportamento quando a cena roda sozinha para playtest.
 var player_code := ""
@@ -409,6 +419,8 @@ func _render() -> void:
 	_player_label.text = _combatant_block(hero, "voce")
 	_log_label.text = _log_block()
 	_actions_label.text = _actions_block(hero)
+
+	rendered.emit()
 
 
 func _combatant_block(c: Combatant, role: String) -> String:

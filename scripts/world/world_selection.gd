@@ -85,8 +85,12 @@ func pick_body(screen_pos: Vector2) -> Node3D:
 	if hit.is_empty():
 		return null
 	var collider: Object = hit.get("collider")
-	if collider is CreatureActor or collider is MerchantActor or collider is RelicStationActor \
-			or collider is ArenaActor or collider is PortalGuardianActor:
+	# Duas famílias, não a lista das classes concretas: `InteractableActor`
+	# cobre loja, posto, arena e guardião, e ator novo entra sem tocar aqui.
+	# Esta lista já foi a segunda cópia do despacho do `WorldRoot`, e esquecer
+	# de atualizá-la fazia o raycast devolver null — clique que não faz nada,
+	# sem erro.
+	if collider is CreatureActor or collider is InteractableActor:
 		return collider as Node3D
 	return null
 

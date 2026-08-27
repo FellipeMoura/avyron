@@ -10,14 +10,17 @@ extends RefCounted
 ## e `relicario` no bestiário.
 
 
-## Valor de uma curva linear do relicário no nível dado — usada tanto para a
-## taxa de captura quanto para o buff de combate, mesma forma nos dois.
+## Valor da curva linear de taxa de captura do relicário no nível dado.
 ##
 ##     valor(nível) = base + perLevel * (nível - 1)
 ##
-## `base` é o valor **no nível 1** por definição (`relic_stats.baseCaptureRate`/
-## `combatBuffBase`), por isso o incremento multiplica `(nível - 1)` e não o
-## nível cru — do contrário o nível 1 já contaria um incremento que não devia.
+## `base` é o valor **no nível 1** por definição (`relic_stats.baseCaptureRate`),
+## por isso o incremento multiplica `(nível - 1)` e não o nível cru — do
+## contrário o nível 1 já contaria um incremento que não devia.
+##
+## Genérica de propósito, mas hoje com um consumidor só: a curva de buff de
+## combate que dividia esta fórmula saiu do escopo do Relicário (documento
+## `relicario`) e as colunas saíram do banco em 2026-08.
 static func rate_at_level(base: float, per_level: float, level: int) -> float:
 	return base + per_level * float(level - 1)
 

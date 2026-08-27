@@ -72,8 +72,17 @@ func _report() -> void:
 		moved.normalized().dot(expected) > 0.99,
 		"direcao %s, esperada %s" % [str(moved.normalized().snappedf(0.01)), str(expected.snappedf(0.01))])
 
-	_check_true("nao afundou no chao", absf(_player.global_position.y - _start_pos.y) < 0.1,
-		"y = %.2f" % _player.global_position.y)
+	# "Não afundou" era "o `y` não mudou" enquanto a origem do mapa era chão
+	# plano. Deixou de ser quando a ILHA subiu ali: 90 quadros de W descem a
+	# rampa, e essa queda é o relevo fazendo seu trabalho, não o corpo furando
+	# o chão. A medida que continua valendo — e que também valeria no plano —
+	# é a distância do PÉ ao terreno sob ele.
+	var terrain := _scene.get_node_or_null("Ground") as MapTerrain
+	var capsule := (_player.get_node("Collision") as CollisionShape3D).shape as CapsuleShape3D
+	var feet := _player.global_position.y - capsule.height * 0.5
+	var ground := terrain.height_at(_player.global_position) if terrain else 0.0
+	_check_true("nao afundou no chao", absf(feet - ground) < 0.25,
+		"pes %.2f, chao %.2f" % [feet, ground])
 
 	# Velocidade de caminhada: 5.2 m/s (WALK_SPEED). A aceleração de 0.15 s
 	# puxa a média um pouco para baixo, então a faixa aceita começa em 3.9 m/s.

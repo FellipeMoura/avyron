@@ -93,12 +93,42 @@ Sem instalador — é só extrair. O path `%LOCALAPPDATA%\Programs\Godot\Godot_v
 Na primeira vez você precisa importar o projeto — depois é só abrir do Project Manager.
 
 1. **Abrir o editor.** Duplo clique em `Godot_v4.7.1-stable_win64.exe` (o de cima da tabela acima, sem `_console`). Abre o Project Manager com uma lista de projetos.
-2. **Importar este repo.** Botão `Import` → aponte para `c:\code\avyron\project.godot` → `Import & Edit`. Da segunda vez em diante ele já aparece na lista; duplo clique abre.
+2. **Importar este repo.** Botão `Import` → aponte para `c:\code\fellipe\avyron\project.godot` → `Import & Edit`. Da segunda vez em diante ele já aparece na lista; duplo clique abre.
 3. **Play.** `F5` (ou o botão ▶ no canto superior direito) roda a cena principal definida em `project.godot`, que é o mapa. Para rodar o duelo direto, abra `scenes/duel.tscn` na aba de cenas e aperte `F6` (roda **só** a cena atual).
 
 Se pedir para escolher a Main Scene na primeira execução, aponte para `scenes/main.tscn` — está fixado no `project.godot`, mas versões novas do Godot às vezes perguntam mesmo assim.
 
-**Mapa** (`scenes/main.tscn`) — WASD anda, shift corre, **F minera**, **T abre o time**, **E abre o set do jogador**, **V esconde/reexibe a bolsa**, câmera isométrica travada seguindo com lookahead. O cenário do PZ-01 (ambiência subaquática + recifes) é vestido em runtime por `MapDressing.apply`, e o chão chapado da cena é substituído pelo relevo do `MapTerrain` — ver "Assets 3D". A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele — puramente visual, sem colisão nem clique; corpo rigado anima `Idle`/`Walk` pela marcha, cápsula usa o bob leve.
+**Mapa** (`scenes/main.tscn`) — WASD anda, **F minera**, **T abre o time**, **E abre o set do jogador**, **V esconde/reexibe a bolsa**, câmera isométrica travada seguindo com lookahead. O cenário do PZ-01 (ambiência subaquática + recifes) é vestido em runtime por `MapDressing.apply`, e o chão chapado da cena é substituído pelo relevo do `MapTerrain` — ver "Assets 3D". O jogo abre no topo da **ilha da arena**, no meio do mapa; o resto é mar, e se atravessa nadando. A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele — puramente visual, sem colisão nem clique; corpo rigado anima `Idle`/`Walk`/`Run` pela marcha, cápsula usa o bob leve.
+
+### A marcha e o clipe
+
+Velocidade única, sem tecla de corrida: `WALK_SPEED` = 5,2 m/s. O nome é herança — **5,2 m/s é marcha de corrida**, já que um humano andando faz ~1,4 m/s — e era exatamente daí que vinha o deslize do jogador: o corpo viajava a 5,2 tocando o ciclo de `Walk`, calibrado num `WALK_SPEED` anterior de 4,0 e nunca remedido depois de ele subir 30%. Defasagem dessa ordem nenhum blend cobre.
+
+A correção foi dar o **clipe certo à marcha**, não mexer na velocidade: `CharacterRig.update_motion` virou uma escada `Idle → Walk → Run` com limiar em 2,2 m/s, e o jogador está sempre acima dele. A escada mora no rig, e não no chamador, porque humano é UM sistema visual — um NPC que um dia passear a 1,5 m/s ganha o `Walk` pela mesma chamada que dá `Run` ao jogador. Trocar o literal por `"Run"` teria tirado o andar do sistema inteiro para consertar um corpo só.
+
+A companheira ganhou a mesma escada pelo mesmo motivo: o teto dela é `WALK_SPEED × 1,12`, então ela acompanha um jogador que corre — e tocar `Walk` nessa marcha a faria deslizar ao lado dele exatamente como ele deslizava. Ela cai para `Walk` quando o corpo não tem `Run`, porque os placeholders variam.
+
+Se ainda restar deslize, o ajuste seguinte é a **cadência** (`speed_scale` do `AnimationPlayer`), não o clipe nem a velocidade — os dois compõem, não são alternativas.
+
+#### Nadar é o estado normal, não a exceção
+
+O PZ-01 é o **leito de um mar**: fora dos dois trechos emersos está tudo debaixo d'água, e por isso o domador atravessa o mapa **nadando** e só fica de pé quando sobe a rampa da vila da costa ou a da ilha da arena. Medido na grade do terreno: **77,1% das células respondem "submerso"** pela regra abaixo (56,8% estão de fato abaixo da cota — a diferença são os recifes que passam da linha e continuam sendo recife).
+
+Quem responde "estou na água?" é o terreno (`MapTerrain.submerged`), e a regra tem duas metades:
+
+- **Fora da costa e da ilha, sempre submerso** — independentemente da altura. Um recife que sobe 2,5 m continua sendo recife. A leitura alternativa (testar só a cota) foi descartada com número na mão: 315 células do anel externo passam da linha por causa das colinas, e o jogador emergiria de pé no meio do recife em cada uma delas. Ilhota de verdade é **geografia declarada** (`on_coast`, `on_island`), não altura que calhou de passar da cota — por isso a ilha ganhou predicado próprio em vez de a regra afrouxar para todo mundo.
+- **Na costa e na ilha, a altura decide** — são os dois lugares em que a rampa atravessa a superfície no meio da subida, exatamente como a névoa já conta.
+
+A cota é a **mesma** que fragmenta a névoa (`MapDressing.PZ01_WATER_LINE` = 1,25 m), e essa igualdade é o contrato: nadar numa cota e trocar a murk noutra faria a imagem contradizer o corpo. A submersão é medida nos **pés**, não no centro do corpo — testar o centro o faria sair da água meio metro antes de o corpo sair.
+
+Duas decisões do corpo submerso:
+
+- **`Swim` também parado.** O kit traz um `Swim_Idle`, e ele fica de fora de propósito: é pose de boiar na **superfície**, com o corpo inteiro pendurado 1,41 m abaixo da origem do rig, contra 0,19 m do `Swim`. Alternar entre os dois faria o corpo subir e descer 1,2 m a cada parada — e, aqui, os pés do boiador entrariam no leito, porque a coluna d'água do PZ-01 não tem essa folga. Quem para embaixo d'água continua dando braçada para ficar no lugar, que é o que um corpo submerso faz.
+- **A flutuação é constante, não medida.** `Swim` deita o corpo em torno da origem do rig — que são os pés —, então tocado cru o nadador arrasta a barriga no leito. `SWIM_LIFT` o põe pairando 0,9 m acima. Amarrar essa altura ao ponto mais baixo do esqueleto seria tentador e está errado: ele oscila ao longo da braçada, e o corpo quicaria ao contrário dos membros — o mesmo motivo que impede usar essa medida num ciclo de caminhada. Só a **borda** é interpolada (0,35 s ao entrar e sair d'água), casada com o crossfade do clipe.
+
+O movimento não muda: mesma velocidade, mesma cápsula de colisão em pé, mesma física. Foi pedida a animação, e `WALK_SPEED` é o denominador da coleira da companheira — mexer nele desregula os dois de uma vez.
+
+
 
 ### Como a companheira segue
 
@@ -128,7 +158,8 @@ Contato físico não faz mais nada: agressivas continuam perseguindo por pressã
 
 ### A encenação do confronto
 
-Como o combate acontece no mesmo espaço, o par que aparece na luta é o par que a exploração deixou ali: a companheira atrás do domador e a selvagem onde a perseguição parou — de costas, colados ou a oito metros. `BattleStaging` corrige isso enquanto o duelo dura: os dois se **encaram** e convergem para a distância de duelo, aproximando-se se estiverem longe e afastando-se se estiverem perto demais. O **domador** entra na composição atrás da própria criatura, virado para o adversário junto com ela.
+Como o combate acontece no mesmo espaço, o par que aparece na luta é o par que a exploração deixou ali: a companheira atrás do domador e a selvagem onde a perseguição parou — de costas, colados ou a oito metros. `BattleStaging` corrige isso enquanto o duelo dura: os três **andam** até os postos de batalha, apoiados no relevo, e param com os dois combatentes se **encarando** na distância de duelo — aproximando-se se estiverem longe, afastando-se se estiverem perto demais. O **domador** entra na composição atrás da própria criatura, virado para o adversário junto com ela.
+
 
 ```
 distância = (raio(a) + raio(b) + 0,8 + (tamanho_a + tamanho_b) × 0,35) × 2,5
@@ -149,16 +180,65 @@ A correção definitiva continua sendo apontar a câmera para o **ponto médio d
 
 O raio do jogador é lido da forma de colisão em `main.tscn`, não de uma constante — duas medidas do mesmo corpo discordariam no dia em que uma delas mudasse.
 
-Quatro decisões que o teste prende:
+Cinco decisões que o teste prende:
 
 - **Pode mexer na posição direto porque o mundo está pausado.** Nó pausado não processa, então a máquina de estados da `CreatureActor` e a trilha da `CompanionActor` estão as duas congeladas; `BattleStaging` roda com `PROCESS_MODE_ALWAYS`, como a câmera, e tem controle exclusivo dos dois corpos. É o que dispensa física, colisão e trava de prioridade. A encenação é liberada **antes** de o mundo voltar a andar, senão perseguição e trilha disputariam o mesmo `global_position` com ela.
 - **A correção é metade para cada um.** O ponto médio não se move, então a briga acontece onde eles se encontraram em vez de escorregar para o lado do mais lento — e nenhum dos dois faz todo o trabalho, que é o que faria a cena ler como "um foge" em vez de "os dois se medem".
-- **O domador fica de fora dessa simetria.** O posto dele é *derivado* da posição da criatura, não negociado com ninguém: puxá-lo para o cálculo faria o ponto do encontro escorregar na direção de quem está só assistindo. Ele também anda mais rápido que os combatentes (3,0 contra 2,0 m/s) — a marca dele está presa a um corpo que também se move, e com o mesmo ritmo ele nunca a alcançaria.
-- **Só o yaw e o plano.** Os três corpos apoiam o Y em regras próprias — a selvagem sobe meia cápsula, a companheira fica no chão com o mesh deslocado, o domador fica no centro da própria cápsula — e escrever altura ali desfaria as três.
+- **O domador fica de fora dessa simetria.** O posto dele é *derivado* da posição da criatura, não negociado com ninguém: puxá-lo para o cálculo faria o ponto do encontro escorregar na direção de quem está só assistindo. Ele também anda mais rápido que os combatentes — a marca dele está presa a um corpo que também se move, e com o mesmo ritmo ele nunca a alcançaria. O teto do passo dele é `PlayerController.WALK_SPEED`, a mesma marcha com que ele corre pelo mapa: tomar posto correndo lê igual a correr, porque é o clipe `Run` nos dois casos.
+- **Andar, não escorregar.** Os três corpos estão pausados e não conseguem se mexer sozinhos, então é a encenação que faz por eles as três coisas que separam caminhada de deslize: entrega a **marcha** (`staged_gait`, e cada corpo escolhe `Idle`/`Walk`/`Run`/`Swim` com a mesma escada da exploração), aponta o corpo **para onde ele vai** enquanto falta caminho — só nos últimos metros ele gira para encarar o adversário —, e **reencosta no chão** a cada passo. O ritmo é proporcional ao que falta, como a coleira da companheira: quem está longe parte correndo e chega andando, e a própria desaceleração produz `Run → Walk → Idle` sem ninguém orquestrar.
+- **Escolher o clipe não basta: `AnimationPlayer` também é pausável.** Com o mundo parado ele não avança, e o clipe certo ficava **selecionado e congelado no quadro zero** — os três corpos atravessavam a cena numa pose estática, que é o deslize de volta por outra porta. Medido antes da correção: `current_animation_position` = 0,000 em todos os quadros da caminhada. `staged_animating` liga o modo `PROCESS_MODE_ALWAYS` no `AnimationPlayer` de cada corpo enquanto a encenação está na árvore, e o devolve quando ela sai — e ela sai **antes** de o mundo despausar. Ligar isso o tempo todo seria pior: numa tela de loja, uma criatura pega no meio do `Walk` andaria no lugar em vez de ficar parada.
+
+
+#### O relevo, e por que a altura passou a ser assunto da encenação
+
+Enquanto o mapa era plano, empurrar só X/Z era correto — a altura era zero em toda parte. Com `MapTerrain` deixou de ser, e o defeito era exatamente esse: **a selvagem nasce num raio de 22 m e a zona plana acaba em 16**, então a maioria dos duelos começa em ladeira.
+
+Empurrar no plano ali enterra o corpo na colina, e como a física está pausada ninguém despenetra durante a luta. O jogador e a selvagem são `CharacterBody3D`: no `paused = false` o `move_and_slide` encontra a cápsula funda dentro do `HeightMapShape3D` e a expulsa — era isso que prendia o jogador no solo ou o arremessava. Medido no mundo real, numa linha de duelo que sobe o flanco: **o jogador terminava 0,99 m abaixo da superfície** (a cápsula inteira enterrada, já que ela mede 0,9 m do centro aos pés) e a companheira 0,33 m no ar. Com o reapoio, os três ficam em 0,00.
+
+Cada corpo declara o próprio apoio (`staged_ground_offset`), porque as três regras divergem e sempre divergiram: a selvagem sobe meia cápsula, a companheira tem a origem *no* chão com o mesh deslocado no filho, o jogador apoia no centro da cápsula de colisão. Uma média entre as três deixaria um enterrado e outro flutuando.
+
+Perto da borda havia um segundo defeito, pior: o posto do domador é derivado para **fora** do par — atrás da própria criatura, no sentido oposto ao adversário. Com o duelo engatado perto da borda de spawn, esse posto caía além dos ±30 m da malha, onde não há chão nenhum, e o jogador ia junto: literalmente cair do mapa. `MapTerrain.clamp_to_bounds` apara o **ponto de destino**, não só a posição escrita — um posto inalcançável deixaria o domador empurrando a parede para sempre, correndo no lugar, e o erro dele nunca zeraria.
+
+**Sem terreno injetado nada disso roda e o Y fica intocado.** É o contrato antigo, e é o que mantém a bancada de `Node3D` solto da suíte medindo geometria pura sem ter de conhecer relevo — as asserções de "a altura não foi tocada" continuam válidas lá, e `_test_terrain` prende a regra nova com um `MapTerrain` de verdade.
+
 
 Uma zona morta de 12 cm em torno da distância ideal impede o tremor a dois, pelo mesmo motivo que `CompanionActor.STOP_DISTANCE` existe. E o eixo do confronto é lembrado de um quadro para o outro: dois corpos exatamente sobrepostos não têm direção entre si, e sem essa memória o afastamento escolheria um rumo diferente a cada quadro.
 
 **Ciclo de vida no mapa** — vencer o combate remove o adversário do mapa, joga um slot de respawn na fila do `CreatureSpawner`, sorteia os drops dele (ver [Nível e XP](#nível-e-xp)) e concede XP à criatura que terminou a luta. Depois de 20–40s, o slot vira uma criatura nova (espécie e posição sorteadas do pool do bioma). Fuga e derrota do jogador liberam a criatura de origem para ser reengajada. **Captura** remove o adversário sem respawn, o põe no time como reserva no próprio nível que tinha no encontro, e concede XP de captura ao relicário equipado.
+
+### Pontos fixos do mapa
+
+Comerciante, arena, posto do Relicário e guardião do portal são **um sistema só**, `InteractableActor`. Mecanicamente fazem a mesma coisa: são `StaticBody3D` porque o clique do mundo é um raycast físico, têm o mesmo alcance de interação (4,5 m), uma placa flutuante que diz "dá para interagir" sem ícone de HUD, e emitem `engaged` — sem conhecer tela nenhuma. Quem escuta decide o que abrir.
+
+O que cada subclasse traz é só o que a distingue:
+
+| | corpo | placa | estado próprio |
+|---|---|---|---|
+| `MerchantActor` | `CharacterRig` ou cápsula | cubo âmbar | código e ofertas do bestiário |
+| `ArenaActor` | `CharacterRig` ou cápsula | cubo ember | oponente, nível, Glifo concedido |
+| `RelicStationActor` | cápsula | anel (torus) | — |
+| `PortalGuardianActor` | bloco alto | prisma | Glifo exigido, destino, `can_pass()` |
+
+`CreatureActor` **não** herda daqui: ela responde por seleção e segundo clique, contrato diferente de "engata direto".
+
+**O apoio no chão é o contrato que mais importa.** `ground_on_spot()` **soma** meia altura ao `y` do spot, que já é a altura do terreno naquele ponto. Atribuir daria o mesmo número só enquanto o ator estivesse em chão plano — e os quatro já divergiram nisso: comerciante e posto (na costa, elevada) somavam, arena e guardião (no centro plano) atribuíam, e os dois pares acertavam por coincidência de posição. Mover um deles exigia lembrar de editar o ator *e* o `WorldPopulator`, sem nada acusando a falta de um dos dois. Hoje é uma chamada só, e `test_merchant.gd` (`_test_actor_grounding`) reprova se alguém voltar a atribuir.
+
+**Ator novo custa uma subclasse e nada mais.** `WorldRoot.handle_click_at` e `WorldSelection.pick_body` testam contra `InteractableActor`, não contra a lista de classes concretas — que eram duas listas mantidas à mão, e esquecer a segunda fazia o raycast devolver `null`: clique que não faz nada, sem erro.
+
+### Telas e input
+
+Toda tela do jogo cai em **uma de duas famílias**, e a escolha decide quem protege o mundo de responder por baixo dela.
+
+| | Pausa a árvore | Mundo atrás | O que segura o input |
+|---|---|---|---|
+| Duelo, loja, posto do Relicário | sim | congelado | o pause |
+| Janela do time (`T`), set (`E`), bolsa (`V`) | não | vivo | guarda explícito |
+
+**Overlay modal** entra como `CanvasLayer` em `PROCESS_MODE_ALWAYS` e faz `get_tree().paused = true`. Nó pausado não recebe callback de input, então o `WorldRoot` simplesmente para de existir para o teclado e o mouse — é por isso que `F` não minera durante uma negociação. A tela sobrevive porque se declarou `ALWAYS`; o mundo não.
+
+**Janela de HUD** não pausa nada: o HP continua regenerando, as criaturas continuam patrulhando. Por isso ela precisa de guarda escrito à mão — `elif keycode == KEY_F and not _roster_open()` é carga estrutural de verdade, não redundância.
+
+`WorldRoot._modal_open()` é o ponto único que responde "tem modal por cima?". Ele existe para os pontos de entrada **públicos** (`handle_click_at`, `trigger_mine`, `toggle_roster_window`…), que são públicos porque teste headless não sintetiza mouse e por isso pulam o pause. Em jogo ele é a segunda linha; em teste é a única. Antes de 2026-08 esse predicado estava escrito à mão em dez lugares, em quatro composições diferentes que discordavam entre si sobre quais telas contavam — e nada acusava, porque o pause segurava tudo de qualquer jeito. Guarda que parece ser a proteção sem ser é pior que nenhum. `test_merchant.gd` (`_test_modal_guard`) prende o invariante.
 
 ## Time e mineração
 
@@ -287,7 +367,7 @@ final% = clamp(base%
 
 **Progressão** — uma barra de XP própria, alimentada só por captura bem-sucedida (tentativa fracassada não gera XP). Ao encher, o level-up consome uma unidade do **material da própria classe do relicário** (`ITM-019`/`020`/`021`, o mesmo material que a subida de nível de criatura usa) — sem o material na bolsa, a barra trava exatamente no teto até o jogador conseguir o item, em vez de estourar em silêncio. Sobe mais de um nível numa chamada só se a XP e o material derem.
 
-**Buff de combate — removido.** O Relicário não concede mais bônus de ataque nem qualquer outro status direto em batalha; `DuelScreen._apply_relic_buff` e o uso de `Combatant.attack_modifier` pelo relicário saíram do duelo. `relic-stats.combatBuffBase`/`combatBuffPerLevel` continuam existindo no catálogo (não removidos por ficarem sem consumidor — só desligados; `RLC-000` já sobe com os dois em `0`), porque outras peças do futuro set do jogador é que devem assumir buffs de combate, Despertar, troca, exploração etc. — não o Relicário.
+**Buff de combate — removido.** O Relicário não concede mais bônus de ataque nem qualquer outro status direto em batalha; `DuelScreen._apply_relic_buff` e o uso de `Combatant.attack_modifier` pelo relicário saíram do duelo. As colunas `relic-stats.combatBuffBase`/`combatBuffPerLevel` **saíram do catálogo** em 2026-08 (migration `0014`). Elas ficaram um tempo como curva vestigial — desligadas mas cadastradas — e a consequência foi pior que a duplicação: o posto do Relicário exibia "buff 6.2" para um número que nenhuma peça do combate lia, e três dos quatro modelos guardavam `5`/`0.3` em vez do `0` que a própria regra mandava. Coluna sem consumidor não fica neutra: vira promessa na tela. Buffs de combate, quando existirem, são peça de outro slot do set do jogador — não do Relicário.
 
 **Posto do relicário** — ponto fixo no mapa (`RelicStationActor`, mesmo padrão de clique-para-interagir do comerciante), com quatro modos (`Tab` circula): status do equipado, depositar um ativo no storage, retirar um guardado, e trocar de modelo — só habilitado com o time ativo **vazio**, forçando "esvaziar os slots antes de trocar" como o design exige. Sem sistema de posse ainda, a troca deixa escolher qualquer modelo do catálogo — o mesmo furo que a aquisição já é, só tornado visível aqui.
 
@@ -301,7 +381,7 @@ O **Guardião do portal** (`PortalGuardianActor`, silhueta em bloco alto — nã
 
 **Primeiro estado que sobrevive a fechar o jogo.** Tudo o resto aqui (time, bolsa, relicário) é só em memória — `PlayerProgress` (autoload `Progress`) é o único que grava em disco, em `user://progress.cfg`, na hora que o Glifo é concedido. É formato pequeno de propósito (uma lista de códigos), mas a seção existe para crescer quando o resto do save também precisar persistir, sem precisar de arquivo novo.
 
-Arena e guardião ficam no mesmo mapa único que existe hoje (PZ-01/Aetheris I) — posição de estande-in, mesmo raciocínio de `MERCHANT_SPOT`/`RELIC_STATION_SPOT`. O Glifo Zayin (Titanor) está definido no bestiário mas não tem arena nem guardião próprios ainda: não existe mapa de Titanor para prender neles.
+Arena e guardião ficam no mesmo mapa único que existe hoje (PZ-01/Aetheris I) — posição de estande-in, mesmo raciocínio de `MERCHANT_SPOT`/`RELIC_STATION_SPOT`. A **arena fica no topo da ilha** do miolo do mapa (`MapTerrain.ISLAND_*`), o único chão seco fora da vila da costa: um platô cercado de mar é a imagem que "arena" pede, e o adro de loja e portal não dava. O guardião continua na planície, a caminho da costa. O Glifo Zayin (Titanor) está definido no bestiário mas não tem arena nem guardião próprios ainda: não existe mapa de Titanor para prender neles.
 
 ### Itens de cura
 
@@ -356,7 +436,7 @@ Derrota só acontece quando **o time inteiro** cai.
 
 ### Testes
 
-Treze suítes headless, sem dependência de editor:
+Quinze suítes headless, sem dependência de editor:
 
 ```powershell
 $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe"
@@ -372,13 +452,19 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_companion.gd    # a companheira segue, nao acompanha
 & $godot --headless --script res://scripts/dev/test_merchant.gd     # o laço da economia
 & $godot --headless --script res://scripts/dev/test_items.gd        # cura: formula, janela, bolsa
-& $godot --headless --script res://scripts/dev/test_staging.gd      # os dois se encaram no duelo
+& $godot --headless --script res://scripts/dev/test_staging.gd      # os tres andam ao posto, apoiados no relevo
 & $godot --headless --script res://scripts/dev/test_glyphs.gd       # Glifo de arena, nunca de vitória selvagem
+& $godot --headless --script res://scripts/dev/test_characters.gd   # kit de personagens, rig por receita
+& $godot --headless --script res://scripts/dev/test_palette.gd      # cor por elemento, aura do Despertar
 ```
 
 `test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.
 
 `test_data.gd` é o guarda do contrato com o bestiário: se o formato do bundle mudar, se uma fórmula sair do lugar ou se o export deixar passar uma criatura sem stats, estoura ali em vez de virar bug de runtime. Rode depois de todo `game:export`.
+
+**Erro e alvo saem por portas diferentes.** `_check` reprova a suíte; `_warn` reporta e deixa passar, e o resumo vira `OK — N verificacoes passaram (1 aviso(s))`. A regra: suíte vermelha significa *quebrado*, não *incompleto*. Criatura sem Despertar é incompleta — ela joga, só não usa o medidor de carga, e o `DATA_WORKFLOW` chama esse passo de opcional de propósito. Já uma criatura sem Despertar que **conhece um golpe `awakeningOnly`** é quebrada: o golpe aparece na ficha e nunca pode ser usado, porque `Combatant` o filtra por `is_awakened`.
+
+`pnpm game:export` usa exatamente o mesmo par de critérios — aborta no golpe inalcançável, avisa na cobertura. Isso é deliberado: os dois guardas já discordaram, e a fresta era exatamente essa. O export não olhava nenhuma das duas coisas, e o teste reprovava na cobertura sem checar o golpe morto — foi assim que `CRT-013` saiu num bundle jogando com 5 golpes contra 6 do resto do elenco, com a suíte vermelha apontando para o sintoma errado.
 
 Ele também exige o bloco `mining` — minerais nomeados, toda classe do elenco com pesos e perfil de trabalho, nenhum peso apontando para mineral inexistente. O jogo *sobe* sem mineração (só avisa, porque combate não depende de minério), mas um export sem ela é um export velho, e é aqui que isso tem de doer, não numa tecla `F` que não faz nada.
 
@@ -399,6 +485,12 @@ Também prende o "tudo ou nada" das duas pontas: sem saldo, nem a bolsa nem o in
 `test_items.gd` responde "comprar cura serve para alguma coisa?". Antes dele os emplastros eram compráveis, vendíveis e precificados, e **nada os consumia** — o laço econômico terminava numa vitrine. A asserção que mais importa também é negativa: **cura nula não consome o item**, medida nos dois níveis (o `WorldRoot` recusa antes de tocar na bolsa, e a lista de alvos já apaga quem está cheio). Prende também que `30` em `heal_percent` são trinta por cento e não trinta vezes, e que um mineral na bolsa não aparece na lista de cura.
 
 `test_staging.gd` responde "a imagem mostra o que o overlay narra?". A asserção que mais importa é a da **simetria**: o ponto médio entre os dois não pode escorregar, porque é onde eles se encontraram — se um dia um dos lados passar a fazer todo o trabalho, é ela que pega. A do domador é a mesma medida por outro lado: montar a cena **com** e **sem** ele e exigir que o ponto do encontro caia no mesmo lugar. A segunda é a única que prova fiação em vez de geometria: uma fase inteira do teste espera **quadros reais do motor**, sem chamar `step`, com o mundo pausado. Sem ela, `PROCESS_MODE_ALWAYS` poderia cair e todo o resto continuaria verde.
+
+A terceira é `_test_terrain`, com um `MapTerrain` de verdade em vez da bancada plana: exige que cada corpo termine em `height_at + o apoio que ele mesmo declara`, que **nenhum fique abaixo do relevo**, e que a marcha entregue seja positiva andando e zero parado. `_test_bounds` monta o caso da borda — o posto do domador projetado para fora da malha — e exige que ninguém saia dos limites **e** que o erro dele ainda zere, que é o que separa "aparado" de "empurrando a parede para sempre". `_test_animating` prende a última: o modo de animar pausado entra em todos os corpos enquanto a encenação está na árvore e sai quando ela é liberada. As bancadas sem terreno continuam exigindo que a altura **não** seja tocada: os dois contratos convivem, e é essa diferença que o `terrain` nulo seleciona.
+
+`test_characters.gd` guarda a escada de marcha nas duas pontas que importam: correr a 5,2 m/s (tocar `Walk` ali é o deslize que motivou a escada) e nadar submerso, que é o estado normal da exploração. `test_world.gd` guarda a regra da água — submerso fora da costa em qualquer altura, o pé da rampa ainda molhado, o platô seco, e a cota igual à da névoa.
+
+
 
 Ela também prende que o encaramento é medido **no plano**: a bancada põe os dois corpos em alturas diferentes de propósito (companheira no chão, selvagem meia cápsula acima), e um produto escalar em 3D mediria a inclinação entre eles em vez do encaramento — foi exatamente assim que a primeira versão do teste falhou com `dot 0.913`, que é o cosseno de 1,4 m de desnível e não um erro de yaw.
 
@@ -427,6 +519,28 @@ O corpo de cada criatura vem do **`modelUrl` do bundle**, não de convenção de
 
 Depois de um export com modelos novos, rode `--headless --import` (ou abra o editor) para o Godot importá-los antes de dar play.
 
+### Cor por elemento e a aura do Despertar
+
+Os placeholders são compartilhados N:1 — 27 dos 30 corpos dividem apenas **dois** atlas de textura. Sem mais nada, o elenco inteiro sai da mesma cor, e o jogador não distingue de longe o que está enfrentando. **`scripts/world/element_palette.gd`** resolve isso recolorindo o corpo pela paleta do elemento, que vem do catálogo (`elements.palette*` no bestiário, editável em `/elements` na UI dele).
+
+O mecanismo é uma **rampa lida por luminância**, não uma tintura. O atlas do Quaternius é paleta chapada — 1024×1024 com ~50 cores distintas, 84% da imagem em branco não usado —, então `shaders/element_palette.gdshader` mede a luminância de cada texel e usa esse valor para amostrar um `GradientTexture1D` de três paradas: `shadow` no mais escuro, `mid` no meio, `highlight` no mais claro. É isso que faz **"amarelo com preto" caber num elemento só**: Eletricidade é uma rampa que sai de quase-preto e chega em amarelo, e a forma do bicho distribui as duas pontas sozinha. Rotação de matiz não conseguiria — ela preserva as relações entre cores e nunca transforma uma cor em duas.
+
+Três decisões que custaram tentativa:
+
+- **Shader, não textura gerada.** Gerar um atlas variante por elemento com `Image` significaria ~1 milhão de pixels percorridos em GDScript por variante, mais um cache para invalidar toda vez que a paleta mudasse. Nada se perde no shader porque esses placeholders **não têm normal map nem metallic-roughness** — o material do `.glb` é só o atlas de base color.
+- **A saturação decide quem é recolorido.** Remapear tudo pela luminância pinta dentes, olhos e garras junto e o bicho vira uma mancha. Texel neutro (branco, cinza, preto) passa quase intacto; quem é saturado — o corpo — vai inteiro para a rampa.
+- **Os limiares são medidos em espaço GAMA.** Com o hint `source_color` o Godot já linearizou o texel na amostragem, e comparar limiar de sRGB contra valor linear foi o defeito que fez as seis criaturas saírem da mesma cor suja. O `fragment()` reconverte antes de medir e mistura em linear.
+
+`spread` (por elemento) permite que cada criatura ocupe uma faixa dentro da família: `ElementPalette.creature_bias` deriva do **código** da criatura — nunca sorteia, senão a mesma criatura mudaria de cor entre partidas e entre os dois corpos que a representam — um deslocamento aplicado como **gama** sobre a posição na rampa. Gama preserva as pontas, então a criatura clareia ou escurece dentro da família e nunca vaza para outro elemento.
+
+A **aura do Despertar Ancestral** é do duelo e só do duelo. São duas coisas: uma casca aditiva da própria malha, inflada ao longo da normal com `cull_front` (o halo é o interior do fundo da casca escapando da silhueta), e uma `OmniLight3D` na cor do elemento. Na câmera isométrica com névoa é a **luz** que se lê de longe — o halo sozinho some no cenário. A casca entra como **irmã** do `MeshInstance3D`, não filha: o `skeleton` de uma malha rigada é um NodePath relativo, e mantida a vizinhança ele continua resolvendo para o mesmo `Skeleton3D`, então a aura acompanha a animação sem nenhum código de sincronia.
+
+Quem acende é `EncounterDirector`, ligado ao sinal `rendered` da `DuelScreen` — que dispara a cada mudança de estado, porque numa máquina de turnos não há o que amostrar entre um turno e outro. O estado é **espelhado** da batalha, não acumulado a partir dos eventos do log: despertar, reverter por tempo, cair em combate e trocar de criatura são quatro caminhos que apagam a aura, e reagir a evento exigiria acertar os quatro.
+
+A aura tem **cor própria** (`paletteAura`), e não o `highlight` reaproveitado, por um motivo que só aparece quando as duas metades existem juntas: com o corpo já recolorido pelo elemento, uma aura na mesma cor some justamente na criatura em que ela deveria gritar.
+
+Corpo legado do Meshy **não** é recolorido — base color assada com normal e metallic-roughness próprios sairia suja. O portão é o prefixo `res://models/placeholders/`, e `test_palette.gd` o prende.
+
 **Props de bioma** chegam pelo mesmo export, em `models/biomes/` (preparados por `pnpm models:biomes` no bestiário). `megakit/` (Stylized Nature MegaKit do Quaternius, CC0) veste o terrestre: vegetação e pedras em escala real (CommonTree ~7 m) — samambaias escaladas 2,5–3× e cogumelos 3–4× dão a vegetação carbonífera do PZ-03; são `.gltf` com texturas **compartilhadas** de propósito (o Godot deduplica recursos por caminho; `.glb` embutiria uma cópia da casca em cada árvore). `aquatic/` (11 props gerados no Meshy) cobre o marinho do PZ-01: corais, algas e formações em `.glb` individuais, **normalizados em ~1×1×1 pelo Meshy** — a escala de cada peça é decisão da cena (recifes 2–5×, o arco 8–9× como landmark).
 
 Quem aplica isso é **`scripts/world/map_dressing.gd`** (`MapDressing.apply`, chamado por `WorldRoot._ready`, mesmo padrão RefCounted/static do `WorldPopulator`): ambiência subaquática (fog azul `~0.011`, luz fria), landmarks fixos à mão (com colisão cilíndrica só nos maciços — o arco é passagem por baixo) e vegetação miúda espalhada com semente fixa, respeitando um raio livre em torno dos pontos do `WorldPopulator` e da origem do jogador. Layout é posição de cena, não de bestiário — o catálogo diz *o que* vive no mapa; o mundo diz *onde*.
@@ -435,9 +549,11 @@ Quem aplica isso é **`scripts/world/map_dressing.gd`** (`MapDressing.apply`, ch
 
 **`scripts/world/map_terrain.gd`** substitui em runtime o `Ground` chapado de `main.tscn` (mesmo nome de nó — o clique de mundo e o `test_world` continuam funcionando): uma grade de 61×61 a 1 m que gera malha, colisão (`HeightMapShape3D`) e a consulta `height_at` **da mesma fonte**, então visual, física e consulta nunca discordam. O desenho é deliberado:
 
-- **Centro plano (altura 0) até `FLAT_RADIUS` = 16 m** — todo o gameplay que assume plano (POIs do `WorldPopulator`, origem do jogador, encenação de duelo) vive aí e continua correto sem mudar.
+- **Planície central plana (altura 0) até `FLAT_RADIUS` = 16 m** — o gameplay que assume plano (POIs do `WorldPopulator`, encenação de duelo) vive aí. Com uma exceção declarada, a ilha logo abaixo: quem apoia corpo perto da origem **pergunta a altura**, não presume zero.
 - **Colinas suaves (até 2,5 m, ruído com semente fixa) só na zona externa**, e um **rim de borda (+3,5 m)** que fecha a leitura do mapa na câmera ortográfica — relevo é apresentação com colisão, não labirinto.
 - **Uma costa na borda -Z**: platô raso (+1,6 m, rampa entre z −16 e −21) reservado a NPCs e portais — comerciante e posto do Relicário vivem lá (`WorldPopulator`), o spawner não deixa criatura nascer na faixa (`MapTerrain.on_coast`, com margem para a deriva de patrulha) e o `MapDressing` não espalha bioma nela. O shader pinta a faixa emersa num tom seco (`color_coast`), com a base da rampa continuando molhada.
+- **Uma ilha no meio do mapa**: platô de 8 m de diâmetro (+2,6 m) que carrega a **arena** e é onde o domador abre o jogo, de pé, antes de descer para o mar. Mesmas regras da costa — `MapTerrain.on_island` mantém criatura fora dela (keep-out de 11 m) e o `MapDressing` não espalha coral em terra seca; o shader pinta o topo com o mesmo `color_coast`, em faixa radial em vez de banda de Z. A largura da rampa é conta, não gosto: a inclinação máxima de um `smoothstep` é `1,5 · altura / vão`, e 2,6 m em 5 m de vão dá **38°**, abaixo dos 45° que o `CharacterBody3D` aceita como piso — encurtar o vão sem refazer a conta transforma a ilha em parede e tranca a arena lá em cima. `test_world` cobra os dois: a rampa andável e a arena no topo plano.
+- **A iluminação é fragmentada por altura, não por região** (um `Environment` só): a névoa fria é **névoa de altura** — densa abaixo da linha d'água (`PZ01_WATER_LINE`, logo abaixo do topo do platô) e rala acima, então o leito fica imerso na murk e a costa emerge para um ar limpo. O tom quente do trecho seco vem de **omnis de preenchimento locais** sobre a vila da costa e sobre a ilha (sem sombra — banho de cor, não fonte de leitura); sol e ambiente globais continuam frios para o mar. A regra é "chão que emerge sai da murk também na luz" — trecho seco novo ganha a sua omni. Nota de tuning: na câmera ortográfica inclinada o raio de visão atravessa pouco da camada baixa, então `fog_height_density` precisa ser alto (~1.0) — valores tímidos não acumulam murk nenhuma.
 - Corpos com física (jogador, selvagens) seguem o relevo pela colisão; quem não tem física pergunta: a companheira (`terrain.height_at` no lugar do antigo `GROUND_Y`, que virou fallback de bancada), o spawner (nasce apoiado) e os props do `MapDressing`.
 
 O **solo** é um shader próprio (`shaders/terrain_ground.gdshader`): dois tons misturados por ruído em espaço de mundo (sem UV) + um terceiro tom nas inclinações, com a paleta por mapa vinda de `MapDressing.ground_palette`. Armadilha registrada: a frente de um triângulo no Godot é a ordem **horária** — na ordem OpenGL (anti-horária) o chão inteiro é backface-culled e o mapa flutua sobre o fundo.

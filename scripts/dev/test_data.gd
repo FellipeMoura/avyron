@@ -9,6 +9,7 @@ extends SceneTree
 ## uma criatura incompleta, é aqui que estoura, antes de virar bug de runtime.
 
 var _failures := 0
+var _warnings := 0
 var _checks := 0
 
 
@@ -34,7 +35,9 @@ func _init() -> void:
 	_test_known_abilities(db)
 	_test_turn_order()
 	_test_contract_integrity(db)
+	_test_palette_contract(db)
 	_test_mining_contract(db)
+	_test_biome_contract(db)
 	_test_relics_contract(db)
 	_test_relic_math(db)
 
@@ -42,7 +45,8 @@ func _init() -> void:
 
 	print("")
 	if _failures == 0:
-		print("OK — %d verificacoes passaram" % _checks)
+		var suffix := "" if _warnings == 0 else " (%d aviso(s))" % _warnings
+		print("OK — %d verificacoes passaram%s" % [_checks, suffix])
 		quit(0)
 	else:
 		printerr("%d de %d verificacoes FALHARAM" % [_failures, _checks])
@@ -71,9 +75,64 @@ func _check_true(label: String, condition: bool, detail: String = "") -> void:
 		printerr("  FAIL %s%s" % [label, (" — " + detail) if detail != "" else ""])
 
 
+## Meta de conteúdo, não invariante: reporta e não reprova.
+##
+## A distinção existe porque as duas coisas estavam misturadas — a suíte
+## reprovava em cobertura de Despertar, que `docs/DATA_WORKFLOW.md` chama de
+## passo opcional, e não checava o golpe de assinatura sem Despertar, que é
+## erro de dado de verdade. Suíte vermelha tem de significar "quebrado"; o que
+## é alvo sai por aqui. Mesmo critério do `pnpm game:export`, que aborta num e
+## avisa no outro.
+func _warn(label: String, ok: bool, detail: String = "") -> void:
+	_checks += 1
+	if ok:
+		print("  ok   %s%s" % [label, (" — " + detail) if detail != "" else ""])
+	else:
+		_warnings += 1
+		print("  AVISO %s%s" % [label, (" — " + detail) if detail != "" else ""])
+
+
 # ---------------------------------------------------------------------------
 # testes
 # ---------------------------------------------------------------------------
+
+## Paleta do elemento — o par exato do que `export-game-data.mjs` cobra, pelo
+## critério da casa: contradição de dado REPROVA, meta de conteúdo AVISA.
+##
+## Elemento sem paleta nenhuma avisa: as criaturas dele saem no corpo neutro e
+## o jogo roda. Paleta pela METADE reprova: rampa sem uma parada não é rampa,
+## e o jogo teria de inventar a cor que falta — a criatura sairia errada em
+## silêncio, que é a classe de furo que `CRT-013` custou caro para ensinar.
+##
+## O comportamento da recoloração e da aura vive em `test_palette.gd`; aqui é
+## só o contrato do bundle, que é o que esta suíte guarda.
+func _test_palette_contract(db: BestiaryData) -> void:
+	print("-- contrato da paleta dos elementos")
+	var hex := RegEx.new()
+	hex.compile("^#[0-9a-fA-F]{6}$")
+
+	var missing: Array[String] = []
+	for code in db.element_codes():
+		var raw: Variant = db.element(code).get("palette")
+		if not (raw is Dictionary) or (raw as Dictionary).is_empty():
+			missing.append(code)
+			continue
+		var p: Dictionary = raw
+		var absent: Array[String] = []
+		for key in ["shadow", "mid", "highlight", "aura"]:
+			if not p.has(key):
+				absent.append(key)
+			elif hex.search(str(p[key])) == null:
+				_check_true("%s paleta %s e #RRGGBB" % [code, key], false, str(p[key]))
+		_check_true("%s tem a rampa completa" % code, absent.is_empty(),
+			"faltam %s" % ", ".join(absent) if not absent.is_empty() else "")
+		var spread := float(p.get("spread", -1.0))
+		_check_true("%s spread em [0, 0.5]" % code, spread >= 0.0 and spread <= 0.5, str(spread))
+
+	_warn("todo elemento tem paleta", missing.is_empty(),
+		"sem paleta: %s" % ", ".join(missing) if not missing.is_empty() else "")
+	print("")
+
 
 func _test_inventory(db: BestiaryData) -> void:
 	print("inventario:")
@@ -244,9 +303,28 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 	_check("criaturas sem golpes", no_abilities.size(), 0)
 	_check("criaturas com elemento invalido", bad_element.size(), 0)
 	_check("criaturas com bloco de drops invalido", bad_drops, 0)
-	# Despertar é opcional no schema, mas a meta do elenco é cobertura 1:1.
-	_check_true("cobertura de Despertar 1:1", no_awakening.is_empty(),
-		"sem despertar: %s" % str(no_awakening) if not no_awakening.is_empty() else "26 de 26")
+	# Golpe de assinatura sem Despertar é erro de dado, não meta: `Combatant`
+	# filtra `awakeningOnly` por `is_awakened`, e criatura que nunca desperta
+	# nunca pode usar o golpe. Ele aparece na ficha e não serve pra nada.
+	# `CRT-013` jogou assim com 5 golpes contra 6 do resto do elenco.
+	var dead_signature: Array = []
+	for code in db.creature_codes():
+		var c := db.creature(code)
+		if c.get("awakening", null) != null:
+			continue
+		for entry in c.get("abilities", []):
+			var a := db.ability(str(entry["code"]))
+			if not a.is_empty() and bool(a.get("awakeningOnly", false)):
+				dead_signature.append("%s/%s" % [code, str(entry["code"])])
+	_check("golpes de assinatura inalcancaveis", dead_signature.size(), 0)
+
+	# A cobertura em si é meta, não invariante — o Despertar é o passo
+	# opcional do `DATA_WORKFLOW`, e sem ele a criatura ainda joga, só não usa
+	# o medidor de carga. Mesmo critério do `pnpm game:export`, que avisa aqui
+	# e aborta no golpe morto acima.
+	_warn("cobertura de Despertar 1:1", no_awakening.is_empty(),
+		"sem despertar: %s" % str(no_awakening) if not no_awakening.is_empty()
+		else "%d de %d" % [db.creature_codes().size(), db.creature_codes().size()])
 
 
 ## O bloco `mining` é opcional para `load_bundle` — o jogo sobe sem ele com um
@@ -282,14 +360,53 @@ func _test_mining_contract(db: BestiaryData) -> void:
 	_check("classes sem pesos de minerio", no_weights.size(), 0)
 	_check("classes sem perfil de trabalho", no_profile.size(), 0)
 
-	# Peso que aponta para um mineral inexistente é o tipo de furo que o
-	# export não pega e que some numa distribuição normalizada.
+	# Peso que aponta para um mineral inexistente some numa distribuição
+	# normalizada, sem sintoma. O export passou a abortar nisso em 2026-08;
+	# esta checagem continua porque ela guarda o bundle já escrito, não a
+	# escrita — bundle antigo no disco não passou pelo portão novo.
 	var orphan := 0
 	for class_code: String in classes_seen:
 		for item_code: String in db.class_mining_weights(class_code):
 			if db.mineral(item_code).is_empty():
 				orphan += 1
 	_check("pesos apontando para mineral inexistente", orphan, 0)
+
+
+## O bioma é metade da fórmula de mineração, e a metade que some calada.
+##
+## `MiningTable` trata lado ausente como neutro (×1) de propósito — sem
+## criatura ativa o bioma decide sozinho. O efeito colateral é que um bioma
+## sem taxa nenhuma não dá erro: a fórmula simplesmente vira só-classe e a
+## picareta continua funcionando, entregando outra distribuição. Por isso o
+## bioma que o mundo declara é verificado aqui, não confiado ao runtime.
+##
+## Erro e alvo saem por portas diferentes, como no resto do arquivo: bioma
+## declarado fora do mapa ou sem taxas é `_check` (o mundo está errado);
+## bioma do mapa que ninguém preencheu ainda é `_warn` (o catálogo está
+## incompleto, e o export avisa a mesma coisa).
+func _test_biome_contract(db: BestiaryData) -> void:
+	print("contrato de bioma:")
+
+	var of_map := db.biomes_in_map(WorldRoot.DEFAULT_MAP)
+	_check_true("mapa %s lista biomas no bundle" % WorldRoot.DEFAULT_MAP, not of_map.is_empty(),
+		"%d biomas" % of_map.size())
+	if of_map.is_empty():
+		return
+
+	_check_true("bioma do mundo pertence ao mapa", of_map.has(WorldRoot.DEFAULT_BIOME),
+		"%s em %s" % [WorldRoot.DEFAULT_BIOME, str(of_map)])
+
+	_check_true("bioma do mundo tem taxas de mineracao",
+		not db.biome_mining_weights(WorldRoot.DEFAULT_BIOME).is_empty(),
+		"%d pesos" % db.biome_mining_weights(WorldRoot.DEFAULT_BIOME).size())
+
+	var no_rates: Array = []
+	for code in of_map:
+		if db.biome_mining_weights(str(code)).is_empty():
+			no_rates.append(code)
+	_warn("biomas do mapa com taxas de mineracao", no_rates.is_empty(),
+		"sem taxas: %s" % str(no_rates) if not no_rates.is_empty()
+		else "%d de %d" % [of_map.size(), of_map.size()])
 
 
 ## Mesmo espírito de `_test_mining_contract`: `relics` é opcional em

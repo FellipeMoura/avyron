@@ -46,7 +46,7 @@ var _merchants: Dictionary = {}     # code -> Dictionary
 var _duelists: Dictionary = {}      # code -> Dictionary
 
 ## Modelos de Relicário — código -> Dictionary já achatado com `relic_stats`
-## pelo exportador (elemento, classe, slotCapacity, curvas de captura/buff).
+## pelo exportador (elemento, classe, slotCapacity, curva de captura).
 var _relics: Dictionary = {}        # code -> Dictionary
 
 ## Constantes da economia: nome da moeda, bolsa inicial, margem do comerciante.
@@ -183,8 +183,24 @@ func game_map(code: String) -> Dictionary:
 func biome(code: String) -> Dictionary:
 	return _biomes.get(code, {})
 
+
+## Códigos de bioma de um mapa, na ordem em que o catálogo os lista.
+##
+## O mapa tem vários (PZ-01 tem quatro), mas o mundo usa um só — ver
+## `WorldRoot.DEFAULT_BIOME`. Esta consulta existe para **conferir** que o
+## bioma declarado pertence ao mapa: sem ela, trocar o bioma por um de outro
+## mapa passaria batido, porque `MiningTable` trata bioma desconhecido como
+## lado ausente e cai na classe sozinha, sem erro nenhum.
+func biomes_in_map(map_code: String) -> Array:
+	var m: Dictionary = _maps.get(map_code, {})
+	var list: Variant = m.get("biomes", [])
+	return list if list is Array else []
+
 func creature_codes() -> Array:
 	return _creatures.keys()
+
+func element_codes() -> Array:
+	return _elements.keys()
 
 
 # ---------------------------------------------------------------------------
@@ -475,14 +491,6 @@ func relic_capture_rate_at_level(relic_code: String, level: int) -> float:
 		return 0.0
 	return RelicMath.rate_at_level(float(r["baseCaptureRate"]), float(r["captureRatePerLevel"]), level)
 
-
-## Magnitude do buff de combate do relicário no nível dado. Mesma curva da
-## taxa de captura, campos diferentes.
-func relic_combat_buff_at_level(relic_code: String, level: int) -> float:
-	var r := relic(relic_code)
-	if r.is_empty():
-		return 0.0
-	return RelicMath.rate_at_level(float(r["combatBuffBase"]), float(r["combatBuffPerLevel"]), level)
 
 
 # ---------------------------------------------------------------------------

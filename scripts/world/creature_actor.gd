@@ -23,6 +23,12 @@ enum State { IDLE, PATROL }
 
 const PATROL_SPEED := 1.2
 
+## Marcha da encenação de duelo a partir da qual o corpo corre em vez de andar,
+## e abaixo da qual conta como parado. Só valem lá: a patrulha anda sempre, a
+## `PATROL_SPEED`, e por isso nunca chega perto do limiar de corrida.
+const RUN_THRESHOLD := 2.0
+const STAGED_IDLE_SPEED := 0.05
+
 const IDLE_MIN := 1.5
 const IDLE_MAX := 4.0
 const PATROL_RADIUS := 6.0
@@ -60,18 +66,13 @@ var _highlight_material: StandardMaterial3D
 var _selected := false
 var _anim: AnimationPlayer
 
-
-## Cor por elemento. Placeholder honesto: a paleta final vem da banda
-## dominante em `identidade-visual`, mas aqui o que importa é conseguir
-## distinguir de longe o que se está enfrentando.
-const ELEMENT_COLORS := {
-	"ELE-001": Color("#C6552F"),  # Fogo
-	"ELE-002": Color("#3E6F8E"),  # Agua
-	"ELE-003": Color("#7A8C6B"),  # Natureza
-	"ELE-004": Color("#8A7047"),  # Terra
-	"ELE-005": Color("#C9A227"),  # Eletricidade
-	"ELE-006": Color("#8FB8C9"),  # Gelo
-}
+## Aura do Despertar Ancestral: cascas irmãs das malhas do corpo, mais a luz
+## que a criatura joga no chão. Vazio/`null` fora do Despertar — a aura não
+## existe como nó desligado, ela nasce e morre com a transformação. Ver
+## `set_awakening_aura`.
+var _awakened := false
+var _aura_shells: Array[MeshInstance3D] = []
+var _aura_light: OmniLight3D
 
 ## Localização do modelo, em ordem de prioridade:
 ##
@@ -136,8 +137,6 @@ func _build_body() -> void:
 	_mesh_instances = visual["mesh_instances"]
 	_anim = visual["anim"]
 	add_child(_mesh)
-	if visual["nose"] != null:
-		add_child(visual["nose"])
 
 	var height: float = visual["height"]
 	var radius: float = visual["radius"]
@@ -194,8 +193,17 @@ static func capsule_dimensions(size_meters: float) -> Dictionary:
 ## qual dos dois recebeu.
 static func build_visual(size_meters: float, element_code: String, creature_code: String, model_url_value: String = "") -> Dictionary:
 	var dims := capsule_dimensions(size_meters)
-	var model := _build_model_visual(model_path(creature_code, model_url_value), size_meters, dims)
+	var path := model_path(creature_code, model_url_value)
+	var model := _build_model_visual(path, size_meters, dims)
 	if not model.is_empty():
+		# A recoloração entra AQUI, e não dentro de `_build_model_visual`,
+		# porque ela é decisão de ELEMENTO e não de arquivo: esta função monta
+		# tanto o corpo da selvagem quanto o da companheira, e as duas têm de
+		# sair da mesma cor. `ElementPalette` decide sozinha quando recusar —
+		# corpo fora dos placeholders, elemento sem paleta — e nesse caso o
+		# `.glb` fica exatamente como veio.
+		var meshes: Array[MeshInstance3D] = model["mesh_instances"]
+		ElementPalette.apply_body(meshes, element_code, creature_code, path)
 		return model
 	return build_capsule_visual(size_meters, element_code)
 
@@ -271,7 +279,6 @@ static func _build_model_visual(path: String, size_meters: float, dims: Dictiona
 
 	return {
 		"mesh": wrapper,
-		"nose": null,
 		"material": null,
 		"mesh_instances": mesh_instances,
 		"anim": anim,
@@ -339,8 +346,11 @@ static func _local_aabb(root: Node3D, mesh_instances: Array[MeshInstance3D]) -> 
 ## quando selecionadas. A cápsula acende emissão no próprio material; um
 ## modelo importado tem materiais e texturas que não devem ser mexidos, então
 ## o realce aqui é uma camada extra por cima, não uma troca de propriedade.
+## O realce usa o HIGHLIGHT da rampa, não o meio dela: desde que o corpo passou
+## a ser recolorido pelo próprio elemento, um realce na cor do meio seria a cor
+## que a criatura já tem — a seleção não apareceria justamente onde deveria.
 static func _build_highlight_material(element_code: String) -> StandardMaterial3D:
-	var color: Color = ELEMENT_COLORS.get(element_code, Color("#F2EDE0"))
+	var color := ElementPalette.highlight_color(element_code)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -351,8 +361,7 @@ static func _build_highlight_material(element_code: String) -> StandardMaterial3
 	return material
 
 
-## Constrói o visual placeholder: cápsula colorida pelo elemento, com a marca
-## de frente que deixa ler a direção de encaramento.
+## Constrói o visual placeholder: cápsula colorida pelo elemento.
 ##
 ## O material com emissão preparada (desligada) já sai daqui, então quem quiser
 ## acender o realce depois só precisa de `emission_enabled = true`.
@@ -366,9 +375,9 @@ static func build_capsule_visual(size_meters: float, element_code: String) -> Di
 	mesh.radius = radius
 
 	var material := StandardMaterial3D.new()
-	material.albedo_color = ELEMENT_COLORS.get(element_code, Color("#6B7280"))
+	material.albedo_color = ElementPalette.mid_color(element_code)
 	material.roughness = 0.9
-	material.emission = ELEMENT_COLORS.get(element_code, Color("#F2EDE0"))
+	material.emission = ElementPalette.highlight_color(element_code)
 	material.emission_energy_multiplier = SELECT_EMISSION_ENERGY
 	material.emission_enabled = false
 	mesh.material = material
@@ -377,18 +386,8 @@ static func build_capsule_visual(size_meters: float, element_code: String) -> Di
 	mesh_node.name = "Mesh"
 	mesh_node.mesh = mesh
 
-	# Marca de frente, como no jogador — sem ela não dá para ler para onde a
-	# criatura está virada.
-	var nose := MeshInstance3D.new()
-	nose.name = "Facing"
-	var nose_mesh := BoxMesh.new()
-	nose_mesh.size = Vector3(radius * 0.4, radius * 0.4, radius * 0.9)
-	nose.mesh = nose_mesh
-	nose.position = Vector3(0, height * 0.2, -(radius + radius * 0.45))
-
 	return {
 		"mesh": mesh_node,
-		"nose": nose,
 		"material": material,
 		"mesh_instances": [] as Array[MeshInstance3D],
 		"anim": null,
@@ -498,10 +497,59 @@ func _play_clip(clip: String) -> void:
 		_anim.play(clip, 0.2)
 
 
+# ---------------------------------------------------------------------------
+# contrato de encenação (BattleStaging)
+# ---------------------------------------------------------------------------
+#
+# Durante o duelo o mundo está pausado e o `_physics_process` daqui não roda:
+# quem move e anima este corpo é a `BattleStaging`. Estes dois métodos são tudo
+# o que ela precisa saber dele, e são chamados por NOME (`Node.call`), não por
+# tipo — a bancada da suíte de encenação monta a geometria com `Node3D` solto e
+# não deve ser obrigada a implementar contrato nenhum.
+
+## Quanto a origem do corpo fica acima do chão: meia cápsula, a mesma soma que
+## `_build_body` aplica ao nascer. Derivada de `capsule_dimensions`, não
+## guardada num campo, para não haver duas medidas do mesmo corpo.
+func staged_ground_offset() -> float:
+	return float(capsule_dimensions(size_meters)["height"]) * 0.5
+
+
+## A marcha imposta pela encenação, na mesma escada da exploração. `Run` só
+## quando o corpo tem o clipe: os placeholders variam, e `_play_clip` silencia
+## no clipe ausente — pedir `Run` a quem não tem deixaria a criatura atravessar
+## a cena parada.
+func staged_gait(speed: float) -> void:
+	if speed < STAGED_IDLE_SPEED:
+		_play_clip("Idle")
+	elif speed >= RUN_THRESHOLD and _anim != null and _anim.has_animation("Run"):
+		_play_clip("Run")
+	else:
+		_play_clip("Walk")
+
+
+## Deixa o corpo animar com a árvore pausada, enquanto a encenação o move.
+##
+## `AnimationPlayer` é pausável como qualquer nó: sem isto o clipe escolhido
+## acima fica **selecionado e congelado no quadro zero**, e a criatura
+## atravessa a cena numa pose estática — o deslize que a encenação existe para
+## acabar, de volta por outra porta. Ligado só enquanto a encenação é dona do
+## corpo: ligado sempre, uma criatura pega no meio do `Walk` por uma tela de
+## loja andaria no lugar em vez de ficar parada.
+func staged_animating(enabled: bool) -> void:
+	if _anim != null:
+		_anim.process_mode = Node.PROCESS_MODE_ALWAYS if enabled else Node.PROCESS_MODE_INHERIT
+
+
+
+
 ## Permite reengajar depois de uma batalha resolvida.
 func reset_engagement() -> void:
 	_engaged_once = false
 	set_selected(false)
+	# A aura é do duelo e morre com ele. Sem isto, uma criatura que despertou
+	# e sobreviveu (fuga, captura falha) voltaria a vagar pelo mapa acesa —
+	# um estado de batalha vazando para a exploração.
+	set_awakening_aura(false)
 	_enter_idle()
 
 
@@ -514,8 +562,7 @@ func set_selected(selected: bool) -> void:
 	if _selected == selected:
 		return
 	_selected = selected
-	if _material != null:
-		_material.emission_enabled = selected
+	_update_capsule_emission()
 	if not _mesh_instances.is_empty():
 		var overlay := _highlight_material if selected else null
 		for mi in _mesh_instances:
@@ -524,6 +571,50 @@ func set_selected(selected: bool) -> void:
 
 func is_selected() -> bool:
 	return _selected
+
+
+## Liga e desliga a aura do Despertar Ancestral neste corpo.
+##
+## Chamado por NOME (`Node.call`) por quem conhece o estado da batalha, pelo
+## mesmo motivo do contrato de encenação: assim a bancada de `Node3D` solto
+## das suítes não é obrigada a implementar isto para ser encenada.
+##
+## São duas coisas de uma vez, e as duas importam: a casca aditiva desenha o
+## halo colado na silhueta, e a `OmniLight3D` faz a criatura ILUMINAR o chão
+## em volta. Na câmera isométrica com névoa, é a luz que se lê de longe — o
+## halo sozinho some no meio do cenário.
+##
+## Corpo de cápsula (criatura sem `.glb`) não tem malha para inflar, e cai na
+## emissão do próprio material, que é o mesmo canal do realce de seleção. Por
+## isso o estado dos dois passa por `_update_capsule_emission` em vez de cada
+## um escrever direto: quem desliga a seleção não pode apagar um Despertar
+## que continua ativo.
+func set_awakening_aura(active: bool) -> void:
+	if _awakened == active:
+		return
+	_awakened = active
+
+	if active:
+		_aura_shells = ElementPalette.attach_aura(_mesh_instances, element_code)
+		_aura_light = ElementPalette.build_aura_light(element_code, size_meters)
+		add_child(_aura_light)
+	else:
+		ElementPalette.detach_aura(_aura_shells)
+		_aura_shells.clear()
+		if _aura_light != null:
+			_aura_light.queue_free()
+			_aura_light = null
+
+	_update_capsule_emission()
+
+
+func is_awakened() -> bool:
+	return _awakened
+
+
+func _update_capsule_emission() -> void:
+	if _material != null:
+		_material.emission_enabled = _selected or _awakened
 
 
 ## Marca a criatura como já engajada e emite o sinal. Chamado pelo WorldRoot

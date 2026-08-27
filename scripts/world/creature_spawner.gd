@@ -107,6 +107,12 @@ func _find_spot(placed: Array[Vector3]) -> Vector3:
 		# 3 m cobre a deriva de patrulha (HOME_LEASH) até a beira da rampa.
 		if terrain and terrain.on_coast(candidate, 3.0):
 			continue
+		# A ilha, pela mesma razão: é o adro da arena, e criatura marinha de pé
+		# no seco contradiz o mapa inteiro. A margem de 2 m mantém o keep-out
+		# em 11 m, ~3,5 m além da linha d'água da praia — folga para a deriva
+		# de patrulha não subir a rampa.
+		if terrain and terrain.on_island(candidate, 2.0):
+			continue
 		var ok := true
 		for p in placed:
 			if candidate.distance_to(p) < min_separation:

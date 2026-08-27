@@ -74,6 +74,13 @@ const TURN_SPEED := 7.0
 ## Abaixo disto ela conta como parada, e passa a encarar o domador.
 const IDLE_SPEED := 0.05
 
+## Marcha a partir da qual ela corre em vez de andar. Fração do passo do
+## jogador, e não um número solto, pelo mesmo motivo de `MAX_SPEED`: os dois
+## andam juntos, e um limiar independente divergiria no dia em que a
+## velocidade dele mudasse.
+const RUN_THRESHOLD := PlayerController.WALK_SPEED * 0.45
+
+
 ## Altura do chão SEM terreno — fallback para bancadas de teste que montam a
 ## companheira sem mundo. Com o relevo, `WorldRoot` injeta `terrain` e o Y
 ## vira consulta (`_ground_y`), exatamente a evolução que este comentário
@@ -105,6 +112,15 @@ var _player: Node3D
 var _mesh_root: Node3D
 var _anim: AnimationPlayer
 var _base_y := 0.0
+
+## Malhas do corpo, guardadas para a aura do Despertar Ancestral poder inflar
+## uma casca irmã de cada uma. Refeitas junto com o corpo em `_build_visual`,
+## porque `set_creature` troca a criatura ativa sem destruir o ator.
+var _mesh_instances: Array[MeshInstance3D] = []
+
+var _awakened := false
+var _aura_shells: Array[MeshInstance3D] = []
+var _aura_light: OmniLight3D
 
 ## Posições por onde o jogador passou, da mais antiga para a mais recente.
 var _trail: Array[Vector3] = []
@@ -299,26 +315,111 @@ func _bob(delta: float) -> void:
 # corpo
 # ---------------------------------------------------------------------------
 
-## Anda ↔ para seguindo a marcha real, com o mesmo contrato do CreatureActor:
+## Escolhe o clipe pela marcha real, com o mesmo contrato do CreatureActor:
 ## sem clipe correspondente (cápsula, ou voador sem `Walk`), nada muda.
+##
+## A escada tem `Run` porque ela acompanha um jogador que CORRE: em regime a
+## companheira viaja perto de `PlayerController.WALK_SPEED` (5,2 m/s, teto em
+## `MAX_SPEED`), e tocar `Walk` nessa marcha a faria deslizar ao lado dele
+## exatamente como ele deslizava antes de ganhar o `Run`.
 func _update_clip() -> void:
 	if _anim == null:
 		return
-	var clip := "Walk" if _speed >= IDLE_SPEED else "Idle"
+	var clip := _clip_for_speed(_speed)
 	if _anim.has_animation(clip) and _anim.current_animation != clip:
 		_anim.play(clip, 0.2)
+
+
+## O clipe da marcha. Cai para `Walk` quando o corpo não tem `Run` — os
+## placeholders variam, e silenciar aqui deixaria a criatura presa no clipe
+## anterior em vez de andar.
+func _clip_for_speed(speed: float) -> String:
+	if speed < IDLE_SPEED:
+		return "Idle"
+	if speed >= RUN_THRESHOLD and _anim.has_animation("Run"):
+		return "Run"
+	return "Walk"
+
+
+# ---------------------------------------------------------------------------
+# contrato de encenação (BattleStaging)
+# ---------------------------------------------------------------------------
+#
+# Durante o duelo o mundo está pausado e o `_process` daqui não roda: quem move
+# e anima este corpo é a `BattleStaging`. Ver o mesmo par em `CreatureActor`
+# sobre por que os métodos são chamados por nome e não por tipo.
+
+## Ela já vive apoiada no chão — a origem do nó É o chão, e o corpo sobe pelo
+## `position.y` do mesh filho. Zero, portanto, e não meia altura: somar aqui a
+## faria flutuar durante o duelo exatamente a meia cápsula do próprio corpo.
+func staged_ground_offset() -> float:
+	return 0.0
+
+
+## A marcha imposta pela encenação. Grava em `_speed` em vez de só tocar o
+## clipe porque é esse o campo que `_update_clip`, `_face` e o bob leem: deixá-lo
+## com a marcha de antes do engate faria ela voltar da pausa andando parada.
+func staged_gait(speed: float) -> void:
+	_speed = speed
+	_update_clip()
+
+
+## Mesmo motivo do `CreatureActor`: nó pausado não anima, e sem isto o corpo
+## dela atravessa a cena congelado no quadro em que o duelo abriu.
+func staged_animating(enabled: bool) -> void:
+	if _anim != null:
+		_anim.process_mode = Node.PROCESS_MODE_ALWAYS if enabled else Node.PROCESS_MODE_INHERIT
+
+
+## Aura do Despertar Ancestral — o mesmo contrato por nome de `CreatureActor`,
+## para quem governa o duelo acender os dois lados sem saber de qual tipo cada
+## corpo é.
+##
+## A luz entra em `_mesh_root`, não no ator: é `_mesh_root` que carrega o
+## deslocamento de apoio (`_base_y`) e o bob, então a luz acompanha a
+## respiração do corpo em vez de ficar cravada no chão sob ele.
+##
+## Corpo de cápsula fica só com a luz — sem malha importada não há o que
+## inflar. É degradação aceitável: a luz é justamente a metade que se lê de
+## longe na câmera isométrica.
+func set_awakening_aura(active: bool) -> void:
+	if _awakened == active:
+		return
+	_awakened = active
+
+	if active:
+		_aura_shells = ElementPalette.attach_aura(_mesh_instances, element_code)
+		_aura_light = ElementPalette.build_aura_light(element_code, size_meters)
+		if _mesh_root != null:
+			_mesh_root.add_child(_aura_light)
+		else:
+			add_child(_aura_light)
+	else:
+		ElementPalette.detach_aura(_aura_shells)
+		_aura_shells.clear()
+		if _aura_light != null:
+			_aura_light.queue_free()
+			_aura_light = null
+
+
+func is_awakened() -> bool:
+	return _awakened
+
 
 
 func _build_visual() -> void:
 	if _mesh_root:
 		_mesh_root.queue_free()
+	# O corpo antigo vai embora, e com ele as cascas da aura — que são filhas
+	# das malhas dele. Baixar a bandeira aqui é o que impede um Despertar
+	# trocar de criatura no meio e ficar marcado como aceso sem casca nenhuma.
+	set_awakening_aura(false)
 	var visual := CreatureActor.build_visual(size_meters, element_code, creature_code, model_url)
 	_anim = visual["anim"]
+	_mesh_instances = visual["mesh_instances"]
 	_mesh_root = Node3D.new()
 	_mesh_root.name = "Visual"
 	_mesh_root.add_child(visual["mesh"])
-	if visual["nose"] != null:
-		_mesh_root.add_child(visual["nose"])
 	add_child(_mesh_root)
 
 	# A cápsula do CreatureActor sobe meia-altura via `position.y` do próprio

@@ -16,7 +16,9 @@ func _init() -> void:
 	_test_input_map()
 	_test_direction_math()
 	_test_scroll_zoom()
+	_test_water_line()
 	_test_main_scene()
+
 
 	print("")
 	if _failures == 0:
@@ -168,7 +170,76 @@ func _test_scroll_zoom() -> void:
 	cam.free()
 
 
+## Onde o domador nada, e onde ele anda.
+##
+## O PZ-01 é o LEITO DE UM MAR: fora do platô da costa está tudo submerso,
+## inclusive o topo de colina que passa da cota — recife é recife, não ilhota.
+## Só a costa negocia com a linha d'água, porque é lá que a rampa atravessa a
+## superfície no meio da subida.
+##
+## A cota é a MESMA que fragmenta a névoa (`MapDressing.PZ01_WATER_LINE`), e
+## essa igualdade é o contrato: nadar numa cota e trocar a murk noutra faria a
+## imagem contradizer o corpo. Se um dia as duas se separarem, é aqui que dói.
+func _test_water_line() -> void:
+	print("linha d'agua:")
+	var terrain := MapTerrain.create({})
+	terrain.water_line = MapDressing.water_line("PZ-01")
+	_check("a cota vem do bioma, e é a mesma da névoa",
+		terrain.water_line, MapDressing.PZ01_WATER_LINE)
+
+	for spot in [Vector3(12, 0, 0), Vector3(22, 0, 22), Vector3(-25, 0, 25)]:
+		var at := Vector3(spot.x, terrain.height_at(spot), spot.z)
+		_check_true("submerso fora da costa em (%.0f, %.0f), chao %.2f" % [at.x, at.z, at.y],
+			terrain.submerged(at))
+
+	# A costa e a ilha são as que dependem da altura: o pé da rampa ainda está
+	# na água, o platô já não.
+	var ramp := Vector3(0, 0, -18)
+	ramp.y = terrain.height_at(ramp)
+	_check_true("o pe da rampa ainda esta na agua (chao %.2f)" % ramp.y, terrain.submerged(ramp))
+	var plateau := Vector3(0, 0, -24)
+	plateau.y = terrain.height_at(plateau)
+	_check_true("o plato da costa esta seco (chao %.2f)" % plateau.y, not terrain.submerged(plateau))
+
+	# A ilha do miolo: topo seco, saia submersa. É a segunda exceção à regra do
+	# "fora da costa é tudo mar", e a única que fica no meio do mapa — o topo é
+	# onde a arena vive e onde o domador abre o jogo, de pé.
+	var isle := Vector3(0, 0, 0)
+	isle.y = terrain.height_at(isle)
+	_check_true("o topo da ilha esta seco (chao %.2f)" % isle.y, not terrain.submerged(isle))
+	_check_true("o topo da ilha passa da cota", isle.y > MapDressing.PZ01_WATER_LINE)
+	var shore := Vector3(0, 0, MapTerrain.ISLAND_BASE_RADIUS - 0.5)
+	shore.y = terrain.height_at(shore)
+	_check_true("o pe da ilha ainda esta na agua (chao %.2f)" % shore.y, terrain.submerged(shore))
+	var open_sea := Vector3(0, 0, MapTerrain.ISLAND_BASE_RADIUS + 2.0)
+	_check_true("mar aberto nao e ilha", not terrain.on_island(open_sea))
+
+	# A ilha é subida, não parede: `smoothstep` sobe no máximo 1,5·h/vão, e
+	# esse máximo tem de caber nos 45° que o `CharacterBody3D` aceita como
+	# piso. Passar disso tranca a arena no topo — o relevo vira labirinto.
+	var span := MapTerrain.ISLAND_BASE_RADIUS - MapTerrain.ISLAND_TOP_RADIUS
+	var max_slope := rad_to_deg(atan(1.5 * MapTerrain.ISLAND_HEIGHT / span))
+	_check_true("a rampa da ilha e andavel (%.1f graus)" % max_slope, max_slope < 45.0)
+
+	# E a arena tem de estar EM CIMA dela, no topo plano — não na encosta.
+	var arena_dist := Vector2(WorldPopulator.ARENA_SPOT.x, WorldPopulator.ARENA_SPOT.z).length()
+	_check_true("a arena fica no topo plano da ilha (%.1f m do centro)" % arena_dist,
+		arena_dist <= MapTerrain.ISLAND_TOP_RADIUS)
+	var arena_ground := terrain.height_at(WorldPopulator.ARENA_SPOT)
+	_check_true("o chao da arena esta seco (%.2f)" % arena_ground,
+		not terrain.submerged(Vector3(
+			WorldPopulator.ARENA_SPOT.x, arena_ground, WorldPopulator.ARENA_SPOT.z)))
+
+	# Mapa sem bioma de água: ninguém nada. É o padrão das bancadas.
+	var dry := MapTerrain.create({})
+	_check_true("terreno sem cota injetada nao molha ninguem", not dry.submerged(Vector3.ZERO))
+	_check("mapa desconhecido nao tem agua", MapDressing.water_line("PZ-99"), -INF)
+	terrain.free()
+	dry.free()
+
+
 func _test_main_scene() -> void:
+
 	print("cena principal:")
 	var path: String = str(ProjectSettings.get_setting("application/run/main_scene", ""))
 	_check("main_scene apontada", path, "res://scenes/main.tscn")
@@ -194,5 +265,17 @@ func _test_main_scene() -> void:
 	if player:
 		_check_true("Player tem colisao", player.get_node_or_null("Collision") != null)
 		_check_true("Player tem script", player.get_script() != null)
+
+		# O `y` da cena não é decoração: a origem do mapa é o topo da ILHA, a
+		# 2,6 m, e o corpo nasce ali antes de a gravidade encostá-lo. Nascer
+		# abaixo do relevo é nascer DENTRO dele — a física resolve empurrando
+		# para um lado qualquer, e o jogo abre com o domador saltando.
+		var terrain := MapTerrain.create({})
+		var shape := (player.get_node("Collision") as CollisionShape3D).shape as CapsuleShape3D
+		var feet := player.position.y - shape.height * 0.5
+		var ground := terrain.height_at(player.position)
+		_check_true("Player nasce acima do relevo (pes %.2f, chao %.2f)" % [feet, ground],
+			feet >= ground)
+		terrain.free()
 
 	root.free()

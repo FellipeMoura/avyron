@@ -1,14 +1,16 @@
 class_name PlayerController
 extends CharacterBody3D
 
-## Locomoção do domador. Livre, não presa a grid, velocidade única — sem
-## correr.
+## Locomoção do domador. Livre, não presa a grid, velocidade única.
 ##
-## As velocidades e os tempos abaixo estão travados porque o ciclo de
-## animação `walk` (~0.85 s por passo, medido no `WALK_SPEED` anterior de
-## 4.0) foi calibrado a partir deles. `WALK_SPEED` subiu 30% sem recalibrar
-## esse ciclo — quando a animação real entrar, o tempo de passo precisa ser
-## remedido neste valor novo, ou o pé desliza no chão visivelmente.
+## `WALK_SPEED` guarda o nome por herança, mas 5,2 m/s é marcha de CORRIDA —
+## humano andando faz ~1,4 m/s. Era daí que vinha o deslize: o corpo viajava a
+## 5,2 tocando o ciclo de `Walk`, que fora calibrado num `WALK_SPEED` anterior
+## de 4,0 e nunca remedido depois de ele subir 30%. A correção foi dar o clipe
+## certo à marcha, não mexer na velocidade — `CharacterRig.update_motion`
+## escolhe `Run` acima de `RUN_THRESHOLD`, e o jogador está sempre acima dele.
+## Se ainda restar deslize, o ajuste seguinte é a CADÊNCIA (`speed_scale` do
+## AnimationPlayer), não o clipe nem a velocidade.
 ##
 ## Especificação: documento `movimento-e-controles` no bestiário.
 
@@ -18,12 +20,44 @@ const WALK_SPEED := 5.2
 const ACCEL_TIME := 0.15
 const BRAKE_TIME := 0.10
 
+## A aparência do domador na v1 — sem tela de criação, uma receita fixa do
+## kit de personagens (mesmo sistema dos NPCs, ver CharacterRig). Quando a
+## criação de personagem entrar, esta constante vira o valor inicial do que
+## o jogador escolher e o escolhido persiste no save — nunca no bestiário,
+## que só conhece NPC.
+const DEFAULT_RECIPE := {
+	"gender": "male",
+	"hair": "Hair_SimpleParted",
+	"body": "Male_Ranger_Body",
+	"arms": "Male_Ranger_Arms",
+	"legs": "Male_Ranger_Legs",
+	"feet": "Male_Ranger_Feet_Boots",
+}
+
 ## Quão rápido o corpo gira para encarar a direção do movimento.
 @export var turn_speed: float = 12.0
 
 @export var gravity: float = 24.0
 
+## Relevo do mapa, injetado por `WorldRoot`. Nulo (bancada de teste sem mundo)
+## = ninguém está na água, e o corpo anda como sempre andou.
+var terrain: MapTerrain
+
 var _speed_target := 0.0
+var _rig: CharacterRig
+
+
+
+func _ready() -> void:
+	_rig = CharacterRig.create(DEFAULT_RECIPE)
+	if _rig == null:
+		return
+	# Pés na base da cápsula de colisão (origem do corpo é o centro dela).
+	var shape := $Collision.shape as CapsuleShape3D
+	_rig.position.y = -shape.height * 0.5
+	add_child(_rig)
+	# A cápsula segue existindo como colisão; o cilindro visual sai de cena.
+	$Mesh.visible = false
 
 
 func _physics_process(delta: float) -> void:
@@ -52,6 +86,26 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
+	if _rig != null:
+		_rig.update_motion(ground_speed(), submerged())
+
+
+## O domador está debaixo d'água?
+##
+## Medido nos PÉS, não no centro do corpo: é o pé que decide se ele já subiu a
+## rampa da costa, e testar o centro o faria "sair da água" meio metro antes de
+## o corpo sair.
+##
+## O PZ-01 é o leito de um mar — fora do platô da costa a resposta é sempre
+## sim, e por isso o nado é o estado NORMAL da exploração, não a exceção. Quem
+## responde é o terreno (`MapTerrain.submerged`), com a mesma cota que
+## fragmenta a névoa.
+func submerged() -> bool:
+	if terrain == null:
+		return false
+	return terrain.submerged(global_position - Vector3(0.0, staged_ground_offset(), 0.0))
+
+
 
 func _face_direction(direction: Vector3, delta: float) -> void:
 	# No Godot a frente de um nó é -Z, não +Z. `atan2(x, z)` alinharia o eixo
@@ -63,6 +117,47 @@ func _face_direction(direction: Vector3, delta: float) -> void:
 
 
 ## Velocidade horizontal atual, para a máquina de animação escolher entre
-## `idle` e `walk`.
+## `Idle`, `Walk` e `Run`.
 func ground_speed() -> float:
 	return Vector3(velocity.x, 0.0, velocity.z).length()
+
+
+# ---------------------------------------------------------------------------
+# contrato de encenação (BattleStaging)
+# ---------------------------------------------------------------------------
+#
+# Na abertura do duelo o mundo está pausado e o `_physics_process` daqui não
+# roda: quem leva este corpo até o posto de plateia é a `BattleStaging`. Ver o
+# mesmo par em `CreatureActor` sobre por que os métodos são chamados por nome.
+
+## Quanto a origem do corpo fica acima do chão: meia cápsula de colisão, que é
+## a mesma medida que o rig usa para pôr os pés no lugar (`_ready`). Lida da
+## forma, e não de uma constante, pelo mesmo motivo do raio em
+## `EncounterDirector._player_radius` — duas medidas do mesmo corpo
+## discordariam no dia em que uma delas mudasse.
+func staged_ground_offset() -> float:
+	var collision := get_node_or_null("Collision") as CollisionShape3D
+	if collision and collision.shape is CapsuleShape3D:
+		return (collision.shape as CapsuleShape3D).height * 0.5
+	return 0.0
+
+
+## A marcha imposta pela encenação, pela mesma escada da exploração.
+##
+## Zera a velocidade junto: a encenação é dona deste corpo enquanto o mundo
+## está pausado, e a velocidade guardada do instante do engate voltaria a valer
+## no quadro em que a árvore despausa — o jogador daria um tranco na direção em
+## que estava andando antes de o duelo abrir.
+func staged_gait(speed: float) -> void:
+	velocity = Vector3.ZERO
+	if _rig != null:
+		_rig.update_motion(speed, submerged())
+
+
+## A encenação é dona deste corpo enquanto o mundo está pausado, e nó pausado
+## não anima: sem isto o rig fica congelado no quadro em que o duelo abriu.
+func staged_animating(enabled: bool) -> void:
+	if _rig != null:
+		_rig.animate_while_paused(enabled)
+
+

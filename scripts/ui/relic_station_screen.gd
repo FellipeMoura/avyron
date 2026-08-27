@@ -6,7 +6,7 @@ extends PanelContainer
 ## lugar, é o mesmo lugar com a atenção em outra coisa.
 ##
 ## Quatro modos, um de cada vez — Tab circula entre eles:
-##   INFO      status do relicário equipado (nível, XP, capacidade, taxa, buff)
+##   INFO      status do relicário equipado (nível, XP, capacidade, taxa)
 ##   DEPOSIT   manda um ativo pro storage
 ##   WITHDRAW  traz um guardado de volta pro ativo
 ##   SWAP      troca de modelo — só habilitado com o time ativo vazio
@@ -194,10 +194,9 @@ func _info_lines() -> Array[String]:
 	])
 	var to_next := _relic.xp_to_next(_db)
 	out.append("[color=%s]xp[/color]  %d/%d" % [COL_SLATE, _relic.xp, to_next])
-	out.append("[color=%s]slots[/color]  %d   [color=%s]taxa de captura[/color]  %.0f   [color=%s]buff[/color]  %.1f" % [
+	out.append("[color=%s]slots[/color]  %d   [color=%s]taxa de captura[/color]  %.0f" % [
 		COL_SLATE, _relic.slot_capacity(_db),
 		COL_SLATE, _relic.capture_rate(_db),
-		COL_SLATE, _relic.combat_buff(_db),
 	])
 	out.append("[color=%s]time[/color]  %d/%d   [color=%s]storage[/color]  %d" % [
 		COL_SLATE, _roster.size(), _roster.capacity(), COL_SLATE, _roster.storage_size(),

@@ -22,8 +22,35 @@ const AQUA_KIT := "res://models/biomes/aquatic/"
 const PZ01_WATER_BG := Color("#0E3D4A")
 const PZ01_AMBIENT := Color("#4E8896")
 const PZ01_FOG := Color("#1A5D6C")
-const PZ01_FOG_DENSITY := 0.011
 const PZ01_SUN := Color("#CFEFE8")
+
+## A iluminação é FRAGMENTADA por altura, não por região: a névoa fria é
+## densa ABAIXO da linha d'água (névoa de altura do Environment) e rala acima
+## dela — o leito fica imerso na murk e a costa emerge para um ar mais limpo,
+## sem precisar de segundo Environment. A linha fica logo abaixo do topo do
+## platô (`MapTerrain.COAST_HEIGHT` = 1,6) para a rampa atravessar a
+## superfície no meio da subida.
+const PZ01_WATER_LINE := 1.25
+## A base vale para o mapa inteiro (inclusive a costa — um resto de maresia);
+## a densidade subaquática precisa ser alta porque, na câmera ortográfica
+## inclinada, o raio de visão atravessa POUCO da camada baixa: a acumulação
+## vem quase toda destes ~2,5 m de caminho dentro da murk.
+const PZ01_FOG_BASE_DENSITY := 0.006
+const PZ01_FOG_UNDERWATER_DENSITY := 1.0
+
+## O tom quente do trecho seco vem de luzes de preenchimento locais sobre a
+## vila da costa — luz posicional é naturalmente fragmentada, então o sol e o
+## ambiente globais continuam frios para o mar. Sem sombra: são banho de cor,
+## não fonte de leitura.
+const PZ01_COAST_LIGHT := Color("#FFD9A6")
+const PZ01_COAST_LIGHT_ENERGY := 1.1
+const PZ01_COAST_LIGHT_RANGE := 13.0
+const PZ01_COAST_LIGHT_SPOTS: Array = [Vector3(2.0, 5.5, -23.0), Vector3(10.0, 5.5, -23.5)]
+## A ilha da arena recebe o mesmo banho quente pela mesma regra: chão que
+## emerge sai da murk também na luz. Uma omni só, centrada — o platô inteiro
+## cabe no alcance.
+const PZ01_ISLAND_LIGHT_SPOT := Vector3(0.0, 6.0, 0.0)
+const PZ01_ISLAND_LIGHT_RANGE := 12.0
 
 ## Paleta do solo, consumida pelo shader do `MapTerrain` (base/variação por
 ## ruído/inclinações). Leito de areia com encostas em rocha esverdeada.
@@ -38,21 +65,36 @@ const PZ01_GROUND := {
 ## Raio 0 = atravessável (o arco é passagem por baixo de propósito). Os
 ## modelos do Meshy chegam normalizados em ~1×1×1 — a escala aqui é o porte.
 ## Posições evitam os pontos fixos do `WorldPopulator` e a origem do jogador.
+##
+## O MIOLO ficou vazio de coral quando a ilha subiu ali: seis peças que
+## estavam entre 4 e 8 m do centro foram para o anel de 11–15 m, onde
+## continuam sendo recife submerso. Coral apoiado na encosta seca da ilha
+## seria a mesma contradição que a costa já não comete.
 const PZ01_LANDMARKS: Array = [
-	["Coralstone_Arch", Vector3(2, 0, -11), 0.4, 9.0, 0.0],
+	["Coralstone_Arch", Vector3(3, 0, -15), 0.4, 9.0, 0.0],
 	["Coralstone_Arch", Vector3(-18, 0, 14), 2.0, 7.0, 0.0],
 	["Turquoise_Reef_Stone", Vector3(-13, 0, -9), 1.2, 5.0, 2.2],
 	["Turquoise_Reef_Stone", Vector3(16, 0, 12), 0.3, 4.0, 1.8],
 	["Jade_Reef_Garden", Vector3(14, 0, -4), 2.6, 4.0, 1.8],
 	["Jade_Reef_Garden", Vector3(-20, 0, -2), 5.0, 3.2, 1.5],
-	["Terraced_Stone_Mounds", Vector3(-1, 0, -5), 5.2, 3.8, 1.6],
+	["Terraced_Stone_Mounds", Vector3(-6, 0, 12), 5.2, 3.8, 1.6],
 	["Terraced_Stone_Mounds", Vector3(12, 0, -14), 1.0, 3.0, 1.3],
-	["Aqua_Bloom_Grove", Vector3(7, 0, 5), 4.0, 3.5, 1.5],
+	["Aqua_Bloom_Grove", Vector3(11, 0, 5), 4.0, 3.5, 1.5],
 	["Pastel_Tidepool_Treas", Vector3(-12, 0, 6), 3.1, 3.0, 1.3],
-	["Aqua_Coral_Garden", Vector3(-4, 0, 4), 0.9, 3.2, 0.0],
-	["Aqua_Sponge_Cluster", Vector3(-2, 0, 7), 1.7, 2.6, 0.0],
-	["Seafoam_Pipe_Coral", Vector3(4, 0, 1.5), 0.0, 2.8, 0.0],
-	["Reef_Cluster", Vector3(-4, 0, -3), 0.6, 2.4, 0.0],
+	["Aqua_Coral_Garden", Vector3(3, 0, 12), 0.9, 3.2, 0.0],
+	["Aqua_Sponge_Cluster", Vector3(9, 0, 10), 1.7, 2.6, 0.0],
+	["Seafoam_Pipe_Coral", Vector3(10, 0, -8), 0.0, 2.8, 0.0],
+	["Reef_Cluster", Vector3(-11, 0, -4), 0.6, 2.4, 0.0],
+	# Na ilha: duas pedras miúdas no topo, uma de cada lado da arena. São
+	# silhueta — sem elas o platô lê como bolha de terreno em vez de rochedo,
+	# e é a silhueta que a câmera ortográfica dá ao jogador de longe. Porte
+	# pequeno de propósito: peça grande aqui esconderia o duelista.
+	# As duas são o MESMO modelo em porte e giro diferentes, e isso é escolha:
+	# `Terraced_Stone_Mounds` é a única peça do kit que lê como rocha em vez de
+	# coral. Um coral de pé em terra seca contradiz a ilha inteira — foi o que
+	# a primeira captura mostrou, com um recife turquesa ao lado do duelista.
+	["Terraced_Stone_Mounds", Vector3(3.4, 0, 1.6), 0.8, 2.2, 1.0],
+	["Terraced_Stone_Mounds", Vector3(-3.4, 0, -1.2), 2.3, 2.6, 0.9],
 ]
 
 ## Vegetação miúda espalhada por semente: [arquivo, escala mín, escala máx].
@@ -81,6 +123,16 @@ static func ground_palette(map_code: String) -> Dictionary:
 	return PZ01_GROUND if map_code == "PZ-01" else {}
 
 
+## Cota da superfície da água deste mapa; `-INF` = mapa seco.
+##
+## Mesmo raciocínio da paleta: onde fica a superfície é decisão de bioma, e o
+## terreno só a consome. A cota é a MESMA que fragmenta a névoa, e tem de
+## continuar sendo: se o jogador nadasse numa cota e a murk trocasse noutra, a
+## imagem contradiria o corpo na rampa da costa.
+static func water_line(map_code: String) -> float:
+	return PZ01_WATER_LINE if map_code == "PZ-01" else -INF
+
+
 static func apply(root: Node3D, map_code: String, terrain: MapTerrain = null) -> void:
 	if map_code != "PZ-01":
 		return
@@ -105,8 +157,10 @@ static func apply(root: Node3D, map_code: String, terrain: MapTerrain = null) ->
 		var angle := rng.randf() * TAU
 		var dist := rng.randf_range(SCATTER_RADIUS_MIN, SCATTER_RADIUS_MAX)
 		var pos := Vector3(cos(angle) * dist, 0.0, sin(angle) * dist)
-		# A costa fica sem bioma natural — é o adro dos NPCs e portais.
-		if terrain and terrain.on_coast(pos):
+		# A costa fica sem bioma natural — é o adro dos NPCs e portais. A ilha
+		# também: o que cresce nela são as duas pedras fixas acima, postas à
+		# mão. Margem de 1,5 m para nenhuma alga nascer encostada na saia.
+		if terrain and (terrain.on_coast(pos) or terrain.on_island(pos, 1.5)):
 			continue
 		if _too_close(pos, occupied):
 			continue
@@ -144,7 +198,12 @@ static func _apply_pz01_ambience(root: Node3D) -> void:
 	env.ambient_light_energy = 1.35
 	env.fog_enabled = true
 	env.fog_light_color = PZ01_FOG
-	env.fog_density = PZ01_FOG_DENSITY
+	# Névoa de altura: densa abaixo da linha d'água, quase nada acima. O sinal
+	# POSITIVO de `fog_height_density` é o que faz a névoa engrossar para
+	# BAIXO da cota — invertido, a costa afogaria e o mar clarearia.
+	env.fog_density = PZ01_FOG_BASE_DENSITY
+	env.fog_height = PZ01_WATER_LINE
+	env.fog_height_density = PZ01_FOG_UNDERWATER_DENSITY
 	var we := WorldEnvironment.new()
 	we.name = "Ambience"
 	we.environment = env
@@ -160,6 +219,26 @@ static func _apply_pz01_ambience(root: Node3D) -> void:
 		key.light_color = PZ01_SUN
 		key.light_energy = 1.35
 		key.shadow_enabled = true
+
+	# O banho quente do trecho seco. Omnis largas sobre a vila da costa: quem
+	# sobe a rampa entra no alcance delas e "sai da água" também na luz.
+	for i in PZ01_COAST_LIGHT_SPOTS.size():
+		_add_fill_light(root, "CoastFill%d" % i, PZ01_COAST_LIGHT_SPOTS[i],
+			PZ01_COAST_LIGHT_RANGE)
+	_add_fill_light(root, "IslandFill", PZ01_ISLAND_LIGHT_SPOT, PZ01_ISLAND_LIGHT_RANGE)
+
+
+## Uma omni de preenchimento sobre chão emerso. Sem sombra de propósito: é
+## banho de cor, não fonte de leitura — quem desenha volume aqui é o sol.
+static func _add_fill_light(root: Node3D, node_name: String, pos: Vector3, light_range: float) -> void:
+	var fill := OmniLight3D.new()
+	fill.name = node_name
+	fill.position = pos
+	fill.light_color = PZ01_COAST_LIGHT
+	fill.light_energy = PZ01_COAST_LIGHT_ENERGY
+	fill.omni_range = light_range
+	fill.shadow_enabled = false
+	root.add_child(fill)
 
 
 static func _place(

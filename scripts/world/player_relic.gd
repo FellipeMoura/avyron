@@ -3,7 +3,7 @@ extends RefCounted
 
 ## O relicário equipado pelo jogador: só o estado de progressão persiste
 ## (código do modelo, nível, XP acumulado) — o resto (slotCapacity, taxa de
-## captura, buff) é resolvido no bundle a cada leitura, mesmo estilo de
+## captura) é resolvido no bundle a cada leitura, mesmo estilo de
 ## `PlayerRoster`/`Combatant`.
 ##
 ## Sem consumível: capturar não gasta nada do relicário, só alimenta a barra
@@ -56,9 +56,6 @@ func max_level(db: BestiaryData) -> int:
 func capture_rate(db: BestiaryData) -> float:
 	return db.relic_capture_rate_at_level(relic_code, level) if db != null else 0.0
 
-
-func combat_buff(db: BestiaryData) -> float:
-	return db.relic_combat_buff_at_level(relic_code, level) if db != null else 0.0
 
 
 func xp_to_next(db: BestiaryData) -> int:

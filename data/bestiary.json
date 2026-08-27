@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.262",
-  "generatedAt": "2026-08-24T20:05:08.355Z",
+  "dataVersion": "0.273",
+  "generatedAt": "2026-08-27T01:32:16.013Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -51,27 +51,69 @@
   "elements": [
     {
       "code": "ELE-001",
-      "name": "Fogo"
+      "name": "Fogo",
+      "palette": {
+        "shadow": "#3B0F0A",
+        "mid": "#C6552F",
+        "highlight": "#FFC66B",
+        "aura": "#FF8A3D",
+        "spread": 0.18
+      }
     },
     {
       "code": "ELE-002",
-      "name": "Agua"
+      "name": "Agua",
+      "palette": {
+        "shadow": "#08243B",
+        "mid": "#2E7FA8",
+        "highlight": "#9FE3F0",
+        "aura": "#4FD2FF",
+        "spread": 0.18
+      }
     },
     {
       "code": "ELE-003",
-      "name": "Natureza"
+      "name": "Natureza",
+      "palette": {
+        "shadow": "#16301B",
+        "mid": "#5F8C4A",
+        "highlight": "#CBE08A",
+        "aura": "#8FE04B",
+        "spread": 0.22
+      }
     },
     {
       "code": "ELE-004",
-      "name": "Terra"
+      "name": "Terra",
+      "palette": {
+        "shadow": "#2B1C10",
+        "mid": "#8A7047",
+        "highlight": "#E3C98F",
+        "aura": "#D9A441",
+        "spread": 0.2
+      }
     },
     {
       "code": "ELE-005",
-      "name": "Eletricidade"
+      "name": "Eletricidade",
+      "palette": {
+        "shadow": "#101014",
+        "mid": "#C9A227",
+        "highlight": "#FFF07A",
+        "aura": "#FFE23D",
+        "spread": 0.12
+      }
     },
     {
       "code": "ELE-006",
-      "name": "Gelo"
+      "name": "Gelo",
+      "palette": {
+        "shadow": "#2A3E52",
+        "mid": "#8FB8C9",
+        "highlight": "#F2FBFF",
+        "aura": "#BFF3FF",
+        "spread": 0.15
+      }
     }
   ],
   "elementalAdvantages": [
@@ -183,19 +225,38 @@
       "code": "PZ-01",
       "name": "Aetheris I — Mundo dos Mares",
       "era": "paleozoic",
-      "sortOrder": 1
+      "sortOrder": 1,
+      "biomes": [
+        "BIO-002",
+        "BIO-001",
+        "BIO-003",
+        "BIO-004"
+      ]
     },
     {
       "code": "PZ-02",
       "name": "Aetheris II — Conquista das Margens",
       "era": "paleozoic",
-      "sortOrder": 2
+      "sortOrder": 2,
+      "biomes": [
+        "BIO-005",
+        "BIO-006",
+        "BIO-007",
+        "BIO-008"
+      ]
     },
     {
       "code": "PZ-03",
       "name": "Aetheris III — Domínio Terrestre",
       "era": "paleozoic",
-      "sortOrder": 3
+      "sortOrder": 3,
+      "biomes": [
+        "BIO-009",
+        "BIO-010",
+        "BIO-011",
+        "BIO-012",
+        "BIO-013"
+      ]
     }
   ],
   "biomes": [
@@ -740,8 +801,6 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Glub.glb",
       "stats": {
@@ -807,8 +866,6 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Squidle.glb",
       "stats": {
@@ -874,8 +931,6 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Pigeon.glb",
       "stats": {
@@ -941,8 +996,6 @@
       "class": "CLS-001",
       "element": "ELE-004",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Goleling.glb",
       "stats": {
@@ -1008,8 +1061,6 @@
       "class": "CLS-001",
       "element": "ELE-003",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
       "stats": {
@@ -1075,8 +1126,6 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Tribal.glb",
       "stats": {
@@ -1142,8 +1191,6 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Ghost.glb",
       "stats": {
@@ -1209,8 +1256,6 @@
       "class": "CLS-001",
       "element": "ELE-003",
       "map": "PZ-01",
-      "biome": null,
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Armabee_Evolved.glb",
       "stats": {
@@ -1276,8 +1321,6 @@
       "class": "CLS-001",
       "element": "ELE-003",
       "map": "PZ-01",
-      "biome": null,
-      "role": "regular",
       "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
       "modelUrl": "/models/placeholders/flying/Hywirl.glb",
       "stats": {
@@ -1343,8 +1386,6 @@
       "class": "CLS-001",
       "element": "ELE-001",
       "map": "PZ-01",
-      "biome": null,
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Dragon_Evolved.glb",
       "stats": {
@@ -1410,8 +1451,6 @@
       "class": "CLS-001",
       "element": "ELE-003",
       "map": "PZ-01",
-      "biome": null,
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Ghost_Skull.glb",
       "stats": {
@@ -1477,8 +1516,6 @@
       "class": "CLS-001",
       "element": "ELE-005",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Goleling_Evolved.glb",
       "stats": {
@@ -1530,7 +1567,12 @@
           "condition": "Derrota em combate"
         }
       ],
-      "awakening": null
+      "awakening": {
+        "code": "DSP-013",
+        "name": "Maldybulakia Tonans",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
     },
     {
       "code": "CRT-014",
@@ -1539,8 +1581,6 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Glub_Evolved.glb",
       "stats": {
@@ -1606,8 +1646,6 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking_Evolved.glb",
       "stats": {
@@ -1673,8 +1711,6 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": "BIO-001",
-      "role": null,
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Dragon.glb",
       "stats": {
@@ -1740,8 +1776,6 @@
       "class": "CLS-002",
       "element": "ELE-001",
       "map": "PZ-01",
-      "biome": null,
-      "role": "hero",
       "silhouetteNote": "Vela dorsal alta e triangular sustentada por espinhos ósseos alongados; corpo quadrupede robusto, cauda longa afinada; cabeça alongada com dentes carniceiros diferenciados. Silhueta dominada pela vela — sinapsídeo comumente confundido com dinossauro.",
       "modelUrl": "/models/placeholders/big/MushroomKing.glb",
       "stats": {
@@ -1807,8 +1841,6 @@
       "class": "CLS-002",
       "element": "ELE-003",
       "map": "PZ-01",
-      "biome": null,
-      "role": "regular",
       "silhouetteNote": "Vela dorsal com travessas ósseas transversais formando padrão de grade sobre os espinhos; corpo quadrupede baixo e denso, cauda curta; cabeça pequena de herbívoro. Contraponto visual ao Dimetrodon — mesma vela, padrão diferente, papel oposto.",
       "modelUrl": "/models/placeholders/big/Bunny.glb",
       "stats": {
@@ -1874,8 +1906,6 @@
       "class": "CLS-002",
       "element": "ELE-004",
       "map": "PZ-01",
-      "biome": null,
-      "role": "regular",
       "silhouetteNote": "Corpo atarracado e baixo, quatro membros curtos e robustos; cabeça grande com bico córneo curto e um par de presas caniniformes pequenas apontando para baixo; sem crista, sem vela. Silhueta compacta em barril — sobrevivente icônico da extinção Permo-Triássica.",
       "modelUrl": "/models/placeholders/big/Orc_Skull.glb",
       "stats": {
@@ -1941,8 +1971,6 @@
       "class": "CLS-002",
       "element": "ELE-004",
       "map": "PZ-01",
-      "biome": null,
-      "role": "regular",
       "silhouetteNote": "Cabeça bulbosa com crânio espesso arredondado adaptado a combate de topada; corpo curvado com dorso arqueado tipo urso-tatu, membros curtos; cauda curta. Silhueta corcunda dominante.",
       "modelUrl": "/models/placeholders/big/Cactoro.glb",
       "stats": {
@@ -2008,8 +2036,6 @@
       "class": "CLS-002",
       "element": "ELE-001",
       "map": "PZ-01",
-      "biome": null,
-      "role": "hero",
       "silhouetteNote": "Corpo esguio quadrupede tipo grande felino; cabeça alongada com par de caninos superiores enormes que ultrapassam a mandíbula fechada; cauda longa. Silhueta de predador-lâmina — contraste direto com Moschops.",
       "modelUrl": "/models/placeholders/big/Monkroose.glb",
       "stats": {
@@ -2075,8 +2101,6 @@
       "class": "CLS-002",
       "element": "ELE-004",
       "map": "PZ-01",
-      "biome": null,
-      "role": "hero",
       "silhouetteNote": "Corpo cilíndrico desproporcionalmente gigantesco em barril; cabeça minúscula em relação ao corpo; membros curtos afastados; cauda curta. Silhueta cômica: pequena cabeça sobre corpo bola — bom mini-boss territorial.",
       "modelUrl": "/models/placeholders/big/Orc.glb",
       "stats": {
@@ -2142,8 +2166,6 @@
       "class": "CLS-003",
       "element": "ELE-004",
       "map": "PZ-01",
-      "biome": null,
-      "role": "hero",
       "silhouetteNote": "Corpo quadrupede blindado com fileiras de placas ósseas ao longo do dorso e flancos; cabeça larga com espinhos e verrugas ósseas laterais; membros grossos; cauda curta. Silhueta quadrada e couraçada — tanque de área.",
       "modelUrl": "/models/placeholders/big/Alien.glb",
       "stats": {
@@ -2209,8 +2231,6 @@
       "class": "CLS-003",
       "element": "ELE-003",
       "map": "PZ-01",
-      "biome": null,
-      "role": "regular",
       "silhouetteNote": "Pequeno lagartiforme quadrupede (~20 cm de comprimento total), corpo delgado, cauda longa afinada; cabeça triangular pequena. Silhueta neutra de réptil basal — criatura comum/inicial de mapa.",
       "modelUrl": "/models/placeholders/big/Ninja.glb",
       "stats": {
@@ -2276,8 +2296,6 @@
       "class": "CLS-003",
       "element": "ELE-005",
       "map": "PZ-01",
-      "biome": null,
-      "role": "regular",
       "silhouetteNote": "Diapsídeo esguio quadrupede com pernas longas relativas ao corpo (adaptação corredora); cauda longa como contrapeso; cabeça pequena com fenestras cranianas visíveis. Silhueta atlética.",
       "modelUrl": "/models/placeholders/big/Frog.glb",
       "stats": {
@@ -2343,8 +2361,6 @@
       "class": "CLS-003",
       "element": "ELE-002",
       "map": "PZ-01",
-      "biome": null,
-      "role": "regular",
       "silhouetteNote": "Corpo alongado hidrodinâmico, cauda achatada em remo lateral; membros modificados em nadadeiras; focinho fino e alongado com dentes agulha finos e numerosos. Silhueta aquática — cobre nicho anfíbio.",
       "modelUrl": "/models/placeholders/big/Tribal.glb",
       "stats": {
@@ -2410,8 +2426,6 @@
       "class": "CLS-003",
       "element": "ELE-004",
       "map": "PZ-01",
-      "biome": null,
-      "role": "regular",
       "silhouetteNote": "Quadrupede robusto baixo, corpo denso e musculoso; cabeça larga com maxilares fortes e várias fileiras de dentes; sem cristas nem placas visíveis. Silhueta compacta e discreta — comum forte.",
       "modelUrl": "/models/placeholders/big/BlueDemon.glb",
       "stats": {
@@ -2477,8 +2491,6 @@
       "class": "CLS-003",
       "element": "ELE-005",
       "map": "PZ-01",
-      "biome": null,
-      "role": null,
       "silhouetteNote": "Pequeno reptil quadrupede com membranas de planeio sustentadas por costelas alongadas nas laterais do tronco; cabeca pequena com crista ossea baixa; cauda longa fina. Silhueta alada quando em glide, contraste aereo aos repteis terrestres do elenco.",
       "modelUrl": "/models/placeholders/big/Birb.glb",
       "stats": {
@@ -2538,8 +2550,6 @@
       "class": "CLS-003",
       "element": "ELE-005",
       "map": "PZ-01",
-      "biome": null,
-      "role": null,
       "silhouetteNote": "Diapsideo esguio de pescoco alongado e cabeca pequena triangular; corpo quadrupede moderado, cauda longa afilada. Silhueta de pescoco como traco distintivo, generalista de porte medio do Permiano.",
       "modelUrl": "/models/placeholders/big/Demon.glb",
       "stats": {
@@ -2599,8 +2609,6 @@
       "class": "CLS-003",
       "element": "ELE-004",
       "map": "PZ-01",
-      "biome": null,
-      "role": null,
       "silhouetteNote": "Corpo quadrupede alongado tipo crocodiliano primitivo; focinho comprido e estreito com dentes conicos numerosos; membros curtos afastados do corpo; cauda longa. Silhueta rasteira de emboscada, predador de Terra em contraponto agil ao Scutosaurus blindado.",
       "modelUrl": "/models/placeholders/big/Dino.glb",
       "stats": {
@@ -2660,8 +2668,6 @@
       "class": "CLS-002",
       "element": "ELE-005",
       "map": "PZ-01",
-      "biome": null,
-      "role": null,
       "silhouetteNote": "Vela dorsal baixa e rudimentar, menos proeminente que a do Dimetrodon; corpo quadrupede esguio de sinapsideo carnivoro; cauda longa afinada; cabeca alongada com dentes diferenciados. Silhueta-irma do Dimetrodon, mesma familia, porte menor.",
       "modelUrl": "/models/placeholders/big/Fish.glb",
       "stats": {
@@ -2721,8 +2727,6 @@
       "class": "CLS-002",
       "element": "ELE-005",
       "map": "PZ-01",
-      "biome": null,
-      "role": null,
       "silhouetteNote": "Pequeno cinodonte quase-mamifero, corpo baixo e alongado tipo furao; cabeca curta com mandibula robusta; postura semi-ereta com membros sob o corpo. Silhueta agil e escavadora, contemporaneo do Lystrosaurus na travessia Permo-Triassica.",
       "modelUrl": "/models/placeholders/big/Frog.glb",
       "stats": {
@@ -2986,9 +2990,7 @@
       "slotCapacity": 2,
       "baseCaptureRate": 80,
       "captureRatePerLevel": 4,
-      "maxLevel": 30,
-      "combatBuffBase": 0,
-      "combatBuffPerLevel": 0
+      "maxLevel": 30
     },
     {
       "code": "RLC-001",
@@ -2999,9 +3001,7 @@
       "slotCapacity": 3,
       "baseCaptureRate": 80,
       "captureRatePerLevel": 4,
-      "maxLevel": 30,
-      "combatBuffBase": 5,
-      "combatBuffPerLevel": 0.3
+      "maxLevel": 30
     },
     {
       "code": "RLC-002",
@@ -3012,9 +3012,7 @@
       "slotCapacity": 3,
       "baseCaptureRate": 80,
       "captureRatePerLevel": 4,
-      "maxLevel": 30,
-      "combatBuffBase": 5,
-      "combatBuffPerLevel": 0.3
+      "maxLevel": 30
     },
     {
       "code": "RLC-003",
@@ -3025,9 +3023,7 @@
       "slotCapacity": 3,
       "baseCaptureRate": 80,
       "captureRatePerLevel": 4,
-      "maxLevel": 30,
-      "combatBuffBase": 5,
-      "combatBuffPerLevel": 0.3
+      "maxLevel": 30
     }
   ],
   "economy": {
@@ -3043,6 +3039,18 @@
       "faction": "Guilda dos Curadores",
       "map": "PZ-01",
       "notes": "Trata dos achados e de quem os traz. Compra mineral bruto, vende emplastro.",
+      "appearance": {
+        "gender": "male",
+        "hair": "Hair_SimpleParted",
+        "eyebrows": "Eyebrows_Regular",
+        "beard": "Hair_Beard",
+        "body": "Male_Peasant_Body",
+        "arms": "Male_Peasant_Arms",
+        "legs": "Male_Peasant_Legs",
+        "feet": "Male_Peasant_Feet",
+        "head": null,
+        "accessory": null
+      },
       "offers": [
         {
           "itemCode": "ITM-016",
@@ -3065,7 +3073,19 @@
       "name": "Campeao da Arena",
       "faction": null,
       "map": "PZ-01",
-      "notes": "NPC da arena de Aetheris I. Vencer o duelo concede o Glifo Daleth (ver documento glifos-e-portais). Combate is_wild=false, sem captura."
+      "notes": "NPC da arena de Aetheris I. Vencer o duelo concede o Glifo Daleth (ver documento glifos-e-portais). Combate is_wild=false, sem captura.",
+      "appearance": {
+        "gender": "female",
+        "hair": "Hair_Buns",
+        "eyebrows": "Eyebrows_Female",
+        "beard": null,
+        "body": "Female_Ranger_Body",
+        "arms": "Female_Ranger_Arms",
+        "legs": "Female_Ranger_Legs",
+        "feet": "Female_Ranger_Feet",
+        "head": null,
+        "accessory": "Female_Ranger_Acc_Pauldrons"
+      }
     }
   ],
   "mining": {

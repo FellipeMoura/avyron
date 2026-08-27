@@ -40,13 +40,30 @@ extends Node3D
 @export var starter_code := "CRT-002"
 @export var encounter_level := 10
 
+## Bioma que o mundo usa, de todos os que o mapa tem.
+##
+## PZ-01 tem quatro no catálogo (Costa Primordial, Mar raso, Jardins Recifais,
+## Mar Profundo) e o mundo usa **um**: não existe noção espacial de bioma aqui
+## — `MapDressing` veste o mapa inteiro com um kit só, e não há região a que
+## prender um bioma diferente. Enquanto isso não existir, escolher é o
+## honesto; derivar do mapa seria fingir que a escolha vem do dado.
+##
+## Por que `BIO-001` e não o primeiro da lista: é o único dos treze com taxas
+## em `mining_rates`. Nos outros a fórmula `peso_classe × peso_bioma` perde
+## metade **em silêncio** — `MiningTable` trata lado ausente como neutro e a
+## mineração vira só classe, sem erro. `test_data.gd` prende isso.
+##
+## Para virar consulta de verdade, faltam duas coisas, nesta ordem: as 12
+## taxas de cada bioma restante (o documento `mineracao` já manda) e uma
+## partição espacial do mapa que diga em que bioma o jogador está pisando.
+const DEFAULT_BIOME := "BIO-001"
+
 ## Onde o jogador está. O mapa escolhe o elenco selvagem; o bioma é metade da
 ## fórmula de mineração — a outra metade é a classe da criatura ativa.
-##
-## Fica em `@export` em vez de derivado do bundle porque `maps` não carrega a
-## junção mapa↔bioma no export. Quando carregar, isto vira consulta.
-@export var map_code := "PZ-01"
-@export var biome_code := "BIO-001"
+const DEFAULT_MAP := "PZ-01"
+
+@export var map_code := DEFAULT_MAP
+@export var biome_code := DEFAULT_BIOME
 
 var _camera: IsoCamera
 var _player: Node3D
@@ -102,6 +119,24 @@ var _portal_guardian: PortalGuardianActor
 const MINE_COOLDOWN_SEC := 3.0
 
 
+## Avisa se o bioma declarado não é um dos que o mapa tem.
+##
+## Não derruba o jogo — um bioma errado ainda roda, só perde metade da fórmula
+## de mineração. É exatamente por não quebrar que precisa gritar: o sintoma
+## seria "a picareta parou de dar cristal", meses depois, sem nada apontando
+## para cá.
+func _assert_biome_belongs_to_map() -> void:
+	if _db == null:
+		return
+	var available := _db.biomes_in_map(map_code)
+	if available.is_empty():
+		push_warning("mapa %s nao lista biomas no bundle — conferencia impossivel" % map_code)
+		return
+	if not available.has(biome_code):
+		push_error("bioma %s nao pertence ao mapa %s (o mapa tem %s) — a mineracao vai cair para so-classe em silencio"
+			% [biome_code, map_code, str(available)])
+
+
 func _ready() -> void:
 	_camera = get_node_or_null("IsoCamera") as IsoCamera
 	_player = get_node_or_null("Player")
@@ -112,6 +147,7 @@ func _ready() -> void:
 	# resolvem esse identificador, e a falha é erro de compilação, não de
 	# runtime.
 	_progress = get_node_or_null("/root/Progress") as PlayerProgress
+	_assert_biome_belongs_to_map()
 
 	# A câmera continua processando durante a pausa. Um Tween acompanha o
 	# estado de pausa do nó a que está preso, então sem isto o zoom de entrada
@@ -148,7 +184,18 @@ func _ready() -> void:
 		flat_ground.free()
 	_terrain = MapTerrain.create(MapDressing.ground_palette(map_code))
 	_terrain.name = "Ground"
+	# A cota da superfície é vestimenta do bioma, como a paleta: quem a define é
+	# `MapDressing` (a MESMA que fragmenta a névoa), quem responde "estou na
+	# água?" é o terreno.
+	_terrain.water_line = MapDressing.water_line(map_code)
 	add_child(_terrain)
+	# O domador pergunta ao terreno se está submerso para escolher entre andar e
+	# nadar. Injetado aqui pelo mesmo motivo do spawner e da companheira.
+	var controller := _player as PlayerController
+	if controller:
+		controller.terrain = _terrain
+
+
 
 	_spawner = CreatureSpawner.new()
 	_spawner.name = "CreatureSpawner"
@@ -174,9 +221,9 @@ func _ready() -> void:
 		_companion.terrain = _terrain
 	_merchants = WorldPopulator.spawn_merchants(self, _db, map_code, _on_merchant_engaged, _terrain)
 	_relic_station = WorldPopulator.spawn_relic_station(self, _on_relic_station_engaged, _terrain)
-	_arenas = WorldPopulator.spawn_arenas(self, _db, map_code, _on_arena_engaged)
+	_arenas = WorldPopulator.spawn_arenas(self, _db, map_code, _on_arena_engaged, _terrain)
 	_portal_guardian = WorldPopulator.spawn_portal_guardian(
-		self, _progress, _on_portal_guardian_engaged)
+		self, _progress, _on_portal_guardian_engaged, _terrain)
 
 	# O cenário (ambiente + props de bioma) entra por último e é apresentação
 	# pura: nada dele emite sinal, entra em fórmula ou guarda estado.
@@ -190,6 +237,10 @@ func _ready() -> void:
 		self, _camera, _spawner, _roster, _inventory, _companion, _player, _progress, _db,
 		_mine_rng, _show_mine_msg, _hide_world_hud, _show_world_hud, _clear_selection,
 		_update_hint, func(d: DuelScreen): _duel = d)
+	# Depois do `setup`, como o spawner e a companheira: é a encenação do duelo
+	# que precisa dele, para apoiar os três corpos no relevo enquanto os leva
+	# até os postos de batalha.
+	_encounter.terrain = _terrain
 
 	_build_hud()
 
@@ -250,7 +301,7 @@ func _update_hint() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	# Durante a batalha ou a loja o overlay processa em separado — nada aqui
 	# responde. Sem isto, `F` mineraria no meio de uma negociação.
-	if _duel != null or _shop != null:
+	if _modal_open():
 		return
 
 	if event is InputEventKey:
@@ -319,74 +370,62 @@ func _roster_open() -> bool:
 	return _roster_window != null and _roster_window.is_open()
 
 
+## Há um overlay modal por cima? Duelo, loja ou posto do Relicário.
+##
+## Estas três telas **pausam a árvore** ao abrir (`get_tree().paused = true`,
+## com o `CanvasLayer` delas em `PROCESS_MODE_ALWAYS`), e nó pausado não
+## recebe input — então o pause, e não este predicado, é o que de fato impede
+## `F` de minerar durante uma negociação. Este predicado guarda os pontos de
+## entrada **públicos**, que os testes headless chamam direto sem passar por
+## evento nenhum, e por tabela documenta em um lugar só quais telas são
+## modais.
+##
+## Duas famílias, e a distinção é a regra: overlay modal pausa o mundo e entra
+## aqui; janela de HUD (time, set, bolsa) deixa o mundo vivo atrás e se guarda
+## sozinha, como `_roster_open()` faz. Tela nova escolhe uma das duas — não
+## existe terceira.
+##
+## Estava escrito à mão em dez lugares, em quatro composições diferentes, e a
+## divergência não dava sintoma só porque o pause segurava tudo. Um guarda que
+## parece ser a proteção sem ser é pior que nenhum: leitor confia nele.
+func _modal_open() -> bool:
+	return _duel != null or _shop != null or _relic_screen != null
+
+
 ## Ponto de entrada do clique. Público porque os testes headless disparam
 ## seleção e engate sem passar por evento de mouse — mais estável do que
 ## sintetizar `InputEventMouseButton` com coordenadas de tela.
 func handle_click_at(screen_pos: Vector2) -> void:
 	var hit := _selection.pick_body(screen_pos)
 
-	# Comerciante e criatura respondem ao mesmo gesto, mas não ao mesmo
-	# fluxo: criatura tem seleção e segundo clique, comerciante abre direto —
-	# não há decisão de "vale a pena entrar?" a ser tomada antes de olhar a
-	# vitrine.
-	if hit is MerchantActor:
-		handle_click_on_merchant(hit as MerchantActor)
-		return
-	if hit is RelicStationActor:
-		handle_click_on_relic_station(hit as RelicStationActor)
-		return
-	if hit is ArenaActor:
-		handle_click_on_arena(hit as ArenaActor)
-		return
-	if hit is PortalGuardianActor:
-		handle_click_on_portal_guardian(hit as PortalGuardianActor)
+	# Duas famílias de clique, não cinco. Ponto fixo (`InteractableActor`)
+	# engata direto — não há decisão de "vale a pena entrar?" a ser tomada
+	# antes de olhar a vitrine. Criatura tem seleção e segundo clique.
+	#
+	# Testar contra o tipo base, e não contra cada classe concreta, é o que
+	# faz ator novo não exigir edição aqui. Antes eram quatro ramos `is`
+	# espelhando quatro handlers idênticos, mais uma segunda lista em
+	# `WorldSelection.pick_body` — e esquecer a segunda fazia o clique não
+	# fazer nada, sem erro nenhum.
+	if hit is InteractableActor:
+		handle_click_on_interactable(hit as InteractableActor)
 		return
 	handle_click_on(hit as CreatureActor)
 
 
-## Abre a loja, se o jogador estiver perto o bastante. Público pela mesma
-## razão dos outros pontos de entrada: teste headless não sintetiza mouse.
-func handle_click_on_merchant(actor: MerchantActor) -> void:
-	if actor == null or _shop != null or _duel != null:
+## Engata um ponto fixo do mapa — loja, posto do Relicário, arena, guardião.
+## Público pela mesma razão dos outros pontos de entrada: teste headless não
+## sintetiza mouse.
+##
+## O ator não sabe qual tela abre: ele emite `engaged`, e quem escuta (ligado
+## em `WorldPopulator`) decide. Por isso os quatro cabem numa função só — o
+## que os distinguia era só a mensagem de recusa, que agora sai do
+## `display_name` do próprio ator.
+func handle_click_on_interactable(actor: InteractableActor) -> void:
+	if actor == null or _modal_open():
 		return
-	if _player and actor.flat_distance_to(_player.global_position) > MerchantActor.INTERACT_RANGE:
+	if _player and actor.flat_distance_to(_player.global_position) > InteractableActor.INTERACT_RANGE:
 		_show_mine_msg("%s esta longe demais." % actor.display_name)
-		return
-	_clear_selection()
-	actor.request_engage()
-
-
-## Abre o posto do relicário, se o jogador estiver perto. Mesmo padrão de
-## `handle_click_on_merchant`.
-func handle_click_on_relic_station(actor: RelicStationActor) -> void:
-	if actor == null or _relic_screen != null or _duel != null or _shop != null:
-		return
-	if _player and actor.flat_distance_to(_player.global_position) > RelicStationActor.INTERACT_RANGE:
-		_show_mine_msg("O posto do relicario esta longe demais.")
-		return
-	_clear_selection()
-	actor.request_engage()
-
-
-## Engata o duelo de arena, se o jogador estiver perto. Mesmo padrão de
-## `handle_click_on_merchant`.
-func handle_click_on_arena(actor: ArenaActor) -> void:
-	if actor == null or _duel != null or _shop != null:
-		return
-	if _player and actor.flat_distance_to(_player.global_position) > ArenaActor.INTERACT_RANGE:
-		_show_mine_msg("%s esta longe demais." % actor.display_name)
-		return
-	_clear_selection()
-	actor.request_engage()
-
-
-## Fala com o guardião do portal, se o jogador estiver perto. Mesmo padrão de
-## `handle_click_on_merchant`.
-func handle_click_on_portal_guardian(actor: PortalGuardianActor) -> void:
-	if actor == null or _duel != null or _shop != null:
-		return
-	if _player and actor.flat_distance_to(_player.global_position) > PortalGuardianActor.INTERACT_RANGE:
-		_show_mine_msg("O guardiao esta longe demais.")
 		return
 	_clear_selection()
 	actor.request_engage()
@@ -439,7 +478,7 @@ func staging() -> BattleStaging:
 ## e `trigger_mine`: os testes headless exercitam o fluxo pela API, não
 ## sintetizando tecla.
 func toggle_roster_window() -> void:
-	if _roster_window == null or _duel != null:
+	if _roster_window == null or _modal_open():
 		return
 	# Só uma janela central por vez — abertas juntas se sobrepõem na tela.
 	if _set_window != null and _set_window.is_open():
@@ -455,7 +494,7 @@ func toggle_roster_window() -> void:
 ## Abre/fecha a janela do set do jogador (tecla `E`). Público pelo mesmo
 ## motivo dos outros pontos de entrada: teste headless não sintetiza tecla.
 func toggle_set_window() -> void:
-	if _set_window == null or _duel != null:
+	if _set_window == null or _modal_open():
 		return
 	if _roster_window != null and _roster_window.is_open():
 		_roster_window.close()
@@ -572,8 +611,8 @@ func _active_class_code() -> String:
 ## jogador está e a classe da criatura que ele tem à frente. Nada de tabela
 ## local — trocar a ativa muda o resultado, e é para ser sentido.
 func trigger_mine() -> void:
-	if _duel != null or _shop != null:
-		return  # não minera durante combate nem negociação
+	if _modal_open():
+		return  # não minera com duelo, loja ou posto do Relicário por cima
 	if _mine_cooldown > 0.0:
 		_show_mine_msg("Aguardando... (%.1fs)" % _mine_cooldown)
 		return
@@ -609,7 +648,7 @@ func _on_inventory_changed() -> void:
 # ---------------------------------------------------------------------------
 
 func _on_merchant_engaged(actor: MerchantActor) -> void:
-	if _shop != null or _duel != null:
+	if _modal_open():
 		return
 
 	_hide_world_hud()
@@ -645,7 +684,7 @@ func _on_shop_closed() -> void:
 
 
 func _on_relic_station_engaged(actor: RelicStationActor) -> void:
-	if _relic_screen != null or _duel != null or _shop != null:
+	if _modal_open():
 		return
 
 	_hide_world_hud()
