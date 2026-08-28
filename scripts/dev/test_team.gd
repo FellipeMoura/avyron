@@ -11,8 +11,8 @@ extends SceneTree
 ##
 ##     godot --headless --script res://scripts/dev/test_team.gd
 
-const STARTER := "CRT-002"    # Anomalocaris, Loricati
-const RESERVE := "CRT-023"    # Scutosaurus, Draconis
+const STARTER := "CRT-002"    # Anomalocaris, Arambi
+const RESERVE := "CRT-023"    # Scutosaurus, Yaruki
 const LEVEL := 10
 
 var _world: WorldRoot
@@ -249,11 +249,11 @@ func _test_progression() -> void:
 		float(xp_rules["curveBase"]), float(xp_rules["curveExponent"]), LEVEL)
 	_check("xp_to_next_at bate com a formula", r.xp_to_next_at(0), threshold)
 
-	# STARTER (CRT-002) é Loricati — o material e' o dela mesma, nao o de
+	# STARTER (CRT-002) é Arambi — o material e' o dela mesma, nao o de
 	# quem foi derrotado.
 	var class_code := str(_db.creature(STARTER).get("class", ""))
 	var material := _db.class_material_item(class_code)
-	_check_true("Loricati tem material de classe", material != "", material)
+	_check_true("Arambi tem material de classe", material != "", material)
 
 	var inv := PlayerInventory.new()
 

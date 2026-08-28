@@ -45,7 +45,7 @@ const PZ01_FOG_UNDERWATER_DENSITY := 1.0
 const PZ01_COAST_LIGHT := Color("#FFD9A6")
 const PZ01_COAST_LIGHT_ENERGY := 1.1
 const PZ01_COAST_LIGHT_RANGE := 13.0
-const PZ01_COAST_LIGHT_SPOTS: Array = [Vector3(2.0, 5.5, -23.0), Vector3(10.0, 5.5, -23.5)]
+const PZ01_COAST_LIGHT_SPOTS: Array = [Vector3(2.0, 5.5, -46.0), Vector3(10.0, 5.5, -46.5)]
 ## A ilha da arena recebe o mesmo banho quente pela mesma regra: chão que
 ## emerge sai da murk também na luz. Uma omni só, centrada — o platô inteiro
 ## cabe no alcance.
@@ -70,21 +70,28 @@ const PZ01_GROUND := {
 ## estavam entre 4 e 8 m do centro foram para o anel de 11–15 m, onde
 ## continuam sendo recife submerso. Coral apoiado na encosta seca da ilha
 ## seria a mesma contradição que a costa já não comete.
+##
+## No resize de 2026-08-28 as posições do MAR dobraram junto com o mapa e as
+## DUAS da ilha não — a ilha não escalou, e uma pedra de silhueta que saísse
+## de cima dela deixaria de ser silhueta de coisa nenhuma. O anel de recife
+## foi de 11–15 m para 22–30 m, que é o raio que a região RGN-002 do catálogo
+## descreve em coordenada normalizada (`r 0.5`) — e é por isso que aquela
+## linha do catálogo não precisou ser reautorada.
 const PZ01_LANDMARKS: Array = [
-	["Coralstone_Arch", Vector3(3, 0, -15), 0.4, 9.0, 0.0],
-	["Coralstone_Arch", Vector3(-18, 0, 14), 2.0, 7.0, 0.0],
-	["Turquoise_Reef_Stone", Vector3(-13, 0, -9), 1.2, 5.0, 2.2],
-	["Turquoise_Reef_Stone", Vector3(16, 0, 12), 0.3, 4.0, 1.8],
-	["Jade_Reef_Garden", Vector3(14, 0, -4), 2.6, 4.0, 1.8],
-	["Jade_Reef_Garden", Vector3(-20, 0, -2), 5.0, 3.2, 1.5],
-	["Terraced_Stone_Mounds", Vector3(-6, 0, 12), 5.2, 3.8, 1.6],
-	["Terraced_Stone_Mounds", Vector3(12, 0, -14), 1.0, 3.0, 1.3],
-	["Aqua_Bloom_Grove", Vector3(11, 0, 5), 4.0, 3.5, 1.5],
-	["Pastel_Tidepool_Treas", Vector3(-12, 0, 6), 3.1, 3.0, 1.3],
-	["Aqua_Coral_Garden", Vector3(3, 0, 12), 0.9, 3.2, 0.0],
-	["Aqua_Sponge_Cluster", Vector3(9, 0, 10), 1.7, 2.6, 0.0],
-	["Seafoam_Pipe_Coral", Vector3(10, 0, -8), 0.0, 2.8, 0.0],
-	["Reef_Cluster", Vector3(-11, 0, -4), 0.6, 2.4, 0.0],
+	["Coralstone_Arch", Vector3(6, 0, -30), 0.4, 9.0, 0.0],
+	["Coralstone_Arch", Vector3(-36, 0, 28), 2.0, 7.0, 0.0],
+	["Turquoise_Reef_Stone", Vector3(-26, 0, -18), 1.2, 5.0, 2.2],
+	["Turquoise_Reef_Stone", Vector3(32, 0, 24), 0.3, 4.0, 1.8],
+	["Jade_Reef_Garden", Vector3(28, 0, -8), 2.6, 4.0, 1.8],
+	["Jade_Reef_Garden", Vector3(-40, 0, -4), 5.0, 3.2, 1.5],
+	["Terraced_Stone_Mounds", Vector3(-12, 0, 24), 5.2, 3.8, 1.6],
+	["Terraced_Stone_Mounds", Vector3(24, 0, -28), 1.0, 3.0, 1.3],
+	["Aqua_Bloom_Grove", Vector3(22, 0, 10), 4.0, 3.5, 1.5],
+	["Pastel_Tidepool_Treas", Vector3(-24, 0, 12), 3.1, 3.0, 1.3],
+	["Aqua_Coral_Garden", Vector3(6, 0, 24), 0.9, 3.2, 0.0],
+	["Aqua_Sponge_Cluster", Vector3(18, 0, 20), 1.7, 2.6, 0.0],
+	["Seafoam_Pipe_Coral", Vector3(20, 0, -16), 0.0, 2.8, 0.0],
+	["Reef_Cluster", Vector3(-22, 0, -8), 0.6, 2.4, 0.0],
 	# Na ilha: duas pedras miúdas no topo, uma de cada lado da arena. São
 	# silhueta — sem elas o platô lê como bolha de terreno em vez de rochedo,
 	# e é a silhueta que a câmera ortográfica dá ao jogador de longe. Porte
@@ -107,10 +114,14 @@ const PZ01_SCATTER_POOL: Array = [
 	["Aqua_Sponge_Cluster", 1.5, 2.5],
 	["Aqua_Bloom_Grove", 1.5, 2.5],
 ]
-const PZ01_SCATTER_COUNT := 28
+## Contagem e raios cresceram na proporção da ÁREA do anel de espalhamento
+## no resize de 2026-08-28 (28 props num anel de 4–27 m; 116 num de 8–55 m),
+## para a densidade visual do mapa não cair junto com o crescimento. É a
+## medida que decide se um mapa maior lê como "maior" ou como "vazio".
+const PZ01_SCATTER_COUNT := 116
 const PZ01_SCATTER_SEED := 20260824
-const SCATTER_RADIUS_MIN := 4.0
-const SCATTER_RADIUS_MAX := 27.0
+const SCATTER_RADIUS_MIN := 8.0
+const SCATTER_RADIUS_MAX := 55.0
 
 ## Nenhum prop nasce a menos disto dos pontos de interação/origem — cenário
 ## não pode esconder um serviço nem entulhar o spawn do jogador.

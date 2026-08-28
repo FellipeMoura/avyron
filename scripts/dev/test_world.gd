@@ -187,19 +187,40 @@ func _test_water_line() -> void:
 	_check("a cota vem do bioma, e é a mesma da névoa",
 		terrain.water_line, MapDressing.PZ01_WATER_LINE)
 
-	for spot in [Vector3(12, 0, 0), Vector3(22, 0, 22), Vector3(-25, 0, 25)]:
+	# Espalhadas pelo mapa em fração do meio-lado, não em metros: a três
+	# distâncias diferentes do centro, e as três fora da costa e da ilha.
+	var half := float(MapTerrain.SIZE) * 0.5
+	for spot in [
+		Vector3(half * 0.4, 0, 0),
+		Vector3(half * 0.7, 0, half * 0.7),
+		Vector3(-half * 0.85, 0, half * 0.85),
+	]:
 		var at := Vector3(spot.x, terrain.height_at(spot), spot.z)
 		_check_true("submerso fora da costa em (%.0f, %.0f), chao %.2f" % [at.x, at.z, at.y],
 			terrain.submerged(at))
 
 	# A costa e a ilha são as que dependem da altura: o pé da rampa ainda está
 	# na água, o platô já não.
-	var ramp := Vector3(0, 0, -18)
+	# Na LINHA DE CENTRO do lobo, não em x = 0: desde que a costa virou lobo,
+	# "quanto ela avança mar adentro" só vale no meio dela — nas laterais o
+	# platô recua, e uma sonda em x = 0 mediria um ponto 4,2 m fora do eixo.
+	# 2 m depois do início da rampa: ainda subindo, ainda molhado.
+	var ramp := Vector3(MapTerrain.COAST_CENTER_X, 0, MapTerrain.COAST_RAMP_START - 2.0)
 	ramp.y = terrain.height_at(ramp)
 	_check_true("o pe da rampa ainda esta na agua (chao %.2f)" % ramp.y, terrain.submerged(ramp))
-	var plateau := Vector3(0, 0, -24)
+	# 3 m depois do topo da rampa: platô assentado, seco.
+	var plateau := Vector3(MapTerrain.COAST_CENTER_X, 0, MapTerrain.COAST_TOP - 3.0)
 	plateau.y = terrain.height_at(plateau)
 	_check_true("o plato da costa esta seco (chao %.2f)" % plateau.y, not terrain.submerged(plateau))
+
+	# O lobo tem BORDA lateral, e é isso que o distingue de uma faixa. Sem esta
+	# asserção, voltar a costa para faixa cheia passaria despercebido — e a
+	# partição de bioma do catálogo, que a desenha como lobo, passaria a mentir
+	# sobre 47% do chão seco exatamente como acontecia antes de 2026-08-28.
+	var corner := Vector3(-float(MapTerrain.SIZE) * 0.5 + 2.0, 0.0, MapTerrain.COAST_TOP - 3.0)
+	corner.y = terrain.height_at(corner)
+	_check_true("o canto do topo e MAR, nao costa (chao %.2f)" % corner.y,
+		terrain.submerged(corner) and not terrain.on_coast(corner))
 
 	# A ilha do miolo: topo seco, saia submersa. É a segunda exceção à regra do
 	# "fora da costa é tudo mar", e a única que fica no meio do mapa — o topo é

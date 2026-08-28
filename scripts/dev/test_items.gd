@@ -16,8 +16,8 @@ extends SceneTree
 ##
 ##     godot --headless --script res://scripts/dev/test_items.gd
 
-const STARTER := "CRT-002"    # Anomalocaris, Loricati
-const RESERVE := "CRT-023"    # Scutosaurus, Draconis
+const STARTER := "CRT-002"    # Anomalocaris, Arambi
+const RESERVE := "CRT-023"    # Scutosaurus, Yaruki
 const LEVEL := 10
 
 const WEAK   := "ITM-016"     # Emplastro de Limo, +30%

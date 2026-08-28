@@ -34,9 +34,7 @@ O export **aborta sem escrever nada** se alguma criatura estiver sem stats, sem 
 
 | Termo | Significa |
 |---|---|
-| **Loricati** | artrópodes |
-| **Theria** | sinapsídeos |
-| **Draconis** | sauropsídeos |
+| **Classe** | especialização de atributo da criatura — **não** linhagem. São cinco, com nomes ficcionais; quais existem e o que cada uma especializa vem do bundle (`classes[]`), não desta tabela |
 | **Aetheris** | era paleozoica |
 | **Titanor** | era mesozoica |
 | **Novaterra** | era cenozoica |
@@ -59,7 +57,7 @@ carga: recebe dano ×1.0, causa dano ×0.5, escalado por (carga / 50)
 Ciclo elemental fechado — cada elemento vence exatamente um e perde para exatamente um:
 
 ```
-Água → Fogo → Natureza → Terra → Gelo → Eletricidade → Água
+Água → Fogo → Natureza → Terra → Eletricidade → Água
 ```
 
 Vantagem 2.0, desvantagem 0.5, todo o resto 1.0 por omissão. As constantes acima também vêm no bundle, em `rules`.
@@ -244,6 +242,44 @@ Toda tela do jogo cai em **uma de duas famílias**, e a escolha decide quem prot
 
 **A criatura ativa amarra os três sistemas.** Quem está à frente no time é a mesma criatura em toda parte: anda ao lado do jogador, entra no duelo, e — pela **classe** dela — decide o que a mineração produz e em que ritmo. Trocar quem vai à frente não é ajuste de menu; muda o que sai do chão no próximo `F`.
 
+### Bioma: consultado por posição
+
+A fórmula de mineração é `normalizar(peso_classe × peso_bioma)` — o bioma diz o que o chão tem, a classe da criatura ativa diz o que ela sabe achar. Os dois pesos vêm do bundle.
+
+**O bioma é resposta da POSIÇÃO do jogador**, desde 2026-08-28. Andar da costa para o recife troca o que a picareta entrega, sem menu nenhum — e o painel da criatura ativa mostra a troca acontecendo, com o nome do bioma acima da lista de minérios preferidos.
+
+Quem responde é `scripts/world/map_biomes.gd` (`MapBiomes.biome_at(pos)`), alimentado por `maps[].biomeRegions` no bundle — a tabela `map_biome_regions` do bestiário, que descreve cada bioma como uma forma (`band`, `circle`, `rect`) e para na **primeira região que contém o ponto**. É a ordem que deixa uma região pequena e específica se sobrepor a uma grande e genérica sem recorte geométrico: a específica só precisa vir antes. A última do PZ-01 é um catch-all cobrindo o mapa inteiro, e é ele que garante cobertura total por construção.
+
+**As coordenadas são normalizadas em ±1 sobre o meio-lado do mapa, não metros**, e essa escolha é o que faz a partição sobreviver a um redimensionamento do terreno: crescer o `MapTerrain.SIZE` reposiciona todas as fronteiras junto, na mesma proporção, sem reescrever uma linha de catálogo. Quem divide pelo meio-lado é o Godot; o bundle não sabe quantos metros o mapa tem, e não deve saber. O preço é que redimensionar é grátis mas **redesenhar não é** — mudar o mapa de tamanho sem que as fronteiras devam acompanhar exige reautorar a região.
+
+O acoplamento que isso cria é medido, não confiado: as notas do catálogo amarram números normalizados a constantes do relevo (`-0.533` é o `COAST_RAMP_START` sobre o meio-lado de 30 m), e `test_data.gd` **varre o eixo perguntando onde o bioma troca** em vez de conferir o número. Mexer no `COAST_RAMP_START` sem reautorar a região descolaria a fronteira do bioma da rampa do terreno, e o sintoma seria o jogador subindo para o seco com a mineração ainda respondendo "mar raso".
+
+`WorldRoot.DEFAULT_BIOME` continua existindo, mas mudou de papel: é o **fallback** para mapa sem partição autorada e para ponto fora de todas as regiões. Os dois casos são de dado, não de posição, e quem grita por eles é `_assert_biome_belongs_to_map()`, uma vez na abertura — a consulta em si roda todo quadro e é obrigada a ficar calada.
+
+A armadilha que isso reabriu, e por que as travas ficaram: `MiningTable` trata **lado ausente por inteiro** como neutro (×1), de propósito — sem criatura ativa, o bioma decide sozinho. Um bioma sem taxa nenhuma não dá erro; a fórmula vira só-classe e a picareta continua entregando minério, com outra distribuição. Enquanto o mundo declarava um bioma só, bastava conferir aquele. Com a partição, o jogador pisa em **qualquer um**, então `test_data.gd` cobra taxas de todo bioma alcançável, e não só do declarado.
+
+Três guardas, em três alturas:
+
+| onde | o quê | porta |
+|---|---|---|
+| `export-game-data.mjs` | bioma do mapa que região nenhuma reivindica | aviso |
+| `test_data.gd` | cobertura total, fronteira × relevo, taxas dos alcançáveis | reprova |
+| `test_playable.gd` | o **mundo** responder por posição (sonda em três lugares) | reprova |
+
+A separação entre as duas suítes é deliberada: `test_data` prova que a geometria das regiões está certa; `test_playable` prova que o `WorldRoot` está de fato perguntando. Um `current_biome()` correto com um cache que nunca acompanha passaria na primeira e deixaria a mineração presa no bioma da abertura — que era exatamente o estado anterior, e ele passava em tudo.
+
+**A partição do PZ-01 está fechada** desde 2026-08-28: cinco biomas, **sete regiões**, cobertura total e nenhum bioma inalcançável. Sete e não cinco porque duas formas do desenho não cabem numa primitiva — o lobo da costa é retângulo ∪ círculo (círculo com centro preso ao mapa não faz "largo e raso") e o mar profundo é um L. **Várias regiões apontando para o mesmo bioma** já era permitido pelo modelo; foi aqui que precisou.
+
+| bioma | do plano |
+|---|---|
+| Mar raso (catch-all) | 37,2% |
+| Mar Profundo | 28,0% |
+| Jardins Recifais | 17,4% |
+| Costa Primordial | 12,5% |
+| Plataforma Glacial | 4,9% |
+
+A ordem de avaliação é o desenho: o glacial vem **antes** do mar profundo e é ele que recorta a faixa dele, e é assim que os dois lugares vazios do mapa ficam emendados nos cantos de baixo em vez de disputarem o mesmo chão.
+
 **Time** (`T`) — a janela lista a ativa e as reservas com status (HP atual, ATQ/DEF/VEL e perfil de mineração). Clique numa reserva, ou `1`–`6`, para mandá-la à frente. É a única peça de HUD do mapa que aceita clique — todo o resto usa `MOUSE_FILTER_IGNORE` para não roubar o clique de seleção de criatura. Não pausa o jogo.
 
 **Curar** (`I`, dentro da janela) — ver [Itens de cura](#itens-de-cura), abaixo.
@@ -288,7 +324,7 @@ parcela_i = xpTotal/participantes × 0.2 + (xpTotal × 0.8) × contribuição_i 
 
 `ProgressionMath.distribute_xp` calcula as parcelas (piso por arredondamento de maior resto, soma sempre bate com `xpTotal` exatamente) — um participante só leva tudo; contribuição total zero (ninguém causou nem sofreu dano) reparte igual entre quem participou. O `0.2`/`0.8` é **placeholder de tuning** (`ProgressionMath.XP_BASE_SHARE_RATIO`), não decisão final. Cada participante passa individualmente por `PlayerRoster.grant_xp_at` — mesmo gate de sempre, ver abaixo — e a mensagem final lista uma linha por criatura (`Nome +X XP`).
 
-Subir de nível pede as duas condições ao mesmo tempo, igual ao Relicário: **XP cheio e o material da própria classe da criatura** que sobe (`ITM-019` Quitina Fossilizada para Loricati, `020` Presa Fóssil para Theria, `021` Escama Fóssil para Draconis) — o material vem de **drops** de combate, não do comerciante. Sem o material na bolsa, a barra trava no teto em vez de estourar; o próximo ganho de XP (a próxima vitória) resolve sozinho assim que o jogador tiver o item. `PlayerRoster.grant_xp_at` e `PlayerRelic.grant_capture_xp` compartilham a mesma curva (`ProgressionMath`), extraída quando o segundo consumidor apareceu.
+Subir de nível pede as duas condições ao mesmo tempo, igual ao Relicário: **XP cheio e o material da própria classe da criatura** que sobe (um item `material` por classe, ligado por `items.class_id` — `BestiaryData.class_material_item` resolve) — o material vem de **drops** de combate, não do comerciante. Sem o material na bolsa, a barra trava no teto em vez de estourar; o próximo ganho de XP (a próxima vitória) resolve sozinho assim que o jogador tiver o item. `PlayerRoster.grant_xp_at` e `PlayerRelic.grant_capture_xp` compartilham a mesma curva (`ProgressionMath`), extraída quando o segundo consumidor apareceu.
 
 **Drops** — criatura derrotada em combate (não capturada — capturar não a mata) rola cada entrada de `creature.drops` **independentemente** (`LootTable.roll`): zero, um ou vários itens na mesma vitória, sem relação entre as chances. O material de subida de nível é só mais um item nessa lista, com a classe do **derrotado** decidindo qual material cai — nunca a de quem venceu. `WorldRoot._grant_drops` joga o que caiu direto na bolsa e mostra uma mensagem; nada cai se o roll não der em nada, e a HUD fica quieta.
 
@@ -300,15 +336,11 @@ chance(mineral) = normalizar(peso_classe × peso_bioma)
 cooldown = 3 s / speedModifier da classe ativa
 ```
 
-O **bioma** diz o que o chão tem; a **classe da criatura ativa** diz o que ela sabe achar. Os dois pesos vêm do bundle (`mining.rates`), e é a multiplicação que faz a troca de ativa ser sentida — no Mar raso (BIO-001), um Loricati tira âmbar fóssil 16,2 % das vezes contra 3,5 % de um Draconis, que em troca acha prata 11,8 % contra 0,8 %.
+O **bioma** diz o que o chão tem; a **classe da criatura ativa** diz o que ela sabe achar. Os dois pesos vêm do bundle (`mining.rates`), e é a multiplicação que faz a troca de ativa ser sentida — no Mar raso (BIO-001), a escavadora tira âmbar fóssil 16,2 % das vezes contra 3,5 % da prospectora, que em troca acha prata 11,8 % contra 0,8 %.
 
 O `workFunction` de cada classe também dá o papel e o ritmo:
 
-| Classe | Papel | Ritmo | Especialidade |
-|---|---|---|---|
-| Loricati | escavadora | ×1.0 | âmbar fóssil, pedra, ferro |
-| Theria | tuneladora | ×1.1 | carvão, cobre |
-| Draconis | prospectora | ×0.9 | cristais elementais, prata |
+Os três papéis de trabalho existentes são `excavator`, `burrower` e `prospector`, traduzidos por `MiningTable.ROLE_LABELS`. **Papel de trabalho e classe não são 1:1** — classe é especialização de combate, papel é ritmo de mineração, e não há motivo para uma classe nova exigir um papel novo. Qual classe tem qual papel e qual ritmo está em `workFunction` no bundle, nunca aqui: transcrever a tabela criaria um segundo lugar para ela discordar do catálogo.
 
 A fórmula vive em `scripts/data/mining_table.gd`; `BestiaryData` só indexa o bundle. É a mesma separação que existe entre `CombatMath` e os dados de combate — **nenhum peso, nome ou taxa de minério está escrito em código.** Balancear mineração é `POST /mining-rates` no bestiário e re-exportar, não um commit aqui.
 
@@ -316,7 +348,7 @@ A fórmula vive em `scripts/data/mining_table.gd`; `BestiaryData` só indexa o b
 
 **Painéis** — bolsa e inventário no canto superior esquerdo, criatura ativa no superior direito (status + perfil de mineração + os três minerais mais prováveis para ela ali). Todos somem durante o combate e a negociação, e voltam ao fechar — exceto a bolsa se o jogador pediu para escondê-la com `V`: essa escolha é dele, não do overlay, e sobrevive ao fechar loja/posto/duelo (`WorldRoot._inventory_hidden`).
 
-**Set do jogador** (`E`, `player_set_window.gd`) — janela central somente-leitura com o que está equipado. Hoje só tem uma seção, o Relicário (nome, nível, XP, afinidade — "—" quando neutra, slots, taxa de captura); outras peças do set entram como novas seções aqui, não como janelas novas. Diferente do posto do relicário: o posto (`Tab`, ponto fixo do mapa) é onde o equipamento se *gerencia* (depositar/retirar/trocar de modelo); esta janela é só a *visão* dele, de qualquer lugar. Fecha com `Esc`, mutuamente exclusiva com a janela do time (`T`) — as duas são overlays centrais e se sobreporiam.
+**Set do jogador** (`E`, `player_set_window.gd`) — janela central somente-leitura com o que está equipado. Três seções: o Relicário (nome, nível, XP, afinidade — "—" quando neutra, slots, taxa de captura), o Amplificador e o Encantador (modelo, tier e o efeito em uma frase). O plano de crescer por **seção** e não por janela nova foi o que se cumpriu quando o set saiu de uma peça para três. Slot vazio diz *onde se resolve* ("fabrique na bancada"), não só que está vazio — sem isso a peça fica invisível até o jogador topar com o ponto no mapa. Diferente do posto do relicário: o posto (`Tab`, ponto fixo do mapa) é onde o equipamento se *gerencia* (depositar/retirar/trocar de modelo); esta janela é só a *visão* dele, de qualquer lugar. Fecha com `Esc`, mutuamente exclusiva com a janela do time (`T`) — as duas são overlays centrais e se sobreporiam.
 
 ## Economia
 
@@ -373,15 +405,66 @@ final% = clamp(base%
 
 `PlayerRoster` tem três níveis por causa disso: **ativo** (limitado por `slotCapacity`, via `set_capacity()`), **storage** (sem limite de código, só acessível no posto) e o HP/regeneração que já valiam para os dois. Time cheio na hora da captura continua fazendo a captura escapar, exatamente como antes — só que "cheio" agora depende do relicário equipado, não de um teto fixo de seis.
 
+### Amplificador e Encantador
+
+As outras duas peças do set (documento `equipamentos` no bestiário). São **passivas**: valem a batalha inteira, não custam turno, não se consomem.
+
+| Slot | Alvo | Modelos |
+|---|---|---|
+| `amplifier` | a criatura do jogador | `EQP-001/002/003` — `buff_attack` +5/+10/+15 % |
+| `enchanter` | a criatura adversária | `EQP-004/005/006` — `debuff_attack` −5/−10/−15 % |
+
+As duas se vestem ao mesmo tempo — são slots diferentes, não alternativas. O que compete dentro de um slot são os **tiers**.
+
+**O consumidor já existia.** `Combatant.attack_modifier`/`defense_modifier` e os quatro códigos `buff_*`/`debuff_*` estavam em jogo desde as habilidades de suporte (`HAB-019` a `HAB-022`); o equipamento entrou como segunda fonte do mesmo modificador, não como sistema paralelo. `Battle._apply_modifier` é o ponto único que os aplica — foi extraído de `_apply_status` quando a segunda fonte apareceu, e o clamp acumulado (`MODIFIER_MIN/MAX`, 0,25–4,0) continua com um dono só.
+
+**O passivo é mais fraco que o golpe que custa a rodada, e isso é regra.** `HAB-020` dá +30% gastando o turno; o T3 daqui dá +15% de graça. Se empatassem, o golpe de suporte viraria conteúdo morto — `test_equipment.gd` prende a comparação contra o valor que estiver no catálogo, não contra um número escrito no teste.
+
+**`Battle.apply_loadout` aplica no time inteiro**, não só em quem está em campo. A peça é do domador, não da criatura: aplicar só na ativa obrigaria a reaplicar em `_do_switch` e em `replace_active`, três lugares para o mesmo efeito. Quem decide o alvo é o **slot**, nunca o `effectCode` — slot desconhecido é ignorado em vez de aplicado no alvo errado.
+
+**Tiers, não níveis.** Não há barra de XP: a progressão é a mineração. Um nível pediria decidir o que enche a barra de cada peça, e isso é um sistema novo por peça. Os tiers são crafts independentes — o T2 não consome o T1 —, então nenhum modelo pode ficar inalcançável por ter sido comido por outro.
+
+#### A bancada, e a posse
+
+`CraftingBenchActor` — ponto fixo na vila da costa, mesma família de `InteractableActor` do comerciante e do posto, silhueta de prisma baixo e largo (de longe tem de ler como mesa, não como pessoa).
+
+| Tecla | |
+|---|---|
+| `Tab` | alterna amplificador / encantador |
+| `1`–`9` | age na linha — **fabrica**, **veste** ou **tira**, conforme o estado |
+| `Esc` | sai |
+
+Uma tecla, três destinos, e a linha diz qual antes de o jogador apertar. A receita mostra `tem/precisa` por ingrediente — o mesmo raciocínio do "restaura 12 (desperdicia 92)" da janela de cura: o número que decide o próximo gesto é a diferença.
+
+**A bancada é a única fonte das duas peças**, e é isso que fecha aqui o furo que o Relicário ainda tem. `PlayerLoadout` guarda **posse** e **equipado** separados, e `equip()` recusa o que o jogador não fabricou — no posto do Relicário dá para vestir qualquer modelo do catálogo sem nunca o ter conquistado, porque lá não existe sistema de aquisição.
+
+A tela não decide nada: emite `craft_requested`/`equip_requested` e o `WorldRoot` — que tem a bolsa **e** o loadout — mede, recusa, cobra e registra, nessa ordem. Mesmo contrato de `RosterWindow.item_use_requested`. A conferência é **tudo ou nada**: a receita inteira é medida antes de o primeiro minério sair, senão faltar o terceiro ingrediente deixaria o jogador sem os dois primeiros e sem a peça.
+
+**Tirar não é perder** — desequipar esvazia o slot e mantém a posse. Lutar sem o Encantador é jogada legítima, e cobrar trinta cobres por experimentar seria punir o teste.
+
+#### Os minérios glaciais
+
+O Amplificador se faz de Cobre, Prata e Âmbar Fóssil, mineráveis em qualquer canto do PZ-01. O Encantador se faz de `ITM-024` **Sal de Degelo**, `ITM-025` **Nácar Fóssil** e `ITM-026` **Prata Errática** — que só saem da Plataforma Glacial (`BIO-014`).
+
+Cada um espelha em valor um minério do mapa (20 / 30 / 60), então **os dois lados custam exatamente o mesmo em óbolos** por tier — 330, 820 e 1 860. O que separa as duas linhas é geografia, não preço: *o Encantador não é a peça cara, é a peça longe.*
+
+**A exclusividade não é código.** É a ausência de linha em `mining_rates`: os três só têm taxa de bioma em `BIO-014`, e `MiningTable._weight_of` lê "bioma presente mas sem este minério" como peso zero. Isso tem um modo de falha silencioso e vale saber: o documento `mineracao` manda todo bioma ter o conjunto **completo** de taxas, e quem cumprir isso literalmente para os minérios novos torna o Encantador fabricável sem sair da vila. `test_equipment.gd` varre os catorze biomas exatamente por isso.
+
+O lado da **classe**, esse sim, é obrigatório nas cinco: sem linha de classe o produto `classe × bioma` dá zero e o minério ficaria inalcançável mesmo pisando no glacial.
+
 ### Arena e Glifos
 
-Documento de regra no bestiário: `glifos-e-portais`. Um **Glifo** é conquista permanente, não item — não se vende, não se craft, não dropa de combate comum. O **Campeão da Arena** (`NPC-002`, `role = duelist` no bestiário) é o primeiro duelista jogável: clicar nele de perto abre o mesmo `duel.tscn` de sempre, mas com `DuelScreen.is_wild = false` — `Battle` recusa captura nessa configuração (`_do_capture`), então a arena é sempre golpe contra golpe até alguém cair. Vencer concede o **Glifo Daleth**; `PlayerProgress.grant_glyph` é idempotente, então refazer a arena depois de já tê-lo não reanuncia nem duplica nada.
+Documento de regra no bestiário: `glifos-e-portais`. Um **Glifo** é conquista permanente, não item — não se vende, não se craft, não dropa de combate comum. O **Campeão da Arena** (`NPC-002`, `role = duelist` no bestiário) é o primeiro duelista jogável: clicar nele de perto abre o mesmo `duel.tscn` de sempre, mas com `DuelScreen.is_wild = false` — `Battle` recusa captura nessa configuração (`_do_capture`), então a arena é sempre golpe contra golpe até alguém cair. `PlayerProgress.grant_glyph` é idempotente, então refazer a arena depois de já ter o Glifo não reanuncia nem duplica nada.
 
-O **Guardião do portal** (`PortalGuardianActor`, silhueta em bloco alto — não repete cápsula nem torus de nenhum outro ator) barra a passagem até o jogador ter o Glifo. `can_pass()` é a checagem de lógica, separada de qualquer texto — o requisito vale mesmo se a mensagem nunca aparecesse. Sem cena de Titanor ainda para ir de verdade, atravessar com o Glifo só troca a mensagem do guardião por um aviso de que o destino não existe neste build; não há troca de cena.
+**O duelo vem do catálogo, não daqui.** Contra quem a arena luta, em que nível e qual Glifo ela concede saíram das constantes do `WorldPopulator` em 2026-08 e vivem em `npc_duelists`, chegando em `duelists[].duel` no bundle. O nível era o caso indefensável — número de balanceamento em código, contra a regra 1. `grantsGlyph` **nulo é normal**: pelo modelo fechado no bestiário, todo mapa tem arena mas só a do último mapa de uma era concede Glifo; as intermediárias são duelo com recompensa própria. O save guarda o **código** (`GLF-001`) e a tela mostra o **nome** (`Daleth`), que é o que permite renomear a letra sem invalidar progresso.
+
+O **Guardião do portal** (`PortalGuardianActor`, silhueta em bloco alto — não repete cápsula nem torus de nenhum outro ator) barra a passagem até o jogador ter o Glifo. `can_pass()` é a checagem de lógica, separada de qualquer texto — o requisito vale mesmo se a mensagem nunca aparecesse.
+
+**Ele só existe onde o catálogo pede.** Guardião é a forma física de uma travessia que exige Glifo (`map_connections`), e travessia **dentro** de uma era é livre: como PZ-01 → PZ-02 não exige nada, **o PZ-01 não tem mais guardião**. Isso não é conteúdo removido do jogo, é conteúdo que passou a seguir o dado — uma linha com `requiredGlyphCode` o traz de volta, sem tocar em código. `test_merchant.gd` prende o "se e somente se". O guardião volta a aparecer quando existir a travessia PZ-03 → Titanor, que é a que exige Daleth.
 
 **Primeiro estado que sobrevive a fechar o jogo.** Tudo o resto aqui (time, bolsa, relicário) é só em memória — `PlayerProgress` (autoload `Progress`) é o único que grava em disco, em `user://progress.cfg`, na hora que o Glifo é concedido. É formato pequeno de propósito (uma lista de códigos), mas a seção existe para crescer quando o resto do save também precisar persistir, sem precisar de arquivo novo.
 
-Arena e guardião ficam no mesmo mapa único que existe hoje (PZ-01/Aetheris I) — posição de estande-in, mesmo raciocínio de `MERCHANT_SPOT`/`RELIC_STATION_SPOT`. A **arena fica no topo da ilha** do miolo do mapa (`MapTerrain.ISLAND_*`), o único chão seco fora da vila da costa: um platô cercado de mar é a imagem que "arena" pede, e o adro de loja e portal não dava. O guardião continua na planície, a caminho da costa. O Glifo Zayin (Titanor) está definido no bestiário mas não tem arena nem guardião próprios ainda: não existe mapa de Titanor para prender neles.
+A arena fica no mapa que o bestiário disser (`npcs.map_id`); **onde** ela é plantada é posição de cena, mesmo raciocínio de `MERCHANT_SPOT`/`RELIC_STATION_SPOT`. A **arena fica no topo da ilha** do miolo do mapa (`MapTerrain.ISLAND_*`), o único chão seco fora da vila da costa: um platô cercado de mar é a imagem que "arena" pede, e o adro de loja e portal não dava. `PORTAL_SPOT` continua reservado na planície, a caminho da costa, para quando houver travessia exigente de novo. O Glifo Zayin (Titanor) está no catálogo sem arena e sem travessia: não existe mapa de Titanor para prender neles — e é exatamente disso que o export avisa, sem abortar.
 
 ### Itens de cura
 
@@ -456,6 +539,7 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_glyphs.gd       # Glifo de arena, nunca de vitória selvagem
 & $godot --headless --script res://scripts/dev/test_characters.gd   # kit de personagens, rig por receita
 & $godot --headless --script res://scripts/dev/test_palette.gd      # cor por elemento, aura do Despertar
+& $godot --headless --script res://scripts/dev/test_equipment.gd    # set: exclusividade glacial, bancada, passivo
 ```
 
 `test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.
@@ -472,7 +556,7 @@ Ele também exige o bloco `mining` — minerais nomeados, toda classe do elenco 
 
 `test_mining.gd` cobre a `MiningTable` (distribuição normalizada, especialidade por classe, amostragem sobre 4.000 sorteios, perfil de trabalho), o `PlayerRoster` (captura vira reserva, troca não reordena, teto de slots) e o fluxo no `WorldRoot`. A asserção que importa é a de ponta a ponta: trocar a ativa por uma criatura de outra classe muda a companheira, a distribuição de minério **e** o cooldown, os três de uma vez. Se um dia essa falhar, a fórmula parou de ler um dos dois lados e o jogo ficou igual com qualquer criatura à frente.
 
-Trocar a ativa por outra da mesma classe passaria em tudo sem provar nada — por isso o teste usa um Draconis contra o starter Loricati, de propósito.
+Trocar a ativa por outra da mesma classe passaria em tudo sem provar nada — por isso o teste usa duas criaturas de classes diferentes, de propósito.
 
 `test_merchant.gd` fecha o laço: minerar produz, o comerciante compra, a bolsa paga, e o que se compra faz alguma coisa. A asserção que mais importa é negativa — **nenhum consumível pode ser minerável**. Enquanto todo item era minério, o export mandava a tabela inteira para `mining.items`; o primeiro consumível cadastrado teria virado minério de chão. O filtro por categoria conserta, e este teste é o que impede alguém de removê-lo.
 
@@ -493,6 +577,8 @@ A terceira é `_test_terrain`, com um `MapTerrain` de verdade em vez da bancada 
 
 
 Ela também prende que o encaramento é medido **no plano**: a bancada põe os dois corpos em alturas diferentes de propósito (companheira no chão, selvagem meia cápsula acima), e um produto escalar em 3D mediria a inclinação entre eles em vez do encaramento — foi exatamente assim que a primeira versão do teste falhou com `dot 0.913`, que é o cosseno de 1,4 m de desnível e não um erro de yaw.
+
+`test_equipment.gd` responde "minerar longe compra alguma coisa?". Antes dele o mapa tinha cinco biomas e **um** motivo para andar até qualquer um — a taxa de minério — e nada que o jogador quisesse o bastante para atravessar o mar gelado. As duas asserções que mais importam são negativas, como sempre: **minério glacial não sai de nenhum outro bioma** (varre os catorze × cinco classes, porque a exclusividade é ausência de linha e ausência some sem sintoma) e **receita incompleta não cobra nada** (faltando um dos três ingredientes, os outros dois continuam na bolsa — é o defeito que uma varredura ingênua `for line: remove(...)` produz e que passa em todo o resto da suíte). Prende também o espelho de custo entre os dois slots, a recusa de vestir o que não se fabricou, e que o buff atravessa a troca de criatura.
 
 `test_glyphs.gd` responde "só arena concede Glifo?". `PlayerProgress` é `Node`, não `RefCounted`, então o teste é o primeiro a precisar de `free()` explícito nas instâncias — sem isso o `ObjectDB` vaza em silêncio e só aparece no aviso de saída do processo. Isola o save de teste do save real do jogador (`use_path_for_test`, nunca `user://progress.cfg`) e prova as duas metades: uma batalha `is_wild = false` vencida concede o Glifo (idempotente num refight), e uma vitória selvagem — mesmo par, mesma semente — nunca chama `grant_glyph`. A metade que fica sem cobertura headless é a árvore de cena inteira (clique no duelista, `WorldRoot._on_arena_engaged`); testar isso pediria o padrão `_initialize`/`_process` que `test_playable.gd` usa, não o `_init` síncrono que basta aqui.
 
@@ -541,22 +627,51 @@ A aura tem **cor própria** (`paletteAura`), e não o `highlight` reaproveitado,
 
 Corpo legado do Meshy **não** é recolorido — base color assada com normal e metallic-roughness próprios sairia suja. O portão é o prefixo `res://models/placeholders/`, e `test_palette.gd` o prende.
 
-**Props de bioma** chegam pelo mesmo export, em `models/biomes/` (preparados por `pnpm models:biomes` no bestiário). `megakit/` (Stylized Nature MegaKit do Quaternius, CC0) veste o terrestre: vegetação e pedras em escala real (CommonTree ~7 m) — samambaias escaladas 2,5–3× e cogumelos 3–4× dão a vegetação carbonífera do PZ-03; são `.gltf` com texturas **compartilhadas** de propósito (o Godot deduplica recursos por caminho; `.glb` embutiria uma cópia da casca em cada árvore). `aquatic/` (11 props gerados no Meshy) cobre o marinho do PZ-01: corais, algas e formações em `.glb` individuais, **normalizados em ~1×1×1 pelo Meshy** — a escala de cada peça é decisão da cena (recifes 2–5×, o arco 8–9× como landmark).
+**Props de bioma** — o que encomendar, com que orçamento e por quê, está em [`../avyron-bestiary/docs/BIOME_PROPS.md`](../avyron-bestiary/docs/BIOME_PROPS.md): o contrato que todo prop precisa cumprir (origem na base, normalizado em 1×1×1, sem frente, uma superfície), a densidade por bioma e o pedido de 21 peças que falta para o PZ-01. Eles chegam pelo mesmo export, em `models/biomes/` (preparados por `pnpm models:biomes` no bestiário). `megakit/` (Stylized Nature MegaKit do Quaternius, CC0) veste o terrestre: vegetação e pedras em escala real (CommonTree ~7 m) — samambaias escaladas 2,5–3× e cogumelos 3–4× dão a vegetação carbonífera do PZ-03; são `.gltf` com texturas **compartilhadas** de propósito (o Godot deduplica recursos por caminho; `.glb` embutiria uma cópia da casca em cada árvore). `aquatic/` (11 props gerados no Meshy) cobre o marinho do PZ-01: corais, algas e formações em `.glb` individuais, **normalizados em ~1×1×1 pelo Meshy** — a escala de cada peça é decisão da cena (recifes 2–5×, o arco 8–9× como landmark).
 
 Quem aplica isso é **`scripts/world/map_dressing.gd`** (`MapDressing.apply`, chamado por `WorldRoot._ready`, mesmo padrão RefCounted/static do `WorldPopulator`): ambiência subaquática (fog azul `~0.011`, luz fria), landmarks fixos à mão (com colisão cilíndrica só nos maciços — o arco é passagem por baixo) e vegetação miúda espalhada com semente fixa, respeitando um raio livre em torno dos pontos do `WorldPopulator` e da origem do jogador. Layout é posição de cena, não de bestiário — o catálogo diz *o que* vive no mapa; o mundo diz *onde*.
 
 ### Relevo e solo
 
-**`scripts/world/map_terrain.gd`** substitui em runtime o `Ground` chapado de `main.tscn` (mesmo nome de nó — o clique de mundo e o `test_world` continuam funcionando): uma grade de 61×61 a 1 m que gera malha, colisão (`HeightMapShape3D`) e a consulta `height_at` **da mesma fonte**, então visual, física e consulta nunca discordam. O desenho é deliberado:
+#### O tamanho do mapa, e o que escala com ele
 
-- **Planície central plana (altura 0) até `FLAT_RADIUS` = 16 m** — o gameplay que assume plano (POIs do `WorldPopulator`, encenação de duelo) vive aí. Com uma exceção declarada, a ilha logo abaixo: quem apoia corpo perto da origem **pergunta a altura**, não presume zero.
+**O PZ-01 tem 120 × 120 m desde 2026-08-28** (era 60). O alvo declarado é **350 m**, e a conta que o define é de tempo, não de gosto: a 5,2 m/s (velocidade única — nadar e andar são iguais, `submerged` só troca o clipe), **30 s de travessia por bioma** dão 156 m por bioma, que com cinco biomas pedem 350 m de lado.
+
+Os 120 m são a etapa intermediária, e o critério da parada é densidade: levar os 44 props de hoje para 350 m os diluiria para 1 a cada 2.784 m² — o mapa não ficaria grande, ficaria deserto. 120 m é o maior lado que o acervo atual veste (132 props, 1 a cada ~109 m²).
+
+| | 60 m (antes) | 120 m (hoje) | 350 m (alvo) |
+|---|---|---|---|
+| travessia lado a lado | 11,5 s | **23,1 s** | 67 s |
+| vértices do terreno | 3.721 | 14.641 | 123.201 |
+| props | 44 | 132 | ~1.500 |
+| criaturas | 8 | 24 | ~270 |
+
+O que os 350 m vão exigir e os 120 m não exigiram: `MultiMesh` para o scatter, população de criatura local ao jogador em vez de contagem fixa, e medir os 245 mil triângulos de terreno em vez de assumi-los.
+
+**A regra que torna o próximo resize barato** está escrita no cabeçalho do `map_terrain.gd`, e é a parte que importa: cada constante do relevo cai em um de dois grupos. **Escalam com o mapa** as feições cujo papel é ocupar uma fração dele — `FLAT_RADIUS` e `COAST_RAMP_START`, porque planície e costa são biomas, e bioma que não cresce junto encolhe até sumir. **Têm tamanho próprio** as alturas (`HILL_HEIGHT`, `RIM_HEIGHT`, `COAST_HEIGHT`), a largura da rampa da costa (é conta de inclinação) e a ilha inteira (ela cabe uma arena — dobrá-la daria 36 m de platô para um duelista só). Trocar uma constante de grupo por engano é o que quebra o mapa.
+
+E a consequência boa: **o mapa dobrou e as três regiões de bioma do catálogo não precisaram de uma linha de mudança.** Como costa e anel de recife escalaram na proporção, `-0.533` e `r 0.5` continuam apontando para os mesmos lugares — `test_data` mediu a fronteira em z = −32,00 contra um `COAST_RAMP_START` de −32,00. É exatamente o que as coordenadas normalizadas prometiam, verificado num resize real em vez de assumido.
+
+#### O relevo
+
+**`scripts/world/map_terrain.gd`** substitui em runtime o `Ground` chapado de `main.tscn` (mesmo nome de nó — o clique de mundo e o `test_world` continuam funcionando): uma grade de 121×121 a 1 m que gera malha, colisão (`HeightMapShape3D`) e a consulta `height_at` **da mesma fonte**, então visual, física e consulta nunca discordam. O desenho é deliberado:
+
+- **Planície central plana (altura 0) até `FLAT_RADIUS` = 32 m** — o gameplay que assume plano (POIs do `WorldPopulator`, encenação de duelo) vive aí. Com uma exceção declarada, a ilha logo abaixo: quem apoia corpo perto da origem **pergunta a altura**, não presume zero.
 - **Colinas suaves (até 2,5 m, ruído com semente fixa) só na zona externa**, e um **rim de borda (+3,5 m)** que fecha a leitura do mapa na câmera ortográfica — relevo é apresentação com colisão, não labirinto.
-- **Uma costa na borda -Z**: platô raso (+1,6 m, rampa entre z −16 e −21) reservado a NPCs e portais — comerciante e posto do Relicário vivem lá (`WorldPopulator`), o spawner não deixa criatura nascer na faixa (`MapTerrain.on_coast`, com margem para a deriva de patrulha) e o `MapDressing` não espalha bioma nela. O shader pinta a faixa emersa num tom seco (`color_coast`), com a base da rampa continuando molhada.
+- **Uma costa na borda -Z, em forma de LOBO** (+1,6 m, alcançando z = −32,4 m no meio e recuando para −43 nas laterais) reservada a NPCs e portais — comerciante e posto do Relicário vivem lá (`WorldPopulator`), o spawner não deixa criatura nascer na faixa (`MapTerrain.on_coast`, com margem para a deriva de patrulha) e o `MapDressing` não espalha bioma nela. O shader pinta a faixa emersa num tom seco (`color_coast`), com a base da rampa continuando molhada.
 - **Uma ilha no meio do mapa**: platô de 8 m de diâmetro (+2,6 m) que carrega a **arena** e é onde o domador abre o jogo, de pé, antes de descer para o mar. Mesmas regras da costa — `MapTerrain.on_island` mantém criatura fora dela (keep-out de 11 m) e o `MapDressing` não espalha coral em terra seca; o shader pinta o topo com o mesmo `color_coast`, em faixa radial em vez de banda de Z. A largura da rampa é conta, não gosto: a inclinação máxima de um `smoothstep` é `1,5 · altura / vão`, e 2,6 m em 5 m de vão dá **38°**, abaixo dos 45° que o `CharacterBody3D` aceita como piso — encurtar o vão sem refazer a conta transforma a ilha em parede e tranca a arena lá em cima. `test_world` cobra os dois: a rampa andável e a arena no topo plano.
 - **A iluminação é fragmentada por altura, não por região** (um `Environment` só): a névoa fria é **névoa de altura** — densa abaixo da linha d'água (`PZ01_WATER_LINE`, logo abaixo do topo do platô) e rala acima, então o leito fica imerso na murk e a costa emerge para um ar limpo. O tom quente do trecho seco vem de **omnis de preenchimento locais** sobre a vila da costa e sobre a ilha (sem sombra — banho de cor, não fonte de leitura); sol e ambiente globais continuam frios para o mar. A regra é "chão que emerge sai da murk também na luz" — trecho seco novo ganha a sua omni. Nota de tuning: na câmera ortográfica inclinada o raio de visão atravessa pouco da camada baixa, então `fog_height_density` precisa ser alto (~1.0) — valores tímidos não acumulam murk nenhuma.
 - Corpos com física (jogador, selvagens) seguem o relevo pela colisão; quem não tem física pergunta: a companheira (`terrain.height_at` no lugar do antigo `GROUND_Y`, que virou fallback de bancada), o spawner (nasce apoiado) e os props do `MapDressing`.
 
-O **solo** é um shader próprio (`shaders/terrain_ground.gdshader`): dois tons misturados por ruído em espaço de mundo (sem UV) + um terceiro tom nas inclinações, com a paleta por mapa vinda de `MapDressing.ground_palette`. Armadilha registrada: a frente de um triângulo no Godot é a ordem **horária** — na ordem OpenGL (anti-horária) o chão inteiro é backface-culled e o mapa flutua sobre o fundo.
+O **solo** é um shader próprio (`shaders/terrain_ground.gdshader`): dois tons misturados por ruído em espaço de mundo (sem UV) + um terceiro tom nas inclinações, com a paleta por mapa vinda de `MapDressing.ground_palette`. A **geografia da costa** (onde a areia seca é pintada) saiu dos defaults do shader e passou a vir do `MapTerrain`, junto com a da ilha, pelo mesmo motivo: é geografia, e geografia é do terreno. São cinco medidas em vez de dois limiares desde que a costa virou lobo — a mesma forma composta que levanta a malha, para que a tinta e o relevo não possam divergir.
+
+#### A costa é um lobo, e a forma vem do catálogo
+
+Até 2026-08-28 a costa era faixa cheia: `smoothstep` puro sobre z, a largura inteira do mapa. O desenho espacial aprovado a redesenhou como lobo — largo no topo, descendo só no meio —, e **o relevo teve de acompanhar**: com a faixa mantida, 47% do chão SECO responderia "mar raso", ou seja, o jogador de pé na areia dos cantos com a mineração dizendo que ele está nadando.
+
+As constantes `COAST_CENTER_X`, `COAST_LOBE_R`, `COAST_RECT_HALF_W` e `COAST_RECT_Z` do `MapTerrain` são a tradução em metros das duas regiões que o catálogo usa para a costa (`RGN-001` e `RGN-006`). Mudar uma sem reautorar a outra recria exatamente o buraco que essa rodada fechou — e `test_data` mede a fronteira **na linha de centro do lobo** para pegar a divergência, enquanto `test_world` cobra que o canto do topo seja mar, que é o que distingue um lobo de uma faixa.
+
+O alcance máximo da costa mar adentro (`COAST_RAMP_START`) continua existindo como número único para o shader, os testes e as notas do catálogo conferirem — mas deixou de ser a fronteira em toda a largura: agora só vale no meio. Armadilha registrada: a frente de um triângulo no Godot é a ordem **horária** — na ordem OpenGL (anti-horária) o chão inteiro é backface-culled e o mapa flutua sobre o fundo.
 
 **Animação.** Os clipes chegam com o vocabulário normalizado na conversão do bestiário (`convert-placeholders.mjs`): `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death`, mais extras por família — quadrúpedes têm `Eating`, voadores não têm `Walk` e seguem no `Idle` de flutuação. A criatura selvagem nasce em `Idle` e patrulha em `Walk`; a companheira troca de clipe pelo próprio ritmo de marcha e desliga o bob sintético quando o corpo tem rig. O importador de glTF não marca loop em nada, então `LOOPED_CLIPS` em `creature_actor.gd` marca só os clipes contínuos — nunca `Death`.
 
@@ -570,7 +685,7 @@ Orçamento por asset para os modelos definitivos, conforme `direcao-3d-arte`:
 
 Loops mínimos por criatura definitiva, a 24 fps, **nos mesmos nomes do vocabulário normalizado** — o código já os consome por esses nomes: `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death`. Extras como `Yes`/`No`/`Wave` (feedback de captura/vitória) são bem-vindos.
 
-Criaturas Loricati usam **rig flutuante** — sem rig locomotor por perna, deslizamento com bob vertical de ~5 cm. Cobre ~60% do elenco atual.
+Os artrópodes do elenco usam **rig flutuante** — sem rig locomotor por perna, deslizamento com bob vertical de ~5 cm. Cobre ~60% do elenco atual.
 
 Os `.glb` espelhados em `models/` são versionados via **git-lfs** (`.gitattributes` já cobre `*.glb`; confira `git lfs status` antes do commit — blob commitado direto fica no histórico para sempre). Os `CRT-XXX.glb` da raiz viraram peso morto de 8–27 MB cada desde que todo o elenco tem `modelUrl`; podem ser arquivados fora do repo. Quando os modelos definitivos voltarem (animados), importe o `.glb` mestre — o do bestiário serve texturas KTX2 otimizadas para browser, que não é o que o Godot quer.
 

@@ -83,6 +83,11 @@ var player_active_index := 0
 ## de `inventory == null`.
 var relic: PlayerRelic
 
+## O resto do set do domador — Amplificador e Encantador. Null em playtest
+## solto, pela mesma razão do relicário: sem mundo não há loadout, e a luta
+## roda inteira sem ele. É o mundo que injeta, nunca esta tela que monta.
+var loadout: PlayerLoadout
+
 ## Paleta herdada dos tokens do app web.
 const COL_BONE := "#F2EDE0"
 const COL_MOSS := "#7A8C6B"
@@ -237,6 +242,10 @@ func _start_new_duel() -> void:
 
 	var foe := Combatant.from_bestiary(_db, b, duel_level)
 	battle = Battle.new(_db, party, foe, is_wild)
+	# Antes de qualquer rodada e antes de escolher quem entra: o modificador
+	# do set vale para o time todo e para o adversário, e aplicá-lo depois
+	# faria a primeira rodada rodar com o número errado.
+	battle.apply_loadout(loadout)
 
 	# Entrar com a criatura desmaiada travaria a luta na substituição no
 	# primeiro quadro. Quem está caída fica no banco, e o mundo já barra o

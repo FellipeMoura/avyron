@@ -7,12 +7,18 @@ extends InteractableActor
 ## é desafio", não "isto é loja". Mesma exigência de legibilidade por silhueta
 ## que criatura e comerciante já cumprem.
 ##
-## Identidade (`code`/`name`) e mapa vêm do bestiário via `role = duelist`
-## (`BestiaryData.duelists_in_map`). Contra quem o duelista luta e qual Glifo
-## ele concede **não** vêm do bundle — são decisão de conteúdo do jogo, no
-## mesmo nível que `WorldRoot.starter_code`/`encounter_level` já são, porque
-## o catálogo não tem coluna para "oponente de arena" e não precisa: são só
-## dois duelistas nesta era, ligados um a um a um Glifo fixo.
+## Tudo vem do bestiário via `role = duelist` (`BestiaryData.duelists_in_map`):
+## identidade, mapa e — desde 2026-08 — o duelo em si, no bloco
+## `duelists[].duel` (tabela `npc_duelists`). Antes disso o oponente, o nível
+## e o Glifo eram constantes no `WorldPopulator`, com a justificativa de que
+## uma arena só não valia uma tabela; o modelo de uma arena por mapa derrubou
+## a justificativa, e o nível nunca deveria ter estado em código de qualquer
+## forma (regra 1).
+##
+## `grants_glyph` vazio é estado NORMAL, não dado faltando: só a arena do
+## último mapa de uma era concede Glifo — as intermediárias são duelo com
+## recompensa própria. `PlayerProgress.grant_glyph("")` já devolve `false`,
+## então nada precisa ser checado aqui.
 
 const HEIGHT := 1.9
 const RADIUS := 0.32

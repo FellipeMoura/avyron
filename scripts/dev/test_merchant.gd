@@ -277,6 +277,22 @@ func _test_modal_guard() -> void:
 	if station == null:
 		return
 
+	# Guardião do portal é a forma física de uma travessia que exige Glifo:
+	# existe quando o catálogo pede, e não existe quando não pede. Antes era
+	# "um guardião, sempre", com o Glifo exigido cravado em código — e desde
+	# que a topologia virou dado (`map_connections`) isso passaria a poder
+	# contradizer o catálogo, barrando uma passagem que o dado diz ser livre.
+	var db := _world.get("_db") as BestiaryData
+	var gated := false
+	if db:
+		for link in db.connections_from_map(_world.map_code):
+			if link is Dictionary and (link as Dictionary).get("requiredGlyph") != null:
+				gated = true
+				break
+	var guardian_in_world := _world.get_node_or_null("PortalGuardian") != null
+	_check("guardiao existe se e so se ha travessia exigindo Glifo",
+		guardian_in_world, gated)
+
 	station.global_position = player.global_position + Vector3(2, 0, 0)
 	_world.handle_click_on_interactable(station)
 	_check_true("de perto abre o posto",

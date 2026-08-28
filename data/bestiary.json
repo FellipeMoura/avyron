@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.273",
-  "generatedAt": "2026-08-27T01:32:16.013Z",
+  "dataVersion": "0.441",
+  "generatedAt": "2026-08-28T21:24:59.875Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -103,17 +103,6 @@
         "aura": "#FFE23D",
         "spread": 0.12
       }
-    },
-    {
-      "code": "ELE-006",
-      "name": "Gelo",
-      "palette": {
-        "shadow": "#2A3E52",
-        "mid": "#8FB8C9",
-        "highlight": "#F2FBFF",
-        "aura": "#BFF3FF",
-        "spread": 0.15
-      }
     }
   ],
   "elementalAdvantages": [
@@ -154,7 +143,7 @@
     },
     {
       "attacker": "ELE-004",
-      "defender": "ELE-006",
+      "defender": "ELE-005",
       "multiplier": 2
     },
     {
@@ -164,59 +153,59 @@
     },
     {
       "attacker": "ELE-005",
-      "defender": "ELE-006",
-      "multiplier": 0.5
-    },
-    {
-      "attacker": "ELE-006",
       "defender": "ELE-004",
       "multiplier": 0.5
-    },
-    {
-      "attacker": "ELE-006",
-      "defender": "ELE-005",
-      "multiplier": 2
     }
   ],
   "classes": [
     {
       "code": "CLS-001",
-      "name": "Loricati",
-      "biologicalScope": "Artropodes: insetos, aracnideos, crustaceos, euripterideos",
+      "name": "Arambi",
+      "primaryStat": "defense",
+      "primaryStatBonusPct": 20,
       "workFunction": {
         "speedModifier": 1,
-        "preferredOres": [
-          "fossilAmber",
-          "stone",
-          "iron"
-        ],
         "role": "excavator"
       }
     },
     {
       "code": "CLS-002",
-      "name": "Theria",
-      "biologicalScope": "Sinapsideos: linhagem que leva aos mamiferos",
+      "name": "Kaíra",
+      "primaryStat": "attack",
+      "primaryStatBonusPct": 20,
       "workFunction": {
         "speedModifier": 1.1,
-        "preferredOres": [
-          "coal",
-          "copper"
-        ],
         "role": "burrower"
       }
     },
     {
       "code": "CLS-003",
-      "name": "Draconis",
-      "biologicalScope": "Sauropsideos: repteis, dinossauros, aves",
+      "name": "Yaruki",
+      "primaryStat": "speed",
+      "primaryStatBonusPct": 20,
       "workFunction": {
         "speedModifier": 0.9,
-        "preferredOres": [
-          "elementalCrystal",
-          "silver"
-        ],
         "role": "prospector"
+      }
+    },
+    {
+      "code": "CLS-004",
+      "name": "Ambuá",
+      "primaryStat": "charge",
+      "primaryStatBonusPct": 20,
+      "workFunction": {
+        "speedModifier": 1.3,
+        "role": "sifter"
+      }
+    },
+    {
+      "code": "CLS-005",
+      "name": "Torumã",
+      "primaryStat": "hp",
+      "primaryStatBonusPct": 20,
+      "workFunction": {
+        "speedModifier": 0.85,
+        "role": "crusher"
       }
     }
   ],
@@ -230,7 +219,90 @@
         "BIO-002",
         "BIO-001",
         "BIO-003",
-        "BIO-004"
+        "BIO-004",
+        "BIO-014"
+      ],
+      "biomeRegions": [
+        {
+          "code": "RGN-001",
+          "biome": "BIO-002",
+          "shape": "rect",
+          "params": {
+            "x0": -0.8,
+            "x1": 0.66,
+            "z0": -1,
+            "z1": -0.72
+          }
+        },
+        {
+          "code": "RGN-006",
+          "biome": "BIO-002",
+          "shape": "circle",
+          "params": {
+            "r": 0.46,
+            "cx": -0.07,
+            "cz": -1
+          }
+        },
+        {
+          "code": "RGN-002",
+          "biome": "BIO-003",
+          "shape": "circle",
+          "params": {
+            "r": 0.47,
+            "cx": -0.34,
+            "cz": 0
+          }
+        },
+        {
+          "code": "RGN-004",
+          "biome": "BIO-014",
+          "shape": "rect",
+          "params": {
+            "x0": -1,
+            "x1": -0.3,
+            "z0": 0.72,
+            "z1": 1
+          }
+        },
+        {
+          "code": "RGN-005",
+          "biome": "BIO-004",
+          "shape": "band",
+          "params": {
+            "to": 1,
+            "axis": "z",
+            "from": 0.47
+          }
+        },
+        {
+          "code": "RGN-007",
+          "biome": "BIO-004",
+          "shape": "rect",
+          "params": {
+            "x0": 0.54,
+            "x1": 1,
+            "z0": -0.1,
+            "z1": 1
+          }
+        },
+        {
+          "code": "RGN-003",
+          "biome": "BIO-001",
+          "shape": "rect",
+          "params": {
+            "x0": -1,
+            "x1": 1,
+            "z0": -1,
+            "z1": 1
+          }
+        }
+      ],
+      "connections": [
+        {
+          "to": "PZ-02",
+          "requiredGlyph": null
+        }
       ]
     },
     {
@@ -243,6 +315,13 @@
         "BIO-006",
         "BIO-007",
         "BIO-008"
+      ],
+      "biomeRegions": [],
+      "connections": [
+        {
+          "to": "PZ-03",
+          "requiredGlyph": null
+        }
       ]
     },
     {
@@ -256,7 +335,9 @@
         "BIO-011",
         "BIO-012",
         "BIO-013"
-      ]
+      ],
+      "biomeRegions": [],
+      "connections": []
     }
   ],
   "biomes": [
@@ -324,6 +405,21 @@
       "code": "BIO-013",
       "name": "Campos Basálticos",
       "predominantElements": "Fogo + Terra"
+    },
+    {
+      "code": "BIO-014",
+      "name": "Plataforma Glacial",
+      "predominantElements": "Agua + Terra"
+    }
+  ],
+  "glyphs": [
+    {
+      "code": "GLF-001",
+      "name": "Daleth"
+    },
+    {
+      "code": "GLF-002",
+      "name": "Zayin"
     }
   ],
   "abilities": [
@@ -553,51 +649,6 @@
       "targetSelf": false
     },
     {
-      "code": "HAB-016",
-      "name": "Sopro Gelido",
-      "element": "ELE-006",
-      "type": "Ataque",
-      "effect": "Dano elemental. Poder 40, precisao 100%.",
-      "awakeningOnly": false,
-      "power": 40,
-      "accuracy": 100,
-      "uses": 25,
-      "priority": 0,
-      "effectCode": "damage",
-      "effectValue": 0,
-      "targetSelf": false
-    },
-    {
-      "code": "HAB-017",
-      "name": "Geada",
-      "element": "ELE-006",
-      "type": "Ataque",
-      "effect": "Dano elemental. Poder 65, precisao 95%.",
-      "awakeningOnly": false,
-      "power": 65,
-      "accuracy": 95,
-      "uses": 15,
-      "priority": 0,
-      "effectCode": "damage",
-      "effectValue": 0,
-      "targetSelf": false
-    },
-    {
-      "code": "HAB-018",
-      "name": "Nevasca",
-      "element": "ELE-006",
-      "type": "Ataque",
-      "effect": "Dano elemental. Poder 90, precisao 90%.",
-      "awakeningOnly": false,
-      "power": 90,
-      "accuracy": 90,
-      "uses": 8,
-      "priority": 0,
-      "effectCode": "damage",
-      "effectValue": 0,
-      "targetSelf": false
-    },
-    {
       "code": "HAB-019",
       "name": "Encouracar",
       "element": null,
@@ -776,21 +827,6 @@
       "effectCode": "damage",
       "effectValue": 0,
       "targetSelf": false
-    },
-    {
-      "code": "HAB-031",
-      "name": "Era Glacial",
-      "element": "ELE-006",
-      "type": "Despertar",
-      "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
-      "awakeningOnly": true,
-      "power": 120,
-      "accuracy": 90,
-      "uses": 5,
-      "priority": 0,
-      "effectCode": "damage",
-      "effectValue": 0,
-      "targetSelf": false
     }
   ],
   "creatures": [
@@ -863,7 +899,7 @@
       "code": "CRT-002",
       "name": "Anomalocaris",
       "baseSpecies": "Anomalocaris",
-      "class": "CLS-001",
+      "class": "CLS-002",
       "element": "ELE-002",
       "map": "PZ-01",
       "silhouetteNote": null,
@@ -912,7 +948,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-019",
+          "itemCode": "ITM-020",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -928,11 +964,11 @@
       "code": "CRT-003",
       "name": "Opabinia",
       "baseSpecies": "Opabinia",
-      "class": "CLS-001",
+      "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Pigeon.glb",
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
       "stats": {
         "hp": 50,
         "attack": 45,
@@ -977,7 +1013,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-019",
+          "itemCode": "ITM-022",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -994,10 +1030,10 @@
       "name": "Wiwaxia",
       "baseSpecies": "Wiwaxia",
       "class": "CLS-001",
-      "element": "ELE-004",
+      "element": "ELE-002",
       "map": "PZ-01",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Goleling.glb",
+      "modelUrl": "/models/placeholders/flying/Glub.glb",
       "stats": {
         "hp": 60,
         "attack": 30,
@@ -1059,10 +1095,10 @@
       "name": "Hallucigenia",
       "baseSpecies": "Hallucigenia",
       "class": "CLS-001",
-      "element": "ELE-003",
+      "element": "ELE-002",
       "map": "PZ-01",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": "/models/placeholders/flying/Glub.glb",
       "stats": {
         "hp": 45,
         "attack": 50,
@@ -1120,79 +1156,14 @@
       }
     },
     {
-      "code": "CRT-006",
-      "name": "Eurypterus",
-      "baseSpecies": "Eurypterus",
-      "class": "CLS-001",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Tribal.glb",
-      "stats": {
-        "hp": 55,
-        "attack": 55,
-        "defense": 45,
-        "speed": 50,
-        "charge": 45,
-        "growthRate": 0.032,
-        "xpYield": 50,
-        "sizeMeters": 1.41,
-        "awakeningMultiplier": 1.7,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 140,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-020",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        },
-        {
-          "code": "HAB-027",
-          "learnLevel": 1
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-019",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": {
-        "code": "DSP-006",
-        "name": "Omnidens",
-        "type": "swap",
-        "referenceSpecies": "Omnidens"
-      }
-    },
-    {
       "code": "CRT-007",
       "name": "Omnidens",
       "baseSpecies": "Omnidens",
-      "class": "CLS-001",
+      "class": "CLS-002",
       "element": "ELE-002",
       "map": "PZ-01",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Ghost.glb",
+      "modelUrl": "/models/placeholders/flying/Squidle.glb",
       "stats": {
         "hp": 75,
         "attack": 80,
@@ -1237,7 +1208,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-019",
+          "itemCode": "ITM-020",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -1254,8 +1225,8 @@
       "name": "Arthropleura",
       "baseSpecies": "Arthropleura",
       "class": "CLS-001",
-      "element": "ELE-003",
-      "map": "PZ-01",
+      "element": "ELE-004",
+      "map": "PZ-03",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Armabee_Evolved.glb",
       "stats": {
@@ -1318,9 +1289,9 @@
       "code": "CRT-009",
       "name": "Meganeura",
       "baseSpecies": "Meganeura",
-      "class": "CLS-001",
-      "element": "ELE-003",
-      "map": "PZ-01",
+      "class": "CLS-003",
+      "element": "ELE-005",
+      "map": "PZ-03",
       "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
       "modelUrl": "/models/placeholders/flying/Hywirl.glb",
       "stats": {
@@ -1367,7 +1338,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-019",
+          "itemCode": "ITM-021",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -1383,9 +1354,9 @@
       "code": "CRT-010",
       "name": "Pulmonoscorpius",
       "baseSpecies": "Pulmonoscorpius",
-      "class": "CLS-001",
+      "class": "CLS-003",
       "element": "ELE-001",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Dragon_Evolved.glb",
       "stats": {
@@ -1432,7 +1403,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-019",
+          "itemCode": "ITM-021",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -1448,9 +1419,9 @@
       "code": "CRT-011",
       "name": "Rhyniognatha",
       "baseSpecies": "Rhyniognatha",
-      "class": "CLS-001",
+      "class": "CLS-004",
       "element": "ELE-003",
-      "map": "PZ-01",
+      "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Ghost_Skull.glb",
       "stats": {
@@ -1497,7 +1468,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-019",
+          "itemCode": "ITM-022",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -1510,79 +1481,14 @@
       }
     },
     {
-      "code": "CRT-013",
-      "name": "Maldybulakia",
-      "baseSpecies": "Maldybulakia",
-      "class": "CLS-001",
-      "element": "ELE-005",
-      "map": "PZ-01",
-      "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Goleling_Evolved.glb",
-      "stats": {
-        "hp": 90,
-        "attack": 40,
-        "defense": 70,
-        "speed": 35,
-        "charge": 40,
-        "growthRate": 0.032,
-        "xpYield": 55,
-        "sizeMeters": 2.56,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 100,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-013",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-014",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-015",
-          "learnLevel": 28
-        },
-        {
-          "code": "HAB-030",
-          "learnLevel": 1
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-019",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": {
-        "code": "DSP-013",
-        "name": "Maldybulakia Tonans",
-        "type": "reinforcement",
-        "referenceSpecies": null
-      }
-    },
-    {
       "code": "CRT-014",
       "name": "Hurdia",
       "baseSpecies": "Hurdia",
-      "class": "CLS-001",
+      "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Glub_Evolved.glb",
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
       "stats": {
         "hp": 60,
         "attack": 50,
@@ -1627,7 +1533,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-019",
+          "itemCode": "ITM-022",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -1643,11 +1549,11 @@
       "code": "CRT-015",
       "name": "Odaraia",
       "baseSpecies": "Odaraia",
-      "class": "CLS-001",
+      "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking_Evolved.glb",
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
       "stats": {
         "hp": 45,
         "attack": 50,
@@ -1692,7 +1598,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-019",
+          "itemCode": "ITM-022",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -1705,77 +1611,12 @@
       }
     },
     {
-      "code": "CRT-016",
-      "name": "Ceratiocaris",
-      "baseSpecies": "Ceratiocaris",
-      "class": "CLS-001",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Dragon.glb",
-      "stats": {
-        "hp": 55,
-        "attack": 60,
-        "defense": 55,
-        "speed": 45,
-        "charge": 45,
-        "growthRate": 0.031,
-        "xpYield": 52,
-        "sizeMeters": 1.51,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 140,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-020",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        },
-        {
-          "code": "HAB-027",
-          "learnLevel": 1
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-019",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": {
-        "code": "DSP-016",
-        "name": "Ceratiocaris Tyrant",
-        "type": "reinforcement",
-        "referenceSpecies": null
-      }
-    },
-    {
       "code": "CRT-017",
       "name": "Dimetrodon",
       "baseSpecies": "Dimetrodon",
       "class": "CLS-002",
       "element": "ELE-001",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Vela dorsal alta e triangular sustentada por espinhos ósseos alongados; corpo quadrupede robusto, cauda longa afinada; cabeça alongada com dentes carniceiros diferenciados. Silhueta dominada pela vela — sinapsídeo comumente confundido com dinossauro.",
       "modelUrl": "/models/placeholders/big/MushroomKing.glb",
       "stats": {
@@ -1838,9 +1679,9 @@
       "code": "CRT-018",
       "name": "Edaphosaurus",
       "baseSpecies": "Edaphosaurus",
-      "class": "CLS-002",
+      "class": "CLS-005",
       "element": "ELE-003",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Vela dorsal com travessas ósseas transversais formando padrão de grade sobre os espinhos; corpo quadrupede baixo e denso, cauda curta; cabeça pequena de herbívoro. Contraponto visual ao Dimetrodon — mesma vela, padrão diferente, papel oposto.",
       "modelUrl": "/models/placeholders/big/Bunny.glb",
       "stats": {
@@ -1887,7 +1728,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-020",
+          "itemCode": "ITM-023",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -1900,77 +1741,12 @@
       }
     },
     {
-      "code": "CRT-019",
-      "name": "Lystrosaurus",
-      "baseSpecies": "Lystrosaurus",
-      "class": "CLS-002",
-      "element": "ELE-004",
-      "map": "PZ-01",
-      "silhouetteNote": "Corpo atarracado e baixo, quatro membros curtos e robustos; cabeça grande com bico córneo curto e um par de presas caniniformes pequenas apontando para baixo; sem crista, sem vela. Silhueta compacta em barril — sobrevivente icônico da extinção Permo-Triássica.",
-      "modelUrl": "/models/placeholders/big/Orc_Skull.glb",
-      "stats": {
-        "hp": 70,
-        "attack": 45,
-        "defense": 60,
-        "speed": 40,
-        "charge": 50,
-        "growthRate": 0.031,
-        "xpYield": 53,
-        "sizeMeters": 2.18,
-        "awakeningMultiplier": 1.7,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 160,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-010",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-011",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-012",
-          "learnLevel": 28
-        },
-        {
-          "code": "HAB-029",
-          "learnLevel": 1
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-020",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": {
-        "code": "DSP-019",
-        "name": "Kannemeyeria",
-        "type": "swap",
-        "referenceSpecies": "Kannemeyeria"
-      }
-    },
-    {
       "code": "CRT-020",
       "name": "Moschops",
       "baseSpecies": "Moschops",
-      "class": "CLS-002",
+      "class": "CLS-005",
       "element": "ELE-004",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Cabeça bulbosa com crânio espesso arredondado adaptado a combate de topada; corpo curvado com dorso arqueado tipo urso-tatu, membros curtos; cauda curta. Silhueta corcunda dominante.",
       "modelUrl": "/models/placeholders/big/Cactoro.glb",
       "stats": {
@@ -2017,7 +1793,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-020",
+          "itemCode": "ITM-023",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -2035,7 +1811,7 @@
       "baseSpecies": "Inostrancevia",
       "class": "CLS-002",
       "element": "ELE-001",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Corpo esguio quadrupede tipo grande felino; cabeça alongada com par de caninos superiores enormes que ultrapassam a mandíbula fechada; cauda longa. Silhueta de predador-lâmina — contraste direto com Moschops.",
       "modelUrl": "/models/placeholders/big/Monkroose.glb",
       "stats": {
@@ -2098,9 +1874,9 @@
       "code": "CRT-022",
       "name": "Cotylorhynchus",
       "baseSpecies": "Cotylorhynchus",
-      "class": "CLS-002",
+      "class": "CLS-005",
       "element": "ELE-004",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Corpo cilíndrico desproporcionalmente gigantesco em barril; cabeça minúscula em relação ao corpo; membros curtos afastados; cauda curta. Silhueta cômica: pequena cabeça sobre corpo bola — bom mini-boss territorial.",
       "modelUrl": "/models/placeholders/big/Orc.glb",
       "stats": {
@@ -2147,7 +1923,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-020",
+          "itemCode": "ITM-023",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -2163,9 +1939,9 @@
       "code": "CRT-023",
       "name": "Scutosaurus",
       "baseSpecies": "Scutosaurus",
-      "class": "CLS-003",
+      "class": "CLS-001",
       "element": "ELE-004",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Corpo quadrupede blindado com fileiras de placas ósseas ao longo do dorso e flancos; cabeça larga com espinhos e verrugas ósseas laterais; membros grossos; cauda curta. Silhueta quadrada e couraçada — tanque de área.",
       "modelUrl": "/models/placeholders/big/Alien.glb",
       "stats": {
@@ -2212,7 +1988,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-021",
+          "itemCode": "ITM-019",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -2230,7 +2006,7 @@
       "baseSpecies": "Hylonomus",
       "class": "CLS-003",
       "element": "ELE-003",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Pequeno lagartiforme quadrupede (~20 cm de comprimento total), corpo delgado, cauda longa afinada; cabeça triangular pequena. Silhueta neutra de réptil basal — criatura comum/inicial de mapa.",
       "modelUrl": "/models/placeholders/big/Ninja.glb",
       "stats": {
@@ -2294,8 +2070,8 @@
       "name": "Petrolacosaurus",
       "baseSpecies": "Petrolacosaurus",
       "class": "CLS-003",
-      "element": "ELE-005",
-      "map": "PZ-01",
+      "element": "ELE-004",
+      "map": "PZ-03",
       "silhouetteNote": "Diapsídeo esguio quadrupede com pernas longas relativas ao corpo (adaptação corredora); cauda longa como contrapeso; cabeça pequena com fenestras cranianas visíveis. Silhueta atlética.",
       "modelUrl": "/models/placeholders/big/Frog.glb",
       "stats": {
@@ -2358,11 +2134,11 @@
       "code": "CRT-026",
       "name": "Mesosaurus",
       "baseSpecies": "Mesosaurus",
-      "class": "CLS-003",
+      "class": "CLS-004",
       "element": "ELE-002",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Corpo alongado hidrodinâmico, cauda achatada em remo lateral; membros modificados em nadadeiras; focinho fino e alongado com dentes agulha finos e numerosos. Silhueta aquática — cobre nicho anfíbio.",
-      "modelUrl": "/models/placeholders/big/Tribal.glb",
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
       "stats": {
         "hp": 55,
         "attack": 50,
@@ -2407,7 +2183,7 @@
       ],
       "drops": [
         {
-          "itemCode": "ITM-021",
+          "itemCode": "ITM-022",
           "chance": 0.85,
           "condition": "Derrota em combate"
         }
@@ -2420,77 +2196,12 @@
       }
     },
     {
-      "code": "CRT-027",
-      "name": "Captorhinus",
-      "baseSpecies": "Captorhinus",
-      "class": "CLS-003",
-      "element": "ELE-004",
-      "map": "PZ-01",
-      "silhouetteNote": "Quadrupede robusto baixo, corpo denso e musculoso; cabeça larga com maxilares fortes e várias fileiras de dentes; sem cristas nem placas visíveis. Silhueta compacta e discreta — comum forte.",
-      "modelUrl": "/models/placeholders/big/BlueDemon.glb",
-      "stats": {
-        "hp": 55,
-        "attack": 50,
-        "defense": 55,
-        "speed": 45,
-        "charge": 50,
-        "growthRate": 0.03,
-        "xpYield": 51,
-        "sizeMeters": 1.51,
-        "awakeningMultiplier": 1.7,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 175,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-010",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-011",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-012",
-          "learnLevel": 28
-        },
-        {
-          "code": "HAB-029",
-          "learnLevel": 1
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-021",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": {
-        "code": "DSP-027",
-        "name": "Moradisaurus",
-        "type": "swap",
-        "referenceSpecies": "Moradisaurus"
-      }
-    },
-    {
       "code": "CRT-028",
       "name": "Weigeltisaurus",
       "baseSpecies": "Weigeltisaurus",
       "class": "CLS-003",
       "element": "ELE-005",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Pequeno reptil quadrupede com membranas de planeio sustentadas por costelas alongadas nas laterais do tronco; cabeca pequena com crista ossea baixa; cauda longa fina. Silhueta alada quando em glide, contraste aereo aos repteis terrestres do elenco.",
       "modelUrl": "/models/placeholders/big/Birb.glb",
       "stats": {
@@ -2535,7 +2246,13 @@
           "learnLevel": 1
         }
       ],
-      "drops": [],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-028",
         "name": "Weigeltisaurus Fulgor",
@@ -2549,7 +2266,7 @@
       "baseSpecies": "Protorosaurus",
       "class": "CLS-003",
       "element": "ELE-005",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Diapsideo esguio de pescoco alongado e cabeca pequena triangular; corpo quadrupede moderado, cauda longa afilada. Silhueta de pescoco como traco distintivo, generalista de porte medio do Permiano.",
       "modelUrl": "/models/placeholders/big/Demon.glb",
       "stats": {
@@ -2594,7 +2311,13 @@
           "learnLevel": 1
         }
       ],
-      "drops": [],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-029",
         "name": "Protorosaurus Voltaico",
@@ -2606,9 +2329,9 @@
       "code": "CRT-030",
       "name": "Archosaurus",
       "baseSpecies": "Archosaurus",
-      "class": "CLS-003",
-      "element": "ELE-004",
-      "map": "PZ-01",
+      "class": "CLS-002",
+      "element": "ELE-003",
+      "map": "PZ-03",
       "silhouetteNote": "Corpo quadrupede alongado tipo crocodiliano primitivo; focinho comprido e estreito com dentes conicos numerosos; membros curtos afastados do corpo; cauda longa. Silhueta rasteira de emboscada, predador de Terra em contraponto agil ao Scutosaurus blindado.",
       "modelUrl": "/models/placeholders/big/Dino.glb",
       "stats": {
@@ -2653,7 +2376,13 @@
           "learnLevel": 1
         }
       ],
-      "drops": [],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-030",
         "name": "Archosaurus Sismico",
@@ -2667,7 +2396,7 @@
       "baseSpecies": "Sphenacodon",
       "class": "CLS-002",
       "element": "ELE-005",
-      "map": "PZ-01",
+      "map": "PZ-03",
       "silhouetteNote": "Vela dorsal baixa e rudimentar, menos proeminente que a do Dimetrodon; corpo quadrupede esguio de sinapsideo carnivoro; cauda longa afinada; cabeca alongada com dentes diferenciados. Silhueta-irma do Dimetrodon, mesma familia, porte menor.",
       "modelUrl": "/models/placeholders/big/Fish.glb",
       "stats": {
@@ -2712,7 +2441,13 @@
           "learnLevel": 1
         }
       ],
-      "drops": [],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
       "awakening": {
         "code": "DSP-031",
         "name": "Sphenacodon Fulgurante",
@@ -2721,28 +2456,1876 @@
       }
     },
     {
-      "code": "CRT-032",
-      "name": "Thrinaxodon",
-      "baseSpecies": "Thrinaxodon",
-      "class": "CLS-002",
-      "element": "ELE-005",
+      "code": "CRT-033",
+      "name": "Isotelus",
+      "baseSpecies": "Isotelus",
+      "class": "CLS-001",
+      "element": "ELE-002",
       "map": "PZ-01",
-      "silhouetteNote": "Pequeno cinodonte quase-mamifero, corpo baixo e alongado tipo furao; cabeca curta com mandibula robusta; postura semi-ereta com membros sob o corpo. Silhueta agil e escavadora, contemporaneo do Lystrosaurus na travessia Permo-Triassica.",
-      "modelUrl": "/models/placeholders/big/Frog.glb",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "stats": {
+        "hp": 65,
+        "attack": 45,
+        "defense": 70,
+        "speed": 30,
+        "charge": 45,
+        "growthRate": 0.031,
+        "xpYield": 51,
+        "sizeMeters": 1.98,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 155,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-034",
+      "name": "Marrella",
+      "baseSpecies": "Marrella",
+      "class": "CLS-003",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "stats": {
+        "hp": 35,
+        "attack": 35,
+        "defense": 30,
+        "speed": 70,
+        "charge": 55,
+        "growthRate": 0.03,
+        "xpYield": 45,
+        "sizeMeters": 0.9,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 200,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-035",
+      "name": "Leanchoilia",
+      "baseSpecies": "Leanchoilia",
+      "class": "CLS-003",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "stats": {
+        "hp": 40,
+        "attack": 45,
+        "defense": 35,
+        "speed": 65,
+        "charge": 55,
+        "growthRate": 0.03,
+        "xpYield": 48,
+        "sizeMeters": 0.9,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 180,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-036",
+      "name": "Orthoceras",
+      "baseSpecies": "Orthoceras",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "stats": {
+        "hp": 55,
+        "attack": 50,
+        "defense": 50,
+        "speed": 55,
+        "charge": 55,
+        "growthRate": 0.032,
+        "xpYield": 53,
+        "sizeMeters": 2.18,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 135,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-037",
+      "name": "Cameroceras",
+      "baseSpecies": "Cameroceras",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "stats": {
+        "hp": 80,
+        "attack": 70,
+        "defense": 60,
+        "speed": 45,
+        "charge": 55,
+        "growthRate": 0.037,
+        "xpYield": 62,
+        "sizeMeters": 3.17,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 60,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-038",
+      "name": "Arandaspis",
+      "baseSpecies": "Arandaspis",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
       "stats": {
         "hp": 45,
-        "attack": 50,
+        "attack": 35,
         "defense": 40,
-        "speed": 75,
-        "charge": 60,
+        "speed": 55,
+        "charge": 55,
         "growthRate": 0.03,
-        "xpYield": 54,
-        "sizeMeters": 1.2,
-        "awakeningMultiplier": 1.7,
+        "xpYield": 46,
+        "sizeMeters": 1.12,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 195,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-039",
+      "name": "Sacabambaspis",
+      "baseSpecies": "Sacabambaspis",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "stats": {
+        "hp": 50,
+        "attack": 35,
+        "defense": 50,
+        "speed": 45,
+        "charge": 55,
+        "growthRate": 0.03,
+        "xpYield": 47,
+        "sizeMeters": 1.41,
+        "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
       "capture": {
         "catchRate": 190,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-040",
+      "name": "Cothurnocystis",
+      "baseSpecies": "Cothurnocystis",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "stats": {
+        "hp": 45,
+        "attack": 30,
+        "defense": 45,
+        "speed": 40,
+        "charge": 60,
+        "growthRate": 0.03,
+        "xpYield": 44,
+        "sizeMeters": 0.9,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 200,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-041",
+      "name": "Aegirocassis",
+      "baseSpecies": "Aegirocassis",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "stats": {
+        "hp": 85,
+        "attack": 40,
+        "defense": 60,
+        "speed": 45,
+        "charge": 60,
+        "growthRate": 0.034,
+        "xpYield": 58,
+        "sizeMeters": 2.56,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 95,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-042",
+      "name": "Endoceras",
+      "baseSpecies": "Endoceras",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "stats": {
+        "hp": 95,
+        "attack": 60,
+        "defense": 65,
+        "speed": 35,
+        "charge": 45,
+        "growthRate": 0.035,
+        "xpYield": 60,
+        "sizeMeters": 3.12,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 75,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-043",
+      "name": "Echinosphaerites",
+      "baseSpecies": "Echinosphaerites",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "stats": {
+        "hp": 60,
+        "attack": 25,
+        "defense": 60,
+        "speed": 20,
+        "charge": 45,
+        "growthRate": 0.03,
+        "xpYield": 42,
+        "sizeMeters": 0.9,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 200,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-044",
+      "name": "Megalograptus",
+      "baseSpecies": "Megalograptus",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "stats": {
+        "hp": 70,
+        "attack": 60,
+        "defense": 55,
+        "speed": 45,
+        "charge": 45,
+        "growthRate": 0.033,
+        "xpYield": 55,
+        "sizeMeters": 2.05,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 120,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-045",
+      "name": "Walliserops",
+      "baseSpecies": "Walliserops",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 50,
+        "attack": 40,
+        "defense": 60,
+        "speed": 30,
+        "charge": 45,
+        "growthRate": 0.03,
+        "xpYield": 45,
+        "sizeMeters": 0.9,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 200,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-046",
+      "name": "Bothriolepis",
+      "baseSpecies": "Bothriolepis",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 40,
+        "defense": 70,
+        "speed": 30,
+        "charge": 45,
+        "growthRate": 0.03,
+        "xpYield": 49,
+        "sizeMeters": 1.51,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 170,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-047",
+      "name": "Drepanaspis",
+      "baseSpecies": "Drepanaspis",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 35,
+        "defense": 70,
+        "speed": 30,
+        "charge": 45,
+        "growthRate": 0.03,
+        "xpYield": 48,
+        "sizeMeters": 1.51,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 180,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-048",
+      "name": "Cephalaspis",
+      "baseSpecies": "Cephalaspis",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 55,
+        "attack": 40,
+        "defense": 65,
+        "speed": 40,
+        "charge": 50,
+        "growthRate": 0.03,
+        "xpYield": 50,
+        "sizeMeters": 1.41,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 160,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-049",
+      "name": "Pterichthyodes",
+      "baseSpecies": "Pterichthyodes",
+      "class": "CLS-001",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 55,
+        "attack": 40,
+        "defense": 65,
+        "speed": 35,
+        "charge": 45,
+        "growthRate": 0.03,
+        "xpYield": 48,
+        "sizeMeters": 1.23,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 180,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-050",
+      "name": "Pneumodesmus",
+      "baseSpecies": "Pneumodesmus",
+      "class": "CLS-001",
+      "element": "ELE-004",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 45,
+        "attack": 35,
+        "defense": 60,
+        "speed": 35,
+        "charge": 50,
+        "growthRate": 0.03,
+        "xpYield": 45,
+        "sizeMeters": 0.9,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 200,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-051",
+      "name": "Dunkleosteus",
+      "baseSpecies": "Dunkleosteus",
+      "class": "CLS-002",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 75,
+        "attack": 90,
+        "defense": 60,
+        "speed": 45,
+        "charge": 45,
+        "growthRate": 0.037,
+        "xpYield": 63,
+        "sizeMeters": 3.17,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 50,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-052",
+      "name": "Onychodus",
+      "baseSpecies": "Onychodus",
+      "class": "CLS-002",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 70,
+        "attack": 80,
+        "defense": 50,
+        "speed": 55,
+        "charge": 45,
+        "growthRate": 0.035,
+        "xpYield": 60,
+        "sizeMeters": 2.79,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 75,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-053",
+      "name": "Pterygotus",
+      "baseSpecies": "Pterygotus",
+      "class": "CLS-002",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 65,
+        "attack": 75,
+        "defense": 50,
+        "speed": 60,
+        "charge": 45,
+        "growthRate": 0.035,
+        "xpYield": 59,
+        "sizeMeters": 2.47,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 85,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-054",
+      "name": "Cladoselache",
+      "baseSpecies": "Cladoselache",
+      "class": "CLS-003",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "stats": {
+        "hp": 55,
+        "attack": 65,
+        "defense": 40,
+        "speed": 80,
+        "charge": 50,
+        "growthRate": 0.034,
+        "xpYield": 58,
+        "sizeMeters": 2.5,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 95,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-055",
+      "name": "Stethacanthus",
+      "baseSpecies": "Stethacanthus",
+      "class": "CLS-003",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "stats": {
+        "hp": 50,
+        "attack": 55,
+        "defense": 45,
+        "speed": 70,
+        "charge": 50,
+        "growthRate": 0.032,
+        "xpYield": 54,
+        "sizeMeters": 2.12,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 130,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-056",
+      "name": "Tiktaalik",
+      "baseSpecies": "Tiktaalik",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "stats": {
+        "hp": 70,
+        "attack": 55,
+        "defense": 60,
+        "speed": 45,
+        "charge": 60,
+        "growthRate": 0.034,
+        "xpYield": 58,
+        "sizeMeters": 2.69,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 95,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-057",
+      "name": "Acanthostega",
+      "baseSpecies": "Acanthostega",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "stats": {
+        "hp": 55,
+        "attack": 45,
+        "defense": 45,
+        "speed": 55,
+        "charge": 60,
+        "growthRate": 0.031,
+        "xpYield": 52,
+        "sizeMeters": 1.89,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 145,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-058",
+      "name": "Jaekelopterus",
+      "baseSpecies": "Jaekelopterus",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 90,
+        "attack": 75,
+        "defense": 60,
+        "speed": 45,
+        "charge": 45,
+        "growthRate": 0.037,
+        "xpYield": 63,
+        "sizeMeters": 2.69,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 50,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-059",
+      "name": "Titanichthys",
+      "baseSpecies": "Titanichthys",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 100,
+        "attack": 45,
+        "defense": 70,
+        "speed": 35,
+        "charge": 45,
+        "growthRate": 0.035,
+        "xpYield": 59,
+        "sizeMeters": 3.07,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 85,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-060",
+      "name": "Ichthyostega",
+      "baseSpecies": "Ichthyostega",
+      "class": "CLS-005",
+      "element": "ELE-004",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 80,
+        "attack": 55,
+        "defense": 60,
+        "speed": 35,
+        "charge": 45,
+        "growthRate": 0.033,
+        "xpYield": 55,
+        "sizeMeters": 2.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 120,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-061",
+      "name": "Eusthenopteron",
+      "baseSpecies": "Eusthenopteron",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 70,
+        "attack": 60,
+        "defense": 50,
+        "speed": 45,
+        "charge": 45,
+        "growthRate": 0.032,
+        "xpYield": 54,
+        "sizeMeters": 2.5,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 130,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-062",
+      "name": "Brontoscorpio",
+      "baseSpecies": "Brontoscorpio",
+      "class": "CLS-005",
+      "element": "ELE-004",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 75,
+        "attack": 65,
+        "defense": 60,
+        "speed": 40,
+        "charge": 45,
+        "growthRate": 0.034,
+        "xpYield": 57,
+        "sizeMeters": 2.18,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 100,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-063",
+      "name": "Doryaspis",
+      "baseSpecies": "Doryaspis",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-02",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 35,
+        "defense": 55,
+        "speed": 40,
+        "charge": 45,
+        "growthRate": 0.03,
+        "xpYield": 47,
+        "sizeMeters": 1.12,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 190,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-064",
+      "name": "Eunotosaurus",
+      "baseSpecies": "Eunotosaurus",
+      "class": "CLS-001",
+      "element": "ELE-003",
+      "map": "PZ-03",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 60,
+        "attack": 40,
+        "defense": 75,
+        "speed": 30,
+        "charge": 45,
+        "growthRate": 0.03,
+        "xpYield": 50,
+        "sizeMeters": 1.51,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 160,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-065",
+      "name": "Anteosaurus",
+      "baseSpecies": "Anteosaurus",
+      "class": "CLS-002",
+      "element": "ELE-004",
+      "map": "PZ-03",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 80,
+        "attack": 85,
+        "defense": 60,
+        "speed": 40,
+        "charge": 45,
+        "growthRate": 0.037,
+        "xpYield": 62,
+        "sizeMeters": 3.07,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 60,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-010",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-011",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-012",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-066",
+      "name": "Varanops",
+      "baseSpecies": "Varanops",
+      "class": "CLS-002",
+      "element": "ELE-005",
+      "map": "PZ-03",
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "stats": {
+        "hp": 55,
+        "attack": 60,
+        "defense": 45,
+        "speed": 70,
+        "charge": 50,
+        "growthRate": 0.033,
+        "xpYield": 56,
+        "sizeMeters": 2.28,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 110,
         "awakenedMultiplier": 0.5
       },
       "abilities": [
@@ -2765,19 +4348,72 @@
         {
           "code": "HAB-015",
           "learnLevel": 28
-        },
-        {
-          "code": "HAB-030",
-          "learnLevel": 1
         }
       ],
-      "drops": [],
-      "awakening": {
-        "code": "DSP-032",
-        "name": "Cynognathus",
-        "type": "swap",
-        "referenceSpecies": "Cynognathus"
-      }
+      "drops": [
+        {
+          "itemCode": "ITM-020",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-067",
+      "name": "Diplocaulus",
+      "baseSpecies": "Diplocaulus",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-03",
+      "silhouetteNote": null,
+      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "stats": {
+        "hp": 65,
+        "attack": 45,
+        "defense": 60,
+        "speed": 40,
+        "charge": 60,
+        "growthRate": 0.032,
+        "xpYield": 54,
+        "sizeMeters": 2.18,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 130,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
     }
   ],
   "items": [
@@ -2903,17 +4539,6 @@
       "effectValue": 0
     },
     {
-      "code": "ITM-012",
-      "name": "Cristal Elemental — Gelo",
-      "category": "mineral",
-      "classCode": null,
-      "effect": null,
-      "notes": "Vinculado ao elemento Gelo (ELE-006); material para Despertar Ancestral e habilidades",
-      "value": 150,
-      "effectCode": "none",
-      "effectValue": 0
-    },
-    {
       "code": "ITM-016",
       "name": "Emplastro de Limo",
       "category": "heal",
@@ -2948,34 +4573,89 @@
     },
     {
       "code": "ITM-019",
-      "name": "Quitina Fossilizada",
+      "name": "Arambita",
       "category": "material",
       "classCode": "CLS-001",
-      "effect": "Consumida na subida de nível de uma criatura Loricati.",
-      "notes": "Fragmento de exoesqueleto preservado. Só cai de Loricati e só serve a Loricati — a classe do material é a da criatura derrotada, não a de quem derrotou.",
+      "effect": "Consumida na subida de nivel de uma criatura Arambi.",
+      "notes": "Placa de couraca mineralizada. Cai de Arambi selvagem e so serve a Arambi — a classe do material e a da criatura derrotada, nunca a de quem venceu.",
       "value": 0,
       "effectCode": "none",
       "effectValue": 0
     },
     {
       "code": "ITM-020",
-      "name": "Presa Fóssil",
+      "name": "Kairita",
       "category": "material",
       "classCode": "CLS-002",
-      "effect": "Consumida na subida de nível de uma criatura Theria.",
-      "notes": "Dentição diferenciada é a marca do grupo. Só cai de Theria e só serve a Theria.",
+      "effect": "Consumida na subida de nivel de uma criatura Kaíra.",
+      "notes": "Presa ou garra petrificada, a marca ofensiva do grupo. Cai de Kaíra selvagem e so serve a Kaíra.",
       "value": 0,
       "effectCode": "none",
       "effectValue": 0
     },
     {
       "code": "ITM-021",
-      "name": "Escama Fóssil",
+      "name": "Yaruquita",
       "category": "material",
       "classCode": "CLS-003",
-      "effect": "Consumida na subida de nível de uma criatura Draconis.",
-      "notes": "Cobertura de escamas preservada. Só cai de Draconis e só serve a Draconis.",
+      "effect": "Consumida na subida de nivel de uma criatura Yaruki.",
+      "notes": "Lamina de escama leve, preservada inteira. Cai de Yaruki selvagem e so serve a Yaruki.",
       "value": 0,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-022",
+      "name": "Ambuíta",
+      "category": "material",
+      "classCode": "CLS-004",
+      "effect": "Consumida na subida de nivel de uma criatura Ambuá.",
+      "notes": "Concrecao elastica formada no tecido mole, densa de tanto resistir. Cai de Ambuá selvagem e so serve a Ambuá.",
+      "value": 0,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-023",
+      "name": "Torumanita",
+      "category": "material",
+      "classCode": "CLS-005",
+      "effect": "Consumida na subida de nivel de uma criatura Torumã.",
+      "notes": "Nucleo osseo macico, a peca que sustentava o peso do animal. Cai de Torumã selvagem e so serve a Torumã.",
+      "value": 0,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-024",
+      "name": "Sal de Degelo",
+      "category": "mineral",
+      "classCode": null,
+      "effect": null,
+      "notes": "Crosta salina deixada pelos canais de água escura ao evaporarem. Equivalente glacial do Cobre (mesmo valor, 20): é o material comum da receita do Encantador. Só ocorre em BIO-014 — nenhuma outra taxa de bioma o lista, e é assim que a exclusividade é expressa, sem coluna de raridade.",
+      "value": 20,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-025",
+      "name": "Nácar Fóssil",
+      "category": "mineral",
+      "classCode": null,
+      "effect": null,
+      "notes": "Madrepérola de concha ordoviciana preservada inteira no sedimento glacial. Equivalente glacial do Âmbar Fóssil (valor 30) e mais correto que ele para a era: âmbar é resina de árvore, e no Ordoviciano não há planta terrestre — a mesma razão que zerou o carvão deste bioma.",
+      "value": 30,
+      "effectCode": "none",
+      "effectValue": 0
+    },
+    {
+      "code": "ITM-026",
+      "name": "Prata Errática",
+      "category": "mineral",
+      "classCode": null,
+      "effect": null,
+      "notes": "Prata presa em matacão errático — rocha estranha ao substrato, arrastada pela geleira e largada aqui. Equivalente glacial da Prata (valor 60): o material caro da receita do Encantador. O nome é o termo geológico, não licença poética.",
+      "value": 60,
       "effectCode": "none",
       "effectValue": 0
     }
@@ -2994,7 +4674,7 @@
     },
     {
       "code": "RLC-001",
-      "name": "Relicario de Agua - Loricati",
+      "name": "Relicario de Agua - Arambi",
       "element": "ELE-002",
       "class": "CLS-001",
       "notes": "Modelo de exemplo/ilustrativo criado junto com o sistema de Relicario. Como obter um modelo esta fora de escopo deste handoff (ver documento relicario) - nao tratar como conteudo final de aquisicao.",
@@ -3005,7 +4685,7 @@
     },
     {
       "code": "RLC-002",
-      "name": "Relicario de Fogo - Theria",
+      "name": "Relicario de Fogo - Kaira",
       "element": "ELE-001",
       "class": "CLS-002",
       "notes": "Modelo de exemplo/ilustrativo criado junto com o sistema de Relicario. Aquisicao fora de escopo (ver documento relicario).",
@@ -3016,7 +4696,7 @@
     },
     {
       "code": "RLC-003",
-      "name": "Relicario de Terra - Draconis",
+      "name": "Relicario de Terra - Yaruki",
       "element": "ELE-004",
       "class": "CLS-003",
       "notes": "Modelo de exemplo/ilustrativo criado junto com o sistema de Relicario. Aquisicao fora de escopo (ver documento relicario).",
@@ -3024,6 +4704,152 @@
       "baseCaptureRate": 80,
       "captureRatePerLevel": 4,
       "maxLevel": 30
+    }
+  ],
+  "equipment": [
+    {
+      "code": "EQP-001",
+      "name": "Amplificador Bruto",
+      "slot": "amplifier",
+      "effect": "Aumenta em 5% o ataque da criatura do jogador enquanto equipado.",
+      "notes": "Tier de entrada. Fabricado com o trio de superfície do PZ-01 — cobre, prata e âmbar fóssil —, todos mineráveis já no mar raso, para que a primeira peça do set não exija atravessar o mapa.",
+      "tier": 1,
+      "effectCode": "buff_attack",
+      "effectValue": 5,
+      "recipe": [
+        {
+          "itemCode": "ITM-004",
+          "quantity": 6
+        },
+        {
+          "itemCode": "ITM-005",
+          "quantity": 2
+        },
+        {
+          "itemCode": "ITM-006",
+          "quantity": 3
+        }
+      ]
+    },
+    {
+      "code": "EQP-002",
+      "name": "Amplificador Polido",
+      "slot": "amplifier",
+      "effect": "Aumenta em 10% o ataque da criatura do jogador enquanto equipado.",
+      "notes": "Tier intermediário. Mesmos três minérios do Bruto, ~2,5× a quantidade.",
+      "tier": 2,
+      "effectCode": "buff_attack",
+      "effectValue": 10,
+      "recipe": [
+        {
+          "itemCode": "ITM-004",
+          "quantity": 14
+        },
+        {
+          "itemCode": "ITM-005",
+          "quantity": 5
+        },
+        {
+          "itemCode": "ITM-006",
+          "quantity": 8
+        }
+      ]
+    },
+    {
+      "code": "EQP-003",
+      "name": "Amplificador Ressonante",
+      "slot": "amplifier",
+      "effect": "Aumenta em 15% o ataque da criatura do jogador enquanto equipado.",
+      "notes": "Tier máximo. Metade da potência de HAB-020 (Investida Bruta, +30%), e essa razão é a regra de balanceamento do sistema: passivo permanente e gratuito tem de valer menos que uma rodada gasta, senão o golpe de suporte vira conteúdo morto.",
+      "tier": 3,
+      "effectCode": "buff_attack",
+      "effectValue": 15,
+      "recipe": [
+        {
+          "itemCode": "ITM-004",
+          "quantity": 30
+        },
+        {
+          "itemCode": "ITM-005",
+          "quantity": 12
+        },
+        {
+          "itemCode": "ITM-006",
+          "quantity": 18
+        }
+      ]
+    },
+    {
+      "code": "EQP-004",
+      "name": "Encantador Fosco",
+      "slot": "enchanter",
+      "effect": "Reduz em 5% o ataque da criatura adversária enquanto equipado.",
+      "notes": "Tier de entrada do slot espelho. Fabricado só com minério da Plataforma Glacial (BIO-014) — mesmo custo em óbolos do Amplificador de mesmo tier; o que muda é o lugar onde se cava, e é isso que dá à região gelada uma razão de existir para o jogador.",
+      "tier": 1,
+      "effectCode": "debuff_attack",
+      "effectValue": 5,
+      "recipe": [
+        {
+          "itemCode": "ITM-024",
+          "quantity": 6
+        },
+        {
+          "itemCode": "ITM-025",
+          "quantity": 3
+        },
+        {
+          "itemCode": "ITM-026",
+          "quantity": 2
+        }
+      ]
+    },
+    {
+      "code": "EQP-005",
+      "name": "Encantador Lapidado",
+      "slot": "enchanter",
+      "effect": "Reduz em 10% o ataque da criatura adversária enquanto equipado.",
+      "notes": "Tier intermediário. Espelho exato do Amplificador Polido em quantidade e valor.",
+      "tier": 2,
+      "effectCode": "debuff_attack",
+      "effectValue": 10,
+      "recipe": [
+        {
+          "itemCode": "ITM-024",
+          "quantity": 14
+        },
+        {
+          "itemCode": "ITM-025",
+          "quantity": 8
+        },
+        {
+          "itemCode": "ITM-026",
+          "quantity": 5
+        }
+      ]
+    },
+    {
+      "code": "EQP-006",
+      "name": "Encantador Dissonante",
+      "slot": "enchanter",
+      "effect": "Reduz em 15% o ataque da criatura adversária enquanto equipado.",
+      "notes": "Tier máximo. Espelho do Ressonante: o mesmo eixo de stat visto dos dois lados — um sobe o próprio ataque, o outro baixa o alheio —, o que deixa as duas peças comparáveis em número sem precisar de uma segunda escala.",
+      "tier": 3,
+      "effectCode": "debuff_attack",
+      "effectValue": 15,
+      "recipe": [
+        {
+          "itemCode": "ITM-024",
+          "quantity": 30
+        },
+        {
+          "itemCode": "ITM-025",
+          "quantity": 18
+        },
+        {
+          "itemCode": "ITM-026",
+          "quantity": 12
+        }
+      ]
     }
   ],
   "economy": {
@@ -3085,6 +4911,11 @@
         "feet": "Female_Ranger_Feet",
         "head": null,
         "accessory": "Female_Ranger_Acc_Pauldrons"
+      },
+      "duel": {
+        "opponentCode": "CRT-021",
+        "opponentLevel": 18,
+        "grantsGlyph": "GLF-001"
       }
     }
   ],
@@ -3168,11 +4999,25 @@
         "notes": "Vinculado ao elemento Eletricidade (ELE-005); material para Despertar Ancestral e habilidades"
       },
       {
-        "code": "ITM-012",
-        "name": "Cristal Elemental — Gelo",
+        "code": "ITM-024",
+        "name": "Sal de Degelo",
         "category": "mineral",
         "effect": null,
-        "notes": "Vinculado ao elemento Gelo (ELE-006); material para Despertar Ancestral e habilidades"
+        "notes": "Crosta salina deixada pelos canais de água escura ao evaporarem. Equivalente glacial do Cobre (mesmo valor, 20): é o material comum da receita do Encantador. Só ocorre em BIO-014 — nenhuma outra taxa de bioma o lista, e é assim que a exclusividade é expressa, sem coluna de raridade."
+      },
+      {
+        "code": "ITM-025",
+        "name": "Nácar Fóssil",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Madrepérola de concha ordoviciana preservada inteira no sedimento glacial. Equivalente glacial do Âmbar Fóssil (valor 30) e mais correto que ele para a era: âmbar é resina de árvore, e no Ordoviciano não há planta terrestre — a mesma razão que zerou o carvão deste bioma."
+      },
+      {
+        "code": "ITM-026",
+        "name": "Prata Errática",
+        "category": "mineral",
+        "effect": null,
+        "notes": "Prata presa em matacão errático — rocha estranha ao substrato, arrastada pela geleira e largada aqui. Equivalente glacial da Prata (valor 60): o material caro da receita do Encantador. O nome é o termo geológico, não licença poética."
       }
     ],
     "rates": [
@@ -3243,12 +5088,6 @@
         "weight": 0.003
       },
       {
-        "classCode": "CLS-001",
-        "biomeCode": null,
-        "itemCode": "ITM-012",
-        "weight": 0.003
-      },
-      {
         "classCode": "CLS-002",
         "biomeCode": null,
         "itemCode": "ITM-001",
@@ -3315,12 +5154,6 @@
         "weight": 0.003
       },
       {
-        "classCode": "CLS-002",
-        "biomeCode": null,
-        "itemCode": "ITM-012",
-        "weight": 0.003
-      },
-      {
         "classCode": "CLS-003",
         "biomeCode": null,
         "itemCode": "ITM-001",
@@ -3384,12 +5217,6 @@
         "classCode": "CLS-003",
         "biomeCode": null,
         "itemCode": "ITM-011",
-        "weight": 0.07
-      },
-      {
-        "classCode": "CLS-003",
-        "biomeCode": null,
-        "itemCode": "ITM-012",
         "weight": 0.07
       },
       {
@@ -3459,10 +5286,1102 @@
         "weight": 0.005
       },
       {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-001",
+        "weight": 0.12
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-002",
+        "weight": 0.12
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-003",
+        "weight": 0.12
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-004",
+        "weight": 0.12
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-005",
+        "weight": 0.1
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-006",
+        "weight": 0.1
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-007",
+        "weight": 0.04
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-008",
+        "weight": 0.04
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-009",
+        "weight": 0.04
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-010",
+        "weight": 0.04
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-011",
+        "weight": 0.04
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-001",
+        "weight": 0.45
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-002",
+        "weight": 0.35
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-003",
+        "weight": 0.12
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-004",
+        "weight": 0.08
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-005",
+        "weight": 0.02
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-006",
+        "weight": 0.03
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-007",
+        "weight": 0.002
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-008",
+        "weight": 0.002
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-009",
+        "weight": 0.002
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-010",
+        "weight": 0.002
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-011",
+        "weight": 0.002
+      },
+      {
         "classCode": null,
-        "biomeCode": "BIO-001",
-        "itemCode": "ITM-012",
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-001",
+        "weight": 0.4
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-002",
+        "weight": 0.18
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-003",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-004",
+        "weight": 0.14
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-005",
+        "weight": 0.05
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-006",
+        "weight": 0.12
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-007",
         "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-008",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-009",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-010",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-002",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-001",
+        "weight": 0.3
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-002",
+        "weight": 0.08
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-003",
+        "weight": 0.06
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-004",
+        "weight": 0.1
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-005",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-006",
+        "weight": 0.35
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-008",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-009",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-010",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-003",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-001",
+        "weight": 0.22
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-002",
+        "weight": 0.3
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-003",
+        "weight": 0.06
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-004",
+        "weight": 0.22
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-005",
+        "weight": 0.11
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-006",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-008",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-009",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-010",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-004",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-001",
+        "weight": 0.28
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-002",
+        "weight": 0.16
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-003",
+        "weight": 0.12
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-004",
+        "weight": 0.12
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-005",
+        "weight": 0.05
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-006",
+        "weight": 0.2
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-008",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-009",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-010",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-005",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-001",
+        "weight": 0.12
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-002",
+        "weight": 0.08
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-003",
+        "weight": 0.34
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-004",
+        "weight": 0.08
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-005",
+        "weight": 0.03
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-006",
+        "weight": 0.28
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-008",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-009",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-010",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-006",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-001",
+        "weight": 0.2
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-002",
+        "weight": 0.12
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-003",
+        "weight": 0.22
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-004",
+        "weight": 0.14
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-005",
+        "weight": 0.05
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-006",
+        "weight": 0.2
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-008",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-009",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-010",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-007",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-001",
+        "weight": 0.42
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-002",
+        "weight": 0.24
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-003",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-004",
+        "weight": 0.13
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-005",
+        "weight": 0.08
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-006",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-008",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-009",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-010",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-008",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-001",
+        "weight": 0.1
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-002",
+        "weight": 0.07
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-003",
+        "weight": 0.4
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-004",
+        "weight": 0.07
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-005",
+        "weight": 0.03
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-006",
+        "weight": 0.26
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-008",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-009",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-010",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-009",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-001",
+        "weight": 0.08
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-002",
+        "weight": 0.06
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-003",
+        "weight": 0.48
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-004",
+        "weight": 0.06
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-005",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-006",
+        "weight": 0.23
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-008",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-009",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-010",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-010",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-001",
+        "weight": 0.32
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-002",
+        "weight": 0.18
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-003",
+        "weight": 0.14
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-004",
+        "weight": 0.11
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-005",
+        "weight": 0.06
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-006",
+        "weight": 0.12
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-008",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-009",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-010",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-011",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-001",
+        "weight": 0.3
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-002",
+        "weight": 0.4
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-003",
+        "weight": 0.03
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-004",
+        "weight": 0.13
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-005",
+        "weight": 0.05
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-006",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-007",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-008",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-009",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-010",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-012",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-001",
+        "weight": 0.44
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-002",
+        "weight": 0.26
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-003",
+        "weight": 0.05
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-004",
+        "weight": 0.11
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-005",
+        "weight": 0.06
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-006",
+        "weight": 0.01
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-007",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-008",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-009",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-010",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-013",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-001",
+        "weight": 0.3
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-002",
+        "weight": 0.18
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-003",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-004",
+        "weight": 0.1
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-005",
+        "weight": 0.08
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-006",
+        "weight": 0.25
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-007",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-008",
+        "weight": 0.04
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-009",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-010",
+        "weight": 0.02
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-011",
+        "weight": 0.005
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-024",
+        "weight": 0.2
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-025",
+        "weight": 0.14
+      },
+      {
+        "classCode": null,
+        "biomeCode": "BIO-014",
+        "itemCode": "ITM-026",
+        "weight": 0.06
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-024",
+        "weight": 0.18
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-024",
+        "weight": 0.12
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-024",
+        "weight": 0.1
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-024",
+        "weight": 0.28
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-024",
+        "weight": 0.08
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-025",
+        "weight": 0.1
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-025",
+        "weight": 0.12
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-025",
+        "weight": 0.16
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-025",
+        "weight": 0.26
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-025",
+        "weight": 0.05
+      },
+      {
+        "classCode": "CLS-001",
+        "biomeCode": null,
+        "itemCode": "ITM-026",
+        "weight": 0.08
+      },
+      {
+        "classCode": "CLS-002",
+        "biomeCode": null,
+        "itemCode": "ITM-026",
+        "weight": 0.06
+      },
+      {
+        "classCode": "CLS-003",
+        "biomeCode": null,
+        "itemCode": "ITM-026",
+        "weight": 0.2
+      },
+      {
+        "classCode": "CLS-004",
+        "biomeCode": null,
+        "itemCode": "ITM-026",
+        "weight": 0.05
+      },
+      {
+        "classCode": "CLS-005",
+        "biomeCode": null,
+        "itemCode": "ITM-026",
+        "weight": 0.22
       }
     ]
   }

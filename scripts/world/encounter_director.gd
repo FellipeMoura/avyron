@@ -43,6 +43,15 @@ var _mine_rng: RandomNumberGenerator
 ## obrigatórios só esconderia isso.
 var terrain: MapTerrain
 
+## O set do domador (Amplificador/Encantador), injetado depois do `setup`
+## pela mesma razão de `terrain`: a lista já tem dezesseis parâmetros
+## obrigatórios, e este pode legitimamente faltar numa bancada de teste sem
+## mundo. Ao contrário do relicário — que `engage_*` recebe por parâmetro
+## porque o posto o **substitui** por outra instância —, o loadout é sempre o
+## mesmo objeto: ele muda por dentro, então uma referência guardada aqui
+## nunca fica velha.
+var loadout: PlayerLoadout
+
 var _show_message: Callable
 var _hide_world_hud: Callable
 var _show_world_hud: Callable
@@ -140,6 +149,7 @@ func engage_wild(actor: CreatureActor, relic: PlayerRelic, encounter_level: int)
 	# A mesma instância: capturar sobe o nível do relicário aqui embaixo, e a
 	# tela de duelo precisa da taxa/elemento/classe atuais pra montar a ação.
 	duel.relic = relic
+	duel.loadout = loadout
 	duel.enemy_code = actor.creature_code
 	duel.duel_level = encounter_level
 	duel.closed.connect(_on_duel_closed)
@@ -191,6 +201,7 @@ func engage_arena(actor: ArenaActor, relic: PlayerRelic) -> void:
 	duel.player_party = _roster.to_party()
 	duel.player_active_index = _roster.active_index()
 	duel.relic = relic
+	duel.loadout = loadout
 	duel.enemy_code = actor.opponent_code
 	duel.duel_level = actor.opponent_level
 	duel.is_wild = false
@@ -361,10 +372,17 @@ func _on_duel_closed(outcome: int) -> void:
 	elif _engaged_arena:
 		# Sem ator de spawner para repor/remover — o duelista fica no mapa
 		# vencendo ou perdendo. `grant_glyph` devolve `false` num refight
-		# depois de já ter o Glifo, então isto não reanuncia nem duplica.
+		# depois de já ter o Glifo, então isto não reanuncia nem duplica —
+		# e devolve `false` também para código vazio, que é o caso NORMAL de
+		# arena intermediária: só a última de uma era concede Glifo.
 		if outcome == Battle.Outcome.PLAYER_WON and _progress:
 			if _progress.grant_glyph(_engaged_arena.grants_glyph):
-				_show_message.call("Glifo %s obtido." % _engaged_arena.grants_glyph.capitalize())
+				# O save guarda o código; quem aparece na tela é o nome do
+				# catálogo. `capitalize()` sobre o código daria "Glf 001".
+				var glyph_label := _engaged_arena.grants_glyph
+				if _db:
+					glyph_label = _db.glyph_name(_engaged_arena.grants_glyph)
+				_show_message.call("Glifo %s obtido." % glyph_label)
 	_engaged_actor = null
 	_engaged_arena = null
 	_active_relic = null

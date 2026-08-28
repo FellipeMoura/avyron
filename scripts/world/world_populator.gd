@@ -17,13 +17,19 @@ extends RefCounted
 ## Posição de cena, não de bestiário: o catálogo diz quem existe e em que
 ## mapa, o layout do mundo diz onde. O `y` das consts é 0 de propósito: quem
 ## resolve a altura é o terreno, na hora de spawnar.
-const MERCHANT_SPOT := Vector3(4.0, 0.0, -23.0)
+const MERCHANT_SPOT := Vector3(4.0, 0.0, -46.0)
 
 ## Idem, pro posto do Relicário — depositar/retirar do storage e trocar de
 ## modelo só funcionam perto daqui (documento `relicario`: "exige estar em
 ## um ponto fixo"). Vizinho do comerciante na costa: os serviços do mapa
 ## ficam na mesma "vila" de praia.
-const RELIC_STATION_SPOT := Vector3(8.5, 0.0, -23.0)
+const RELIC_STATION_SPOT := Vector3(8.5, 0.0, -46.0)
+
+## E a bancada, terceiro serviço da mesma vila de praia (documento
+## `equipamentos`). Fica do outro lado do comerciante, não ao lado do posto:
+## os dois pontos que **gastam** recurso do jogador — comprar e fabricar —
+## ficam vizinhos, e o posto, que não cobra nada, na ponta.
+const CRAFTING_BENCH_SPOT := Vector3(-0.5, 0.0, -46.0)
 
 ## Idem, pra arena e pro guardião do portal (documento `glifos-e-portais`).
 ## Guardião fica mais longe dos outros pontos de interação — ele marca a
@@ -35,23 +41,14 @@ const RELIC_STATION_SPOT := Vector3(8.5, 0.0, -23.0)
 ## O `x`/`z` tem de caber no topo plano (raio 4 m); o `y` continua 0 porque
 ## quem resolve altura é o terreno, na hora de spawnar.
 const ARENA_SPOT := Vector3(0.0, 0.0, -2.8)
-const PORTAL_SPOT := Vector3(-6.0, 0.0, -14.0)
+const PORTAL_SPOT := Vector3(-12.0, 0.0, -28.0)
 
-## Conteúdo da arena única desta era: contra quem o jogador luta, em que
-## nível, e qual Glifo a vitória concede. Fixo em código pelo mesmo motivo
-## de `starter_code` em `WorldRoot` — o catálogo descreve que existe um
-## duelista (`role = duelist`), não qual criatura específica ele usa.
-## `CRT-021` (Inostrancevia) é `hero`/Theria, um dos predadores de topo já
-## cadastrados — leitura natural de "campeão da arena" dentre o elenco
-## existente.
-const ARENA_OPPONENT_CODE := "CRT-021"
-const ARENA_OPPONENT_LEVEL := 18
-const ARENA_GRANTS_GLYPH := "DALETH"
-
-## O que o guardião exige e para onde ele levaria — só a exibição, ver
-## `PortalGuardianActor.can_pass()` para a checagem em si.
-const PORTAL_REQUIRED_GLYPH := "DALETH"
-const PORTAL_DESTINATION_LABEL := "Titanor"
+## O conteúdo da arena — oponente, nível e Glifo concedido — **saiu daqui**
+## em 2026-08 e vive em `npc_duelists` no bestiário, chegando em
+## `duelists[].duel` no bundle. O nível era o caso indefensável: número de
+## balanceamento em código, contra a regra 1. A justificativa antiga era "é
+## só uma arena nesta era, não vale uma tabela"; ela caiu quando o modelo
+## passou a prever uma arena por mapa (documento `glifos-e-portais`).
 
 
 ## Instancia os comerciantes que o bestiário coloca neste mapa. Zero é estado
@@ -95,6 +92,19 @@ static func spawn_relic_station(
 	return station
 
 
+static func spawn_crafting_bench(
+	parent: Node3D, on_engaged: Callable, terrain: MapTerrain = null
+) -> CraftingBenchActor:
+	var spot := CRAFTING_BENCH_SPOT
+	if terrain:
+		spot.y = terrain.height_at(spot)
+	var bench := CraftingBenchActor.create(spot)
+	bench.name = "CraftingBench"
+	bench.engaged.connect(on_engaged)
+	parent.add_child(bench)
+	return bench
+
+
 ## Instancia os duelistas de arena que o bestiário coloca neste mapa
 ## (`role = duelist`, documento `glifos-e-portais`). Zero é normal, mesmo
 ## raciocínio de `spawn_merchants` — hoje só existe um nesta era.
@@ -113,8 +123,15 @@ static func spawn_arenas(
 		# 2,6 m dentro do platô.
 		if terrain:
 			spot.y = terrain.height_at(spot)
+		# O duelo vem do catálogo. Duelista sem bloco `duel` não deveria
+		# chegar aqui — o export aborta nisso —, mas um bundle antigo cairia
+		# num oponente vazio, e `ArenaActor` já trata isso como "sem luta".
+		var duel: Dictionary = data.get("duel", {}) if data.get("duel") is Dictionary else {}
 		var actor := ArenaActor.create(
-			data, spot, ARENA_OPPONENT_CODE, ARENA_OPPONENT_LEVEL, ARENA_GRANTS_GLYPH)
+			data, spot,
+			str(duel.get("opponentCode", "")),
+			int(duel.get("opponentLevel", 1)),
+			str(duel.get("grantsGlyph", "") if duel.get("grantsGlyph") != null else ""))
 		actor.name = "Arena_%s" % str(data.get("code", ""))
 		actor.engaged.connect(on_engaged)
 		parent.add_child(actor)
@@ -123,21 +140,46 @@ static func spawn_arenas(
 	return arenas
 
 
-## Um guardião só, sempre presente — igual ao posto do Relicário, não é dado
-## do bestiário (sem `npc_role` que sirva ainda). Fixo nesta era: é ele quem
-## bloqueia a progressão até Titanor.
+## O guardião do portal, **se este mapa tiver uma travessia que exija Glifo**.
+##
+## Deixou de ser "um guardião, sempre presente" quando a topologia virou dado
+## (`map_connections`). Guardião é a forma física de uma travessia exigente:
+## sem ela não há nada para barrar, e plantar um mesmo assim seria um NPC
+## dizendo "prove-se na arena" para abrir uma passagem que já estava aberta.
+##
+## Isso tem consequência visível: a travessia PZ-01 → PZ-02 é **livre** — só
+## a saída de uma era exige Glifo —, então o PZ-01 não tem mais guardião. Uma
+## linha em `map_connections` com `requiredGlyphCode` o traz de volta, sem
+## tocar em código.
+##
+## `null` é retorno normal, como zero comerciantes é normal. O destino sai do
+## NOME do mapa de chegada no catálogo, não de uma constante.
 static func spawn_portal_guardian(
-	parent: Node3D, progress: PlayerProgress, on_engaged: Callable,
-	terrain: MapTerrain = null
+	parent: Node3D, db: BestiaryData, map_code: String, progress: PlayerProgress,
+	on_engaged: Callable, terrain: MapTerrain = null
 ) -> PortalGuardianActor:
+	if db == null:
+		return null
+	var gated: Dictionary = {}
+	for link in db.connections_from_map(map_code):
+		if link is Dictionary and link.get("requiredGlyph") != null:
+			gated = link
+			break
+	if gated.is_empty():
+		return null
+
 	# Hoje o posto dele está em chão de altura zero e o terreno não muda nada;
 	# entra pelo mesmo caminho da arena porque o ROADMAP prevê mudá-lo para a
 	# costa, e lá a altura deixa de ser zero.
 	var spot := PORTAL_SPOT
 	if terrain:
 		spot.y = terrain.height_at(spot)
+	var destination: Dictionary = db.game_map(str(gated.get("to", "")))
 	var guardian := PortalGuardianActor.create(
-		spot, PORTAL_REQUIRED_GLYPH, PORTAL_DESTINATION_LABEL, progress)
+		spot,
+		str(gated.get("requiredGlyph", "")),
+		str(destination.get("name", gated.get("to", ""))),
+		progress)
 	guardian.name = "PortalGuardian"
 	guardian.engaged.connect(on_engaged)
 	parent.add_child(guardian)

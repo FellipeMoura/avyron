@@ -3,7 +3,7 @@ extends SceneTree
 ## Prova a mineração data-driven e o time do jogador.
 ##
 ## O que está sob teste é a promessa central do sistema: **a criatura ativa
-## muda o que sai do chão**. Um Loricati e um Draconis minerando o mesmo bioma
+## muda o que sai do chão**. Um Arambi e um Yaruki minerando o mesmo bioma
 ## têm de produzir distribuições diferentes — se produzirem a mesma, a fórmula
 ## está ignorando um dos dois fatores e ninguém notaria só jogando.
 ##
@@ -97,8 +97,8 @@ func _test_distribution() -> void:
 		"%.3f → %.3f" % [float(loricati[0]["chance"]), float(loricati[-1]["chance"])])
 
 	# O ponto do sistema, e a razão de o painel da criatura ativa existir: cada
-	# classe tem uma especialidade, e ela tem de aparecer no número. Loricati
-	# escava âmbar fóssil (ITM-006); Draconis prospecta prata (ITM-005). Se um
+	# classe tem uma especialidade, e ela tem de aparecer no número. Arambi
+	# escava âmbar fóssil (ITM-006); Yaruki prospecta prata (ITM-005). Se um
 	# dia essas duas comparações empatarem, a fórmula parou de ler um dos
 	# lados — e o jogo inteiro fica igual com qualquer criatura à frente.
 	var draconis := MiningTable.distribution(_db, "CLS-003", BIOME)
@@ -107,10 +107,10 @@ func _test_distribution() -> void:
 	var silver_loricati := _chance_of(loricati, "ITM-005")
 	var silver_draconis := _chance_of(draconis, "ITM-005")
 
-	_check_true("Loricati acha mais ambar fossil que Draconis",
+	_check_true("Arambi acha mais ambar fossil que Yaruki",
 		amber_loricati > amber_draconis,
 		"%.1f%% vs %.1f%%" % [amber_loricati * 100.0, amber_draconis * 100.0])
-	_check_true("Draconis acha mais prata que Loricati",
+	_check_true("Yaruki acha mais prata que Arambi",
 		silver_draconis > silver_loricati,
 		"%.1f%% vs %.1f%%" % [silver_draconis * 100.0, silver_loricati * 100.0])
 
@@ -178,10 +178,10 @@ func _keys_within(counts: Dictionary, expected: Dictionary) -> bool:
 
 func _test_work_function() -> void:
 	print("perfil de trabalho da classe:")
-	_check_true("Theria escava mais rapido",
+	_check_true("Kaíra escava mais rapido",
 		MiningTable.speed_modifier(_db, "CLS-002") > 1.0,
 		"x%.2f" % MiningTable.speed_modifier(_db, "CLS-002"))
-	_check_true("Draconis escava mais devagar",
+	_check_true("Yaruki escava mais devagar",
 		MiningTable.speed_modifier(_db, "CLS-003") < 1.0,
 		"x%.2f" % MiningTable.speed_modifier(_db, "CLS-003"))
 	_check("classe inexistente e neutra", MiningTable.speed_modifier(_db, "CLS-999"), 1.0)
@@ -237,11 +237,14 @@ func _test_mining_flow() -> void:
 	_world.trigger_mine()
 	_check("cooldown bloqueia 2a mineracao", inv.total_items(), 1)
 
-	# O cooldown gravado é o base dividido pelo modificador da classe ativa —
-	# CRT-002 é Loricati (×1.0), então bate com a constante.
+	# O cooldown gravado é o base dividido pelo modificador da classe ativa. O
+	# esperado sai do bundle, não de um literal: a classe da inicial já mudou
+	# uma vez numa reclassificação e prender "×1.0" aqui reprovaria o teste por
+	# dado novo em vez de por regressão.
+	var active_speed := MiningTable.speed_modifier(_db, _world._active_class_code())
 	_check_true("cooldown reflete o perfil da classe ativa",
-		absf(_world._mine_cooldown - WorldRoot.MINE_COOLDOWN_SEC) < 0.01,
-		"%.2fs" % _world._mine_cooldown)
+		absf(_world._mine_cooldown - WorldRoot.MINE_COOLDOWN_SEC / active_speed) < 0.01,
+		"%.2fs (base %.1fs ÷ %.2f)" % [_world._mine_cooldown, WorldRoot.MINE_COOLDOWN_SEC, active_speed])
 
 	_world._mine_cooldown = 0.0
 	_world.trigger_mine()
@@ -272,22 +275,33 @@ func _test_roster_ui() -> void:
 	_world.toggle_roster_window()
 	_check_true("T de novo fecha", not window.is_open())
 
-	# Troca de ativa pelo mundo. O reserva é um Draconis de propósito: a
-	# inicial é Loricati, então a troca tem de mudar classe, distribuição e
-	# ritmo de mineração — os três de uma vez. Trocar por outro Loricati
-	# passaria no teste sem provar nada.
+	# Troca de ativa pelo mundo. O reserva tem de ser de classe com OUTRO
+	# `speedModifier` — só assim a troca muda classe, distribuição e ritmo de
+	# mineração de uma vez; trocar por alguém da mesma classe passaria no teste
+	# sem provar nada. Quem é esse reserva sai do bundle, não de um código
+	# escrito aqui: a versão anterior fixava `CRT-023` como Yaruki, e quando a
+	# reclassificação o moveu para Arambi o teste reprovou por dado novo.
 	var r := _world.roster()
-	var before := MiningTable.distribution(_db, _world._active_class_code(), BIOME)
-	r.add("CRT-023")
+	var starter := r.active()
+	var starter_class := _world._active_class_code()
+	var reserve := _creature_of_other_speed(starter_class)
+	_check_true("existe reserva de outro perfil de trabalho no bundle", reserve != "",
+		"inicial %s (×%.2f)" % [starter_class, MiningTable.speed_modifier(_db, starter_class)])
+	if reserve == "":
+		return
+
+	var before := MiningTable.distribution(_db, starter_class, BIOME)
+	r.add(reserve)
 	_world.activate_slot(1)
-	_check("a criatura do slot 2 foi a frente", r.active(), "CRT-023")
+	_check("a criatura do slot 2 foi a frente", r.active(), reserve)
 
 	var companion: CompanionActor = _world.get_node_or_null("Companion")
 	_check_true("a companheira acompanhou a troca",
-		companion != null and companion.creature_code == "CRT-023",
+		companion != null and companion.creature_code == reserve,
 		companion.creature_code if companion else "sem companheira")
 
-	_check("a classe ativa mudou junto", _world._active_class_code(), "CLS-003")
+	var reserve_class := str(_db.creature(reserve).get("class", ""))
+	_check("a classe ativa mudou junto", _world._active_class_code(), reserve_class)
 
 	var after := MiningTable.distribution(_db, _world._active_class_code(), BIOME)
 	_check_true("a distribuicao de minerio mudou com a troca",
@@ -296,15 +310,46 @@ func _test_roster_ui() -> void:
 		"%s %.2f → %s %.2f" % [str(before[0]["name"]), float(before[0]["chance"]),
 			str(after[0]["name"]), float(after[0]["chance"])])
 
-	# E o ritmo: Draconis é ×0.9, então a espera cresce.
+	# E o ritmo. Medido contra o modificador da classe nova em vez de "a espera
+	# cresce": a direção depende de qual classe o bundle entregou como reserva,
+	# e a igualdade prova mais — pega o cooldown que mudou para o valor errado,
+	# não só o que mudou para o lado errado.
+	var reserve_speed := MiningTable.speed_modifier(_db, reserve_class)
 	_world._mine_cooldown = 0.0
 	_world.trigger_mine()
 	_check_true("o cooldown seguiu o perfil da classe nova",
-		_world._mine_cooldown > WorldRoot.MINE_COOLDOWN_SEC,
-		"%.2fs (base %.1fs)" % [_world._mine_cooldown, WorldRoot.MINE_COOLDOWN_SEC])
+		absf(_world._mine_cooldown - WorldRoot.MINE_COOLDOWN_SEC / reserve_speed) < 0.01,
+		"%.2fs (base %.1fs ÷ %.2f)" % [_world._mine_cooldown, WorldRoot.MINE_COOLDOWN_SEC, reserve_speed])
 
 	_world.activate_slot(0)
-	_check("volta para a inicial", r.active(), "CRT-002")
+	_check("volta para a inicial", r.active(), starter)
+
+
+## Primeira criatura do bundle que serve de reserva na troca: classe diferente
+## da ativa, `speedModifier` diferente do dela — e diferente de 1.0.
+##
+## As duas primeiras condições são o óbvio: sem diferença de perfil, a troca não
+## prova que o ritmo de mineração acompanha a ativa. A terceira é a que a
+## mutação encontrou. Com reserva de ×1.0 o esperado do cooldown vira
+## `MINE_COOLDOWN_SEC / 1.0`, ou seja a própria constante — e a asserção passa
+## mesmo com a divisão pelo modificador removida do `WorldRoot`. Ela ficava
+## verde por aritmética, não por comportamento.
+##
+## Varre em ordem de código para a escolha ser estável entre execuções — o
+## teste compara duas execuções durante playtest, e um reserva sorteado faria
+## os números dançarem sem nada ter mudado.
+func _creature_of_other_speed(class_code: String) -> String:
+	var target := MiningTable.speed_modifier(_db, class_code)
+	var codes := _db.creature_codes()
+	codes.sort()
+	for code in codes:
+		var other := str(_db.creature(code).get("class", ""))
+		if other == "" or other == class_code:
+			continue
+		var speed := MiningTable.speed_modifier(_db, other)
+		if absf(speed - target) > 0.01 and absf(speed - 1.0) > 0.01:
+			return str(code)
+	return ""
 
 
 # ---------------------------------------------------------------------------

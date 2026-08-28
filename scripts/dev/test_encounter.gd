@@ -130,7 +130,7 @@ func _check_spawn() -> void:
 				on_dry += 1
 		_check("nenhuma nasce na costa nem na ilha", on_dry, 0)
 
-	# Escolhe a mais próxima como alvo do teste.
+	# Escolhe a mais próxima como alvo do teste, e LEVA O JOGADOR ATÉ ELA.
 	var best := 1e9
 	for a in actors:
 		var d: float = a.global_position.distance_to(_player.global_position)
@@ -138,6 +138,31 @@ func _check_spawn() -> void:
 			best = d
 			_target = a
 	print("  alvo: %s (%s) a %.1f m" % [_target.display_name, _target.creature_code, best])
+	_approach(_target)
+
+
+## Põe o jogador ao lado do alvo antes de clicar nele.
+##
+## Não é conveniência de bancada: sem isto o teste afirmava um contrato que o
+## jogo não tem. A seleção CAI sozinha além de `WorldSelection.DESELECT_DISTANCE`
+## (15 m, ancorada no raio de detecção da criatura — não no tamanho do mapa), e
+## entre o primeiro e o segundo clique passa um quadro em que `_process` roda
+## essa checagem. Clicar duas vezes numa criatura a 18 m nunca engatou; o
+## segundo clique só reselecionava.
+##
+## Antes do resize de 2026-08-28 o teste passava por COINCIDÊNCIA de geometria:
+## num mapa de 60 m com raio de spawn de 22, a criatura mais próxima caía
+## dentro dos 15 m quase sempre. O mapa dobrou, a mais próxima passou a nascer
+## a 18 m, e 2.997 de 3.030 verificações reprovaram de uma vez — a suíte estava
+## medindo a sorte do sorteio, não o comportamento.
+func _approach(actor: CreatureActor) -> void:
+	if actor == null or _player == null:
+		return
+	# 3 m ao lado, não em cima: dois corpos sobrepostos são arremessados pela
+	# física no primeiro quadro, e o alvo sairia de perto sozinho.
+	var beside := actor.global_position + Vector3(3.0, 1.0, 0.0)
+	_player.global_position = beside
+	_player.velocity = Vector3.ZERO
 
 
 ## Primeiro clique: sem batalha; a criatura deve ficar marcada como selecionada
@@ -216,6 +241,10 @@ func _pick_target2() -> void:
 	if _target2:
 		print("captura: alvo %s (%s) a %.1f m"
 			% [_target2.display_name, _target2.creature_code, best])
+		# Mesma razao do primeiro alvo: aproximar antes de clicar. Aqui o risco
+		# era ainda maior, porque a vitoria anterior deixou o jogador onde a
+		# encenacao do duelo o largou, nao onde ele clicou.
+		_approach(_target2)
 	else:
 		print("captura: nenhum alvo disponivel, pulando fase")
 

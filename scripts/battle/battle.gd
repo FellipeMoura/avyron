@@ -59,6 +59,69 @@ func _init(bestiary: BestiaryData, party: Array, opponent: Combatant, wild: bool
 		_xp_participation.append({"participated": false, "damage_dealt": 0, "damage_taken": 0})
 
 
+## Aplica os modificadores passivos do set do jogador (Amplificador e
+## Encantador) — uma vez, no começo da batalha, e para a batalha inteira.
+##
+## ## Por que em todo o time, e não só em quem está em campo
+##
+## A peça é do **domador**, não da criatura: trocar de criatura no meio da
+## luta não desequipa nada. Aplicar só na ativa obrigaria a reaplicar em cada
+## troca e em cada substituição — três lugares para o mesmo efeito, e o
+## terceiro seria esquecido. Aplicando no time inteiro na montagem, o
+## modificador atravessa `_do_switch` e `replace_active` sem que nenhum dos
+## dois precise saber que este sistema existe.
+##
+## ## Por que aqui e não em `PlayerLoadout`
+##
+## Porque o teto acumulado (`MODIFIER_MIN/MAX`) é desta classe e vale para
+## **todas** as fontes de modificador — equipamento, habilidade de suporte, e
+## o que vier. Se o loadout mexesse em `Combatant` direto, o clamp passaria a
+## ter dois donos e a soma poderia estourar por um caminho e não pelo outro.
+## É por isso que `PlayerLoadout.modifiers()` devolve dado cru.
+##
+## O alvo sai do **slot**, não do `effectCode`: `amplifier` cai no time do
+## jogador, `enchanter` no adversário. Quem decidiu isso foi o catálogo, ao
+## separar as duas colunas — o código só obedece, e um slot novo que ninguém
+## ensinou aqui é ignorado em vez de aplicado no alvo errado.
+func apply_loadout(loadout: PlayerLoadout) -> void:
+	if loadout == null or db == null:
+		return
+	for mod in loadout.modifiers(db):
+		var slot := str(mod["slot"])
+		var targets: Array = []
+		match slot:
+			BestiaryData.SLOT_AMPLIFIER:
+				targets = player_party
+			BestiaryData.SLOT_ENCHANTER:
+				targets = [enemy] if enemy != null else []
+			_:
+				continue
+		for c: Combatant in targets:
+			if c != null:
+				_apply_modifier(c, str(mod["effect_code"]), float(mod["value"]))
+
+
+## O único lugar que mexe em `attack_modifier`/`defense_modifier`, para
+## equipamento e para golpe de suporte. Buff multiplica por `1 + v/100`,
+## debuff por `1 - v/100`, e o clamp é o mesmo dos dois lados — foi extraído
+## de `_apply_status` quando o equipamento virou a segunda fonte, e não
+## duplicado.
+func _apply_modifier(target: Combatant, effect_code: String, value: float) -> void:
+	match effect_code:
+		"buff_attack":
+			target.attack_modifier = clampf(
+				target.attack_modifier * (1.0 + value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+		"buff_defense":
+			target.defense_modifier = clampf(
+				target.defense_modifier * (1.0 + value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+		"debuff_attack":
+			target.attack_modifier = clampf(
+				target.attack_modifier * (1.0 - value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+		"debuff_defense":
+			target.defense_modifier = clampf(
+				target.defense_modifier * (1.0 - value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+
+
 func player_active() -> Combatant:
 	return player_party[player_active_index] if player_active_index < player_party.size() else null
 
@@ -350,18 +413,19 @@ func _apply_status(actor: Combatant, target: Combatant, ability: Dictionary, eff
 	var value := float(ability["effectValue"])
 	var name := str(ability["name"])
 
+	# O quem-leva sai do próprio código do efeito: `buff_*` é sempre em si
+	# mesmo, `debuff_*` sempre no alvo. A aritmética e o clamp são de
+	# `_apply_modifier`, compartilhados com o set do jogador — a mesma soma
+	# não pode ter dois tetos.
 	match effect:
 		"buff_attack":
-			actor.attack_modifier = clampf(
-				actor.attack_modifier * (1.0 + value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+			_apply_modifier(actor, effect, value)
 			_log("buff", actor, {"text": "%s usa %s: ataque +%d%%" % [actor.display_name, name, int(value)]})
 		"buff_defense":
-			actor.defense_modifier = clampf(
-				actor.defense_modifier * (1.0 + value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+			_apply_modifier(actor, effect, value)
 			_log("buff", actor, {"text": "%s usa %s: defesa +%d%%" % [actor.display_name, name, int(value)]})
 		"debuff_attack":
-			target.attack_modifier = clampf(
-				target.attack_modifier * (1.0 - value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+			_apply_modifier(target, effect, value)
 			# Debuff é hostil — quem leva participa de XP mesmo sem perder HP
 			# (documento de XP por participação: "recebido uma ação hostil").
 			if not is_player:
@@ -369,8 +433,7 @@ func _apply_status(actor: Combatant, target: Combatant, ability: Dictionary, eff
 			_log("debuff", actor, {"text": "%s usa %s: ataque de %s -%d%%"
 				% [actor.display_name, name, target.display_name, int(value)]})
 		"debuff_defense":
-			target.defense_modifier = clampf(
-				target.defense_modifier * (1.0 - value / 100.0), MODIFIER_MIN, MODIFIER_MAX)
+			_apply_modifier(target, effect, value)
 			if not is_player:
 				_mark_participation(player_active_index, 0, 0)
 			_log("debuff", actor, {"text": "%s usa %s: defesa de %s -%d%%"

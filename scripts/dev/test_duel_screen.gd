@@ -22,7 +22,33 @@ var _text_before := ""
 
 func _initialize() -> void:
 	_screen = load("res://scenes/duel.tscn").instantiate()
+	# A tela sorteia os dois combatentes do catálogo inteiro quando `player_code`
+	# está vazio, e `can_awaken` exige `has_awakening` — então um sorteio que
+	# caísse numa criatura sem Despertar reprovava "houve Despertar" sem nada
+	# estar quebrado. Enquanto a cobertura 1:1 esteve completa isso nunca
+	# apareceu; com o elenco crescendo mais rápido que os Despertares, passou a
+	# reprovar em mais da metade das execuções.
+	#
+	# Fixar o lado do jogador numa criatura QUE TEM Despertar é o que devolve
+	# determinismo ao que está sob teste — a interface anunciar a transformação.
+	# O adversário segue sorteado de propósito: é o que continua exercitando o
+	# `_render` contra pares que ninguém escolheu a dedo.
+	_screen.player_code = _creature_with_awakening()
 	root.add_child(_screen)
+
+
+## Primeira criatura do bundle com Despertar, em ordem de código. Vazio se não
+## houver nenhuma — aí a verificação abaixo reprova, e reprova certo.
+func _creature_with_awakening() -> String:
+	var db := BestiaryData.new()
+	if db.load_bundle() != "":
+		return ""
+	var codes := db.creature_codes()
+	codes.sort()
+	for code in codes:
+		if db.creature(str(code)).get("awakening", null) != null:
+			return str(code)
+	return ""
 
 
 func _process(_delta: float) -> bool:

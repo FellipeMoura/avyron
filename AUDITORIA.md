@@ -4,7 +4,7 @@ Rodada dedicada a **medir a saúde dos dois projetos e endurecer regras enquanto
 
 Este documento é o ponto de retomada: o que foi consertado e como isso foi provado, o que sobrou, e as decisões que estão esperando uma resposta sua. O `ROADMAP.md` continua dono das pendências de **produto**; aqui é só saúde estrutural.
 
-Estado do catálogo quando isto foi escrito: `dataVersion 0.267`, 31 criaturas, 31 despertares.
+Estado do catálogo na última atualização deste documento: `dataVersion 0.273`, 31 criaturas, 31 despertares. O número anda sozinho — a sessão paralela escreve no catálogo em contínuo.
 
 ---
 
@@ -30,8 +30,8 @@ Regras de processo combinadas durante a sessão. Valem para a continuação:
 | 4 | `combatBuff` do Relicário — dado sem consumidor | **fechado** |
 | 5 | Fábricas na API do bestiário | **fechado (parte b)** |
 | 6 | Idioma e acentuação sem regra escrita | pendente |
-| 7 | Bioma e `role` como contrato falso | pendente |
-| 8 | Caminho errado no README do jogo | pendente (menor do que parecia) |
+| 7 | Bioma e `role` como contrato falso | **fechado** |
+| 8 | Caminho errado no README do jogo | **fechado** |
 
 ---
 
@@ -115,6 +115,47 @@ Provas: 18 verificações contra um **clone do banco** (`CREATE DATABASE ... TEM
 
 As junções ficaram manuais **com o critério escrito** no `CLAUDE.md` do bestiário, e um gatilho de reavaliação: a sétima junção.
 
+### 7. Bioma — motor pronto, dado inacabado, e um fallback que escondia isso
+
+O diagnóstico chamava de "contrato falso". Investigando, eram **dois casos de natureza diferente**.
+
+**`role` era contrato falso puro.** `text` livre, sem enum, **sem nenhum documento de design** que definisse o que `hero`/`regular` decidem em jogo, preenchido só na leva `CRT-017..027` mais o `CRT-009`, 19 das 31 nulas, nada lendo. O único `"role"` que o jogo lê é o do `workFunction` da **classe** — outra coisa.
+
+**Bioma não era.** O documento `mineracao` especifica `normalizar(peso_classe × peso_bioma)` e o `MiningTable` implementa exatamente isso. O buraco estava na outra ponta:
+
+| | |
+|---|---|
+| biomas cadastrados | 13 — PZ-01 sozinho tem 4 |
+| com `mining_rates` | **1** (BIO-001) |
+| o que o documento manda | "cada novo `BIO-*` precisa de suas 12 taxas" |
+| `map_biomes` no export | nunca aparecia |
+| mundo | `biome_code := "BIO-001"` fixo, por acaso o único que funciona |
+
+E o detalhe que decidiu o desenho: **o fallback é silencioso**. `MiningTable` trata lado ausente por inteiro como neutro (×1) — de propósito, para o bioma decidir sozinho quando não há criatura ativa. O efeito colateral é que trocar o bioma para um sem taxas não dá erro: a fórmula vira só-classe e a picareta continua entregando minério, com outra distribuição. O sintoma apareceria meses depois, sem nada apontando para a causa.
+
+Feito, na decisão "honestidade + trava":
+
+- **`creature.biome` e `creature.role` saíram do bundle**, e continuam nas tabelas como anotação editorial. A regra ficou escrita: campo no bundle é promessa ao jogo; promessa que ninguém cumpre é pior que campo ausente.
+- **`map_biomes` passou a ser exportado** como `maps[].biomes`, em ordem de `sortOrder` — mas só porque ganhou consumidor. Exportar sem leitor teria trocado um campo morto por outro.
+- **O mundo declara em vez de derivar**, com o porquê escrito: `WorldRoot.DEFAULT_MAP` / `DEFAULT_BIOME`, e o comentário registra que faltam duas coisas para virar consulta — as 12 taxas de cada bioma restante, e uma partição espacial do mapa. Hoje não existe: `MapDressing` veste o mapa inteiro com um kit só.
+- **Três guardas novos.** `test_data.gd::_test_biome_contract` reprova se o bioma declarado não pertencer ao mapa ou não tiver taxas, e **avisa** para os biomas do mapa ainda sem taxas; `WorldRoot._assert_biome_belongs_to_map()` grita em runtime; o export avisa por bioma de mapa sem taxas — 12 avisos hoje, um por bioma por preencher.
+- `db.biome()`, que era o último acessório sem chamador, virou o que nomeia os biomas na mensagem do aviso.
+
+Prova por mutação, e a primeira é a que importa:
+
+| mutação | resultado |
+|---|---|
+| `DEFAULT_BIOME` = BIO-002 (do mapa, **sem taxas**) | `FAIL bioma do mundo tem taxas de mineracao — 0 pesos` |
+| `DEFAULT_BIOME` = BIO-005 (de outro mapa) | 2 FAILs: não pertence ao mapa, e sem taxas |
+
+A primeira era exatamente o modo de falha que não tinha sintoma nenhum.
+
+### 8. Caminho errado no README — era menos do que o diagnóstico dizia
+
+Conferido antes de mexer: **uma linha só**. `README.md:96` apontava `c:\code\avyron\project.godot`; corrigido para `c:\code\fellipe\avyron\project.godot`.
+
+O caminho do Godot (`%LOCALAPPDATA%\Programs\Godot\...`, linhas 82/89/421) **estava certo** — os dois executáveis estão lá. O diagnóstico dizia que isso quebrava todo bloco de comando de teste copiável; não quebrava.
+
 ---
 
 ## Achados que não estavam no diagnóstico
@@ -157,9 +198,69 @@ Provas: banco zerado migrou as 16; `pg_dump --schema-only` do banco novo × do b
 
 Contrapartida registrada no arquivo: falha no meio agora deixa as anteriores aplicadas em vez de desfazer tudo — é como Rails, Django e Flyway se comportam, e é o preço de conseguir commitar entre um `ALTER TYPE` e o uso do valor. O erro nomeia a migration que parou.
 
+### Teste que passava por aritmética, não por comportamento (2026-08-28)
+
+Apareceu ao re-exportar o catálogo depois da rodada de roster. `test_mining.gd` reprovou em 3 verificações — e a leitura correta era que o **motor estava certo e a fixture do teste tinha envelhecido**: o teste prendia `CRT-002` como Arambi (×1.0) e `CRT-023` como Yaruki (×0.9), e a reclassificação de agosto mudou as duas classes. Um teste que reprova por dado novo em vez de por regressão não guarda nada; guarda a versão do catálogo em que foi escrito.
+
+O conserto foi **derivar do bundle** em vez de trocar um literal por outro: o esperado do cooldown sai de `MiningTable.speed_modifier`, e o reserva da troca é escolhido por varredura (`_creature_of_other_speed`), em ordem de código para a escolha ser estável entre execuções.
+
+A parte que interessa veio da mutação. Removendo a divisão pelo modificador em `WorldRoot` (`_mine_cooldown = MINE_COOLDOWN_SEC`), **só uma das duas asserções ficou vermelha**. A outra tinha escolhido um reserva de classe ×1.0, e `MINE_COOLDOWN_SEC / 1.0` é a própria constante — a asserção passava por identidade aritmética, com o comportamento sob teste arrancado do código. O critério de escolha ganhou uma terceira condição (`speedModifier` diferente do da ativa **e** diferente de 1.0), e a mutação passou a produzir 2 FAILs.
+
+A lição não é sobre mineração: **guarda cujo valor esperado pode calhar de ser o valor neutro não é guarda**, e só a mutação mostra isso — as duas asserções liam idênticas no verde.
+
+### Teste que dependia da cobertura de conteúdo (2026-08-28)
+
+Apareceu ao remover as 6 criaturas que a rodada de roster deixou sem mapa. `test_duel_screen` passou a reprovar "houve Despertar" em ~50% das execuções — e a leitura fácil ("é aquele RNG que a auditoria já registrou") estava errada.
+
+`DuelScreen._start_new_duel` sorteia os dois combatentes do catálogo inteiro quando `player_code` está vazio, e `Combatant.can_awaken` exige `has_awakening`. **O teste não dependia da sorte do combate; dependia da cobertura 1:1 de Despertar.** Com 31 criaturas e 31 Despertares, qualquer sorteio servia. Com 60 criaturas e 25 Despertares, mais da metade dos sorteios cai numa criatura que não pode despertar, e a asserção reprova sem nada estar quebrado.
+
+Provado empiricamente antes de mexer: com o bundle do `HEAD` (`0.273`, 31 criaturas, cobertura completa) são 6 execuções verdes seguidas; com o bundle atual, 3 FAILs em 6. Não foi a deleção que criou o defeito — foi a rodada de roster, e a deleção só empurrou a cobertura de 47% para 42%. A correlação com a duração do duelo, que a hipótese antiga previa, **não existe**: uma execução de 18 rodadas reprovou e uma de 5 passou.
+
+O conserto fixa o lado do jogador numa criatura **que tem** Despertar, escolhida por varredura do bundle (`_creature_with_awakening`). O adversário segue sorteado de propósito — é o que continua exercitando o `_render` contra pares que ninguém escolheu a dedo. Mutação: invertendo o predicado da varredura para escolher quem **não** tem Despertar, 3 de 3 execuções reprovam; restaurado, 8 de 8 passam.
+
+O par com o achado anterior é o que interessa: um teste passava por aritmética, o outro por cobertura de conteúdo. Nenhum dos dois estava testando o que dizia testar, e nos dois casos o verde era indistinguível do verde legítimo.
+
+---
+
+### Segundo teste que passava por coincidência, não por comportamento (2026-08-28)
+
+Apareceu ao dobrar o mapa de 60 para 120 m. `test_encounter` reprovou **2.997 de 3.030** verificações de uma vez — e a leitura fácil ("o resize quebrou o engate") estava errada. O engate nunca funcionou como o teste afirmava.
+
+`WorldSelection.DESELECT_DISTANCE` é 15 m, e a justificativa escrita nela é boa: está ancorada no raio de detecção da criatura (6 m), não no tamanho do mapa — é um limiar de "o jogador vagou para longe". Entre o primeiro e o segundo clique passa um quadro, e nesse quadro `_process` roda a checagem. **Clicar duas vezes numa criatura a 18 m nunca engatou**: o segundo clique só reselecionava.
+
+O teste escolhia a criatura mais próxima e clicava nela sem levar o jogador até lá. Num mapa de 60 m com raio de spawn de 22, a mais próxima caía dentro dos 15 m quase sempre, e a suíte media a sorte do sorteio. O mapa dobrou, a mais próxima passou a nascer a 18,3 m, e a coincidência acabou.
+
+O conserto é `_approach(actor)`: põe o jogador a 3 m do alvo antes de clicar, que é o que um jogador faz. Mutação: removendo a aproximação, 2.997 FALHAM de novo; com ela, 53 de 53 passam nas duas geometrias.
+
+O par com o achado anterior é o que interessa. Um teste passava por aritmética, o outro por cobertura de conteúdo, este por geometria — e nos três o verde era indistinguível do verde legítimo. O padrão comum: **a asserção estava certa e o cenário é que não exercia o caminho**. Nenhuma revisão de asserção pegaria os três; o que os pegou foi mudar o mundo debaixo deles.
+
 ---
 
 ## Pendentes
+
+### 7(b). A partição espacial — fechada em 2026-08-28
+
+O item 7 fechou a honestidade ("o mundo declara, e o comentário diz o que falta") e deixou escrito o que faltava: as taxas dos doze biomas restantes, e uma partição espacial. As taxas entraram em 2026-08-27; a partição, no dia seguinte.
+
+O desenho seguiu o critério que o próprio item 7 estabeleceu — **campo no bundle é promessa ao jogo** —, e por isso `maps[].biomeRegions` e `MapBiomes.biome_at()` nasceram no mesmo commit. O comentário do exportador que justificava a omissão já prescrevia isso por escrito, e foi cumprido em vez de reinterpretado.
+
+Duas coisas que a rodada ensinou, e que não estavam previstas:
+
+**O fallback silencioso mudou de tamanho.** Enquanto o mundo declarava um bioma, bastava conferir aquele — era o que o item 7 travou. Com a partição, o jogador pisa em qualquer bioma do mapa, e a mesma armadilha (`MiningTable` tratando lado ausente como neutro) volta multiplicada pelo número de regiões. A trava passou a cobrar taxas de todo bioma **alcançável**, não do declarado.
+
+**Duas suítes provam coisas diferentes, e a distinção não é acadêmica.** `test_data` prova a geometria das regiões; `test_playable` prova que o mundo pergunta. Um `current_biome()` correto com um cache que nunca acompanha passa na primeira inteira — e é indistinguível do estado anterior à rodada, que passava em tudo. Foi o mesmo modo de falha do "teste que passava por aritmética, não por comportamento" registrado acima, previsto desta vez em vez de descoberto.
+
+Prova por mutação, no critério da casa — e a terceira linha é a que importa:
+
+| mutação | resultado |
+|---|---|
+| apagar o catch-all RGN-003 do bundle | `FAIL particao cobre o mapa inteiro — 2097 de 3721 pontos sem bioma — ex.: (30.0, 30.0)` |
+| `COAST_RAMP_START` de −16 para −18 sem reautorar a região | `FAIL fronteira da costa bate com a rampa — regiao troca em z=-16.00, COAST_RAMP_START=-18.00` |
+| congelar o cache em `_update_biome` — o mundo consulta certo e nunca acompanha | `test_playable`: 2 de 14 FALHAM · **`test_data`: 101 passam, verde inteiro** |
+
+A última linha é o argumento de as duas suítes existirem separadas: o defeito que devolve o jogo ao estado anterior a esta rodada é **invisível** para a suíte de dado, e só a sonda que move o corpo o pega.
+
+Fica pendente, e é conteúdo, não estrutura: **dois** biomas do PZ-01 sem região — `BIO-004` e o `BIO-014` cadastrado no mesmo dia —, e o cenário ainda vestido com um kit só para os cinco. A partição responde por qualquer região que o catálogo declare; o que falta é o catálogo declarar.
 
 ### 6. Idioma e acentuação sem regra escrita
 
@@ -183,28 +284,13 @@ Medição de hoje: dos 167 `.ts` em `apps/api/src` + `packages/db/src`, 36 cont�
 
 > Nota de continuidade: os comentários novos que esta rodada escreveu nos módulos de junção do bestiário saíram **em inglês**, para casar com a vizinhança imediata (aqueles arquivos e `shared/services/` são 100% inglês hoje). Não é uma decisão de regra — é uma escolha local até o item 6 decidir a global.
 
-### 7. Bioma e `role` como contrato falso
+### 5(c). `junctionFactory` — a sétima junção chegou
 
-Verificado item por item contra o código e o banco:
+O critério escrito era "revisar quando aparecer a sétima junção". Ela apareceu em 2026-08-28: `equipment_recipes`, do sistema de equipamento. O módulo nasceu **manual**, espelhando `drops` — é a junção de par simples mais canônica que existe (dois códigos, uma quantidade, upsert + delete por chave natural), e escrevê-la à mão levou menos tempo que decidir a forma da fábrica.
 
-| coisa | situação real |
-|---|---|
-| junção `map_biomes` | tem módulo de API completo (Service, Routes, Controller, Types) e **nunca aparece no `export-game-data.mjs`** |
-| `creature.biome` | exportado (linha 500 do export), e **nenhum** `.gd` lê o campo |
-| `db.biome(code)` | existe em `BestiaryData`, indexa o array `biomes` do bundle e **nunca é chamado** |
-| `creature.role` | exportado (linha 501); 19 `null`, 8 `regular`, 4 `hero`; o único `"role"` lido pelo jogo é o `role` do `workFunction` da **classe**, coisa diferente |
-| bioma do mundo | `@export var biome_code := "BIO-001"` fixo em `world_root.gd:49` — é o único bioma que a mineração enxerga |
+Isso não resolve o item, só cobra o preço dele mais uma vez. O desenho recomendado continua o mesmo do parágrafo abaixo, agora com **cinco** candidatas de par simples em vez de quatro, e `miningRates`/`creatureAbilities` seguindo de fora explicitamente. O que mudou é o argumento: com cinco cópias do mesmo arquivo, a próxima divergência entre elas deixa de ser hipótese.
 
-O jogo não erra por causa disso; ele só carrega um contrato que promete algo que ninguém cumpre. É o maior buraco de dados que sobrou, e a decisão é binária por campo: ou passa a ser lido, ou sai do bundle.
-
-### 8. Caminho errado no README do jogo — menor do que o diagnóstico dizia
-
-Conferido hoje: **apenas uma linha está errada.**
-
-- `README.md:96` diz `c:\code\avyron\project.godot`; o real é `c:\code\fellipe\avyron\project.godot`.
-- O caminho do Godot (`%LOCALAPPDATA%\Programs\Godot\...`, linhas 82/89/421) **está correto** — os dois executáveis estão lá. O diagnóstico original dizia que isso quebrava todo bloco de comando de teste copiável; não quebra. Conserto de uma linha.
-
-### 5(c). `junctionFactory` — adiada com critério escrito
+#### O critério original, mantido
 
 Não é dívida esquecida: está escrito no `CLAUDE.md` do bestiário por que as seis junções seguem manuais e qual é o gatilho para revisar (a sétima junção). Se for feita, o desenho recomendado é cobrir só as **quatro** de par simples e deixar `miningRates` e `creatureAbilities` de fora explicitamente, em vez de encher a fábrica de condicional.
 
@@ -223,16 +309,40 @@ Não é dívida esquecida: está escrito no `CLAUDE.md` do bestiário por que as
 
 Medido ao escrever este documento, não copiado de execução antiga.
 
-**Jogo** — 14 de 14 suítes verdes, 4.608 verificações somadas:
+**Jogo** — 14 de 14 suítes verdes, 4.654 verificações somadas:
 
 ```
-test_data 61 · test_battle 41 · test_world 34 · test_team 107 · test_items 81
-test_mining 4050 · test_merchant 59 · test_encounter 36 · test_staging 60
+test_data 78 · test_battle 41 · test_world 50 · test_team 107 · test_items 81
+test_mining 4050 · test_merchant 59 · test_encounter 37 · test_staging 66
+test_companion 20 · test_duel_screen 12 · test_glyphs 14 · test_playable 8
+test_characters 31
+```
+
+Nem todo crescimento desde a medição anterior é desta auditoria: o catálogo andou de `0.267` para `0.273` pela sessão paralela, e as suítes que varrem o bundle (`test_world`, `test_staging`, `test_characters`, `test_encounter`) acompanham o dado. As 4 verificações do `_test_biome_contract` são as únicas que o item 7 acrescentou.
+
+**Remedição em 2026-08-28**, contra o bundle `0.414` → `0.420` (60 criaturas) — 15 de 15 suítes verdes, 4.706 verificações:
+
+```
+test_data 95 · test_battle 42 · test_world 50 · test_team 107 · test_items 81
+test_mining 4051 · test_merchant 60 · test_encounter 37 · test_staging 66
 test_companion 20 · test_duel_screen 13 · test_glyphs 14 · test_playable 8
-test_characters 24
+test_characters 31 · test_palette 31
 ```
 
 `test_duel_screen` oscila entre 12 e 13 — é RNG, não regressão: a verificação "a tela anuncia o Despertar" roda dentro do laço de rodadas, e o número de rodadas varia com a variância de dano. Já se comportava assim antes desta rodada.
+
+> **Corrigido em 2026-08-28.** O diagnóstico acima estava certo sobre "é RNG" e **errado sobre a causa**, e a causa errada escondia uma bomba-relógio. Não era a variância de dano: `DuelScreen` sorteia a criatura do jogador do catálogo inteiro quando `player_code` está vazio, e `can_awaken` exige `has_awakening`. Enquanto a cobertura 1:1 esteve completa, todo sorteio tinha Despertar e só a contagem oscilava. Quando o elenco cresceu mais rápido que os Despertares, o mesmo mecanismo passou a produzir **FAIL** em mais da metade das execuções. Ver a entrada em "Achados", abaixo.
+
+**Remedição em 2026-08-28 (rodada do equipamento)**, contra o bundle `0.441` — 16 de 16 suítes verdes, 4.842 verificações:
+
+```
+test_data 101 · test_battle 42 · test_world 51 · test_team 107 · test_items 81
+test_mining 4051 · test_merchant 60 · test_encounter 53 · test_staging 66
+test_companion 20 · test_duel_screen 13 · test_glyphs 14 · test_playable 18
+test_characters 31 · test_palette 31 · test_equipment 103
+```
+
+A suíte nova é `test_equipment` (103). O crescimento das outras não é desta rodada: `test_data` (95 → 101), `test_encounter` (37 → 53) e `test_playable` (8 → 18) acompanharam a partição de bioma da sessão paralela.
 
 **Bestiário** — `pnpm typecheck` limpo nos três workspaces; banco em `0.267`; sondas de teste removidas, só `bestiary` no container.
 

@@ -26,11 +26,39 @@ extends StaticBody3D
 ## mesmo nome de nó — `test_world` confere a existência de "Ground" e o clique
 ## de mundo continua batendo num StaticBody.
 
+## ## O tamanho do mapa, e o que escala junto com ele
+##
+## `SIZE` saiu de 60 para 120 m em 2026-08-28, e a conta que decidiu o alvo
+## está no ROADMAP: **30 s de travessia por bioma** a 5,2 m/s dão 156 m por
+## bioma, que com cinco biomas pedem um mapa de 350 m. Os 120 m são a etapa
+## intermediária — a maior que o acervo de props atual consegue vestir sem o
+## mapa ler como deserto. O alvo continua sendo 350.
+##
+## Por isso o que importa aqui não é o número, é a REGRA de quem o acompanha.
+## Cada constante deste arquivo cai em um de dois grupos, e trocar de grupo
+## por engano é o que quebra o mapa:
+##
+## **Escalam com o mapa** (proporção do lado — mexer no `SIZE` exige mexer
+## nelas na mesma razão): `FLAT_RADIUS`, `COAST_RAMP_START`. São feições
+## cujo PAPEL é ocupar uma fração do mapa — a planície central e a faixa da
+## costa são biomas, e bioma que não cresce com o mapa encolhe até sumir.
+##
+## **Têm tamanho próprio** (não escalam): `HILL_HEIGHT`, `RIM_HEIGHT`,
+## `COAST_HEIGHT`, a LARGURA da rampa da costa, a ilha inteira e o
+## `BOUNDS_MARGIN`. Altura não escala com área — uma colina de 2,5 m num mapa
+## maior continua sendo uma colina de 2,5 m. A largura da rampa é conta de
+## inclinação, não de estética. E a ilha cabe uma arena: dobrá-la daria um
+## platô de 36 m de diâmetro para um duelista só.
+##
+## O terceiro grupo é implícito e já estava certo: o que é escrito em função
+## de `SIZE` (o rim, o limite externo das colinas) acompanha sozinho.
+##
 ## Lado do mapa em metros (grade de 1 m — célula igual à do HeightMapShape3D,
-## que fixa o espaçamento em 1 unidade).
-const SIZE := 60
+## que fixa o espaçamento em 1 unidade; a 120 m são 14.641 vértices).
+const SIZE := 120
 ## Raio (em métrica de quadrado, max(|x|,|z|)) da zona plana central.
-const FLAT_RADIUS := 16.0
+## ESCALA com o mapa — era 16 num mapa de 60.
+const FLAT_RADIUS := 32.0
 ## Altura máxima das colinas na zona externa.
 const HILL_HEIGHT := 2.5
 ## Altura extra do rim de borda, somada por cima das colinas.
@@ -38,15 +66,47 @@ const RIM_HEIGHT := 3.5
 ## Semente do relevo — fixa pelo mesmo motivo do `spawn_seed` do spawner.
 const TERRAIN_SEED := 20260824
 
-## A costa: um platô raso ao longo da borda -Z — solo firme para NPCs e
-## portais, sem bioma natural e sem spawn de criatura (spawner e MapDressing
-## consultam `on_coast`). O leito sobe em rampa entre COAST_RAMP_START e
-## COAST_TOP e assenta plano em COAST_HEIGHT; as colinas são suprimidas na
-## faixa (o platô é limpo de propósito) e o rim de borda continua subindo
-## atrás dela, como paredão de fundo.
-const COAST_RAMP_START := -16.0
-const COAST_TOP := -21.0
+## A costa: um platô raso na borda -Z — solo firme para NPCs e portais, sem
+## bioma natural e sem spawn de criatura (spawner e MapDressing consultam
+## `on_coast`). O leito sobe em rampa e assenta plano em `COAST_HEIGHT`; as
+## colinas são suprimidas nela (o platô é limpo de propósito) e o rim de borda
+## continua subindo atrás, como paredão de fundo.
+##
+## ## Por que a costa é um LOBO e não uma faixa
+##
+## Até 2026-08-28 a costa era faixa cheia: `smoothstep` puro sobre z, a
+## largura inteira do mapa. O desenho espacial aprovado a redesenhou como um
+## lobo — largo no topo, descendo só no meio —, e a forma daqui teve de
+## acompanhar porque a partição de bioma e o relevo descrevem o MESMO lugar.
+## Com a faixa mantida, 47% do chão SECO responderia "mar raso": o jogador de
+## pé na areia dos cantos, e a mineração dizendo que ele está nadando.
+##
+## As constantes abaixo são a tradução, em metros, das duas regiões que o
+## catálogo usa para a costa do PZ-01 — `RGN-001` (o retângulo que dá a
+## largura) e `RGN-006` (o círculo que dá a barriga). Elas são o par em
+## metros de coordenadas normalizadas, e é por isso que mudar uma sem
+## reautorar a outra recria exatamente o buraco que esta rodada fechou.
+##
+## O centro do lobo fica na BORDA -Z, fora do mapa: é o que faz um círculo
+## produzir margem de praia em vez de ilha redonda.
+const COAST_CENTER_X := -4.2
+const COAST_LOBE_R := 27.6
+const COAST_RECT_HALF_W := 43.8
+const COAST_RECT_Z := -43.2
+
+## Largura da rampa, em metros. NÃO escala com o mapa: junto com
+## `COAST_HEIGHT` ela é a inclinação que o corpo sobe — 1,5 · 1,6 / 5 dá 26°,
+## dentro dos 45° que o `CharacterBody3D` aceita como piso. Encurtar sem
+## refazer a conta transforma a praia em degrau.
+const COAST_RAMP_WIDTH := 5.0
 const COAST_HEIGHT := 1.6
+
+## O alcance MÁXIMO da costa mar adentro — o ponto mais fundo do lobo, na
+## linha de centro dele. Continua existindo porque o shader, os testes e as
+## notas do catálogo precisam de um número único para conferir contra; deixou
+## é de ser a fronteira em toda largura, porque agora só vale no meio.
+const COAST_RAMP_START := -60.0 + COAST_LOBE_R
+const COAST_TOP := COAST_RAMP_START - COAST_RAMP_WIDTH
 
 ## A ilha: o único chão seco fora da costa — um platô pequeno no MEIO do mapa,
 ## que emerge da planície central e carrega a arena (`WorldPopulator`). É
@@ -59,6 +119,11 @@ const COAST_HEIGHT := 1.6
 ## Encurtar o vão (ou levantar a ilha) sem refazer essa conta transforma a
 ## ilha em parede — e uma parede aqui tranca a arena, que é justamente o que
 ## o cabeçalho proíbe.
+##
+## A ilha NÃO escala com o mapa: o tamanho dela é o de caber uma arena e um
+## duelista, e isso não muda porque o mar em volta cresceu. O efeito de manter
+## o número enquanto o mapa dobra é justamente o certo — uma ilha deve ser
+## pequena em relação ao mar, e a de 60 m era grande demais para isso.
 ##
 ## `ISLAND_CENTER` é (x, z) no plano — o `y` do Vector2 é o Z do mundo.
 const ISLAND_CENTER := Vector2(0.0, 0.0)
@@ -130,7 +195,7 @@ func _build(palette: Dictionary) -> void:
 ## senão o rim afunda nos cantos.
 func _height_formula(x: float, z: float, noise: FastNoiseLite) -> float:
 	var r := maxf(absf(x), absf(z))
-	var coast := smoothstep(-COAST_RAMP_START, -COAST_TOP, -z)
+	var coast := _coast_profile(x, z)
 	var amp := smoothstep(FLAT_RADIUS, float(SIZE) * 0.5 - 2.0, r)
 	var hills := (noise.get_noise_2d(x, z) * 0.5 + 0.5) * HILL_HEIGHT * amp
 	var h := hills * (1.0 - coast) + COAST_HEIGHT * coast
@@ -148,10 +213,38 @@ func _island_profile(x: float, z: float) -> float:
 	return 1.0 - smoothstep(ISLAND_TOP_RADIUS, ISLAND_BASE_RADIUS, d)
 
 
-## A faixa da costa, rampa incluída. `margin` estende a checagem mar adentro —
+## Quanto da costa existe neste ponto: 1 no platô seco, 0 em mar aberto.
+##
+## É o MÁXIMO de duas formas, e as duas vêm do catálogo: o círculo da barriga
+## e o retângulo da largura. Máximo e não soma porque as duas se sobrepõem no
+## meio, e somar levantaria o platô ao dobro da altura justamente onde a vila
+## fica.
+##
+## `margin` infla as três medidas ao mesmo tempo — é o que deixa o keep-out do
+## spawner cobrir a deriva de patrulha sem precisar de uma segunda forma.
+func _coast_profile(x: float, z: float, margin: float = 0.0) -> float:
+	var half := float(SIZE) * 0.5
+	var lobe_r := COAST_LOBE_R + margin
+	var d := Vector2(x - COAST_CENTER_X, z + half).length()
+	var lobe := 1.0 - smoothstep(lobe_r - COAST_RAMP_WIDTH, lobe_r, d)
+
+	var rect_z := COAST_RECT_Z + margin
+	var band := 1.0 - smoothstep(rect_z, rect_z + COAST_RAMP_WIDTH, z)
+	var half_w := COAST_RECT_HALF_W + margin
+	var side := 1.0 - smoothstep(half_w - COAST_RAMP_WIDTH, half_w,
+		absf(x - COAST_CENTER_X))
+	return maxf(lobe, band * side)
+
+
+## O lobo da costa, rampa incluída. `margin` estende a checagem mar adentro —
 ## o spawner usa para o keep-out cobrir também a deriva de patrulha.
+##
+## Deixou de ser `z <= COAST_RAMP_START` quando a costa virou lobo: aquele
+## teste respondia "costa" para a largura inteira do mapa, e passaria a mentir
+## nos dois cantos do topo, que agora são mar. Quem responde é a mesma forma
+## que levanta a malha — não há segunda descrição da costa para divergir.
 func on_coast(world_pos: Vector3, margin: float = 0.0) -> bool:
-	return world_pos.z <= COAST_RAMP_START + margin
+	return _coast_profile(world_pos.x, world_pos.z, margin) > 0.0
 
 
 ## A ilha, saia submersa incluída — o par de `on_coast`, e usado pelos mesmos
@@ -253,10 +346,25 @@ func _add_mesh(palette: Dictionary) -> void:
 	var material := ShaderMaterial.new()
 	material.shader = load("res://shaders/terrain_ground.gdshader")
 	material.set_shader_parameter("noise_tex", noise_tex)
-	# A geografia da ilha vai para o shader daqui, e não como default do
-	# `.gdshader`, porque ela é do terreno: a faixa seca pintada tem de ser a
-	# MESMA que a malha levantou. (As bandas da costa ainda vivem como default
-	# lá — quando alguém mexer nelas, o lugar certo é este.)
+	# A geografia vai para o shader daqui, e não como default do `.gdshader`,
+	# porque ela é do terreno: a faixa seca pintada tem de ser a MESMA que a
+	# malha levantou.
+	# As bandas da costa deixaram de viver como default do `.gdshader` no
+	# resize de 2026-08-28, e o comentário abaixo já previa o momento: elas são
+	# GEOGRAFIA, e geografia é deste arquivo. Deixadas lá, a faixa de areia
+	# seca continuaria pintada a 14–19 m da borda enquanto o platô real subiu
+	# para 32 — a tinta ficaria no meio do mar, e o mapa acusaria em imagem um
+	# lugar que a malha não tem.
+	#
+	# A costa virou lobo, então a tinta da areia seca deixou de ser banda de Z
+	# e passou a ser a MESMA forma composta que levanta a malha. Mandar as
+	# quatro medidas em vez de dois limiares é o preço de a praia ter contorno.
+	material.set_shader_parameter("coast_center_x", COAST_CENTER_X)
+	material.set_shader_parameter("coast_lobe_r", COAST_LOBE_R)
+	material.set_shader_parameter("coast_rect_z", COAST_RECT_Z)
+	material.set_shader_parameter("coast_rect_half_w", COAST_RECT_HALF_W)
+	material.set_shader_parameter("coast_feather", COAST_RAMP_WIDTH)
+	material.set_shader_parameter("map_half", float(SIZE) * 0.5)
 	material.set_shader_parameter("island_center", ISLAND_CENTER)
 	material.set_shader_parameter("island_top_radius", ISLAND_TOP_RADIUS)
 	material.set_shader_parameter("island_base_radius", ISLAND_BASE_RADIUS)

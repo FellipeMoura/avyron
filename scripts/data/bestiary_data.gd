@@ -27,6 +27,7 @@ var _elements: Dictionary = {}    # code -> Dictionary
 var _classes: Dictionary = {}     # code -> Dictionary
 var _maps: Dictionary = {}        # code -> Dictionary
 var _biomes: Dictionary = {}      # code -> Dictionary
+var _glyphs: Dictionary = {}      # code -> Dictionary
 var _advantages: Array = []
 
 ## Bloco `mining` do bundle, desmontado em três índices.
@@ -48,6 +49,7 @@ var _duelists: Dictionary = {}      # code -> Dictionary
 ## Modelos de Relicário — código -> Dictionary já achatado com `relic_stats`
 ## pelo exportador (elemento, classe, slotCapacity, curva de captura).
 var _relics: Dictionary = {}        # code -> Dictionary
+var _equipment: Dictionary = {}     # code -> Dictionary (modelo + numeros + receita)
 
 ## Constantes da economia: nome da moeda, bolsa inicial, margem do comerciante.
 var economy: Dictionary = {}
@@ -96,11 +98,13 @@ func load_bundle(path: String = BUNDLE_PATH) -> String:
 	_classes = _index_by_code(bundle.get("classes", []))
 	_maps = _index_by_code(bundle.get("maps", []))
 	_biomes = _index_by_code(bundle.get("biomes", []))
+	_glyphs = _index_by_code(bundle.get("glyphs", []))
 	_index_mining(bundle.get("mining", null))
 	_items = _index_by_code(bundle.get("items", []))
 	_merchants = _index_by_code(bundle.get("merchants", []))
 	_duelists = _index_by_code(bundle.get("duelists", []))
 	_relics = _index_by_code(bundle.get("relics", []))
+	_equipment = _index_by_code(bundle.get("equipment", []))
 	economy = bundle.get("economy", {})
 
 	if _creatures.is_empty():
@@ -117,6 +121,11 @@ func load_bundle(path: String = BUNDLE_PATH) -> String:
 	# o jogo, só desligar captura/storage até re-exportar.
 	if _relics.is_empty():
 		push_warning("Bestiary: bundle sem o bloco `relics` — Relicário desligado. Re-exporte.")
+	# Idem para o resto do set: sem o bloco, a bancada abre vazia e o jogador
+	# joga sem Amplificador/Encantador — que é exatamente o estado do jogo
+	# antes deste módulo, não uma falha nova.
+	if _equipment.is_empty():
+		push_warning("Bestiary: bundle sem o bloco `equipment` — bancada vazia. Re-exporte.")
 
 	_loaded = true
 	return ""
@@ -186,21 +195,70 @@ func biome(code: String) -> Dictionary:
 
 ## Códigos de bioma de um mapa, na ordem em que o catálogo os lista.
 ##
-## O mapa tem vários (PZ-01 tem quatro), mas o mundo usa um só — ver
-## `WorldRoot.DEFAULT_BIOME`. Esta consulta existe para **conferir** que o
-## bioma declarado pertence ao mapa: sem ela, trocar o bioma por um de outro
-## mapa passaria batido, porque `MiningTable` trata bioma desconhecido como
-## lado ausente e cai na classe sozinha, sem erro nenhum.
+## Esta é a lista DECLARADA do mapa — quais biomas ele tem. Onde cada um fica
+## é outra consulta (`biome_regions_in_map`), e as duas discordarem é
+## justamente o defeito que o exportador avisa: bioma listado que região
+## nenhuma reivindica existe no catálogo e é inalcançável em jogo.
+##
+## Continua servindo de conferência para o bioma de fallback do mundo: sem
+## ela, um bioma de outro mapa passaria batido, porque `MiningTable` trata
+## bioma desconhecido como lado ausente e cai na classe sozinha, sem erro.
 func biomes_in_map(map_code: String) -> Array:
 	var m: Dictionary = _maps.get(map_code, {})
 	var list: Variant = m.get("biomes", [])
 	return list if list is Array else []
 
+
+## Regiões de bioma de um mapa: `[{code, biome, shape, params}]`, na ordem de
+## avaliação do catálogo (a primeira que contém o ponto ganha).
+##
+## As coordenadas em `params` são **normalizadas em ±1** sobre o meio-lado do
+## mapa, não metros — quem traduz é `MapBiomes`, que é quem conhece o terreno.
+## Este índice só entrega o que o bundle trouxe, sem interpretar forma nenhuma:
+## `shape` novo no catálogo não muda uma linha aqui.
+##
+## Lista vazia é estado normal, e significa mapa sem partição autorada — o
+## mundo cai no bioma declarado, como fazia antes de a partição existir.
+func biome_regions_in_map(map_code: String) -> Array:
+	var m: Dictionary = _maps.get(map_code, {})
+	var list: Variant = m.get("biomeRegions", [])
+	return list if list is Array else []
+
+
+## Travessias que saem deste mapa: `[{to, requiredGlyph}]`, em ordem do
+## catálogo. `requiredGlyph` nulo é passagem livre.
+##
+## Só a saída de uma ERA exige Glifo — travessia entre submapas da mesma era
+## é livre por decisão de design (documento `glifos-e-portais`). Por isso o
+## mundo pergunta antes de instanciar guardião: mapa sem travessia exigente
+## não tem portal bloqueado para colocar.
+func connections_from_map(map_code: String) -> Array:
+	var m: Dictionary = _maps.get(map_code, {})
+	var list: Variant = m.get("connections", [])
+	return list if list is Array else []
+
+
+## Nome de exibição de um Glifo (`"GLF-001"` → `"Daleth"`).
+##
+## O save guarda o CÓDIGO e a tela mostra o nome: é o que deixa a letra ser
+## renomeada — o documento avisa que os nomes desta primeira leva são
+## provisórios — sem invalidar o progresso de ninguém. Código desconhecido
+## devolve ele mesmo, para a mensagem nunca sair vazia.
+func glyph_name(code: String) -> String:
+	var g: Dictionary = _glyphs.get(code, {})
+	return str(g.get("name", code))
+
 func creature_codes() -> Array:
 	return _creatures.keys()
 
+func map_codes() -> Array:
+	return _maps.keys()
+
 func element_codes() -> Array:
 	return _elements.keys()
+
+func class_codes() -> Array:
+	return _classes.keys()
 
 
 # ---------------------------------------------------------------------------
@@ -241,13 +299,46 @@ func biome_mining_weights(biome_code: String) -> Dictionary:
 	return _biome_mining.get(biome_code, {})
 
 
-## `workFunction` da classe: `{speedModifier, preferredOres, role}`.
+## `workFunction` da classe: `{speedModifier, role}`.
 ## É o perfil de trabalho da criatura domesticada — o que ela acelera e em que
 ## papel. Vazio se a classe não existe ou não tem perfil.
+##
+## `preferredOres` saiu do bundle em 2026-08: as chaves eram semânticas
+## (`fossilAmber`), não códigos `ITM-*`, e traduzi-las exigiria um mapa
+## hardcoded aqui — que é o oposto de tudo o que a migração para dado fez. Os
+## pesos de `mining.rates` já respondem a mesma pergunta, em números.
 func class_work_function(class_code: String) -> Dictionary:
 	var c := creature_class(class_code)
 	var wf: Variant = c.get("workFunction", null)
 	return wf if typeof(wf) == TYPE_DICTIONARY else {}
+
+
+## Qual dos cinco stats a classe especializa: `hp`, `attack`, `defense`,
+## `speed` ou `charge`. Vazio se a classe não existe.
+##
+## O bundle nunca traz vazio numa classe válida — o export aborta em classe
+## sem `primaryStat` justamente porque o bônus cairia sobre nada e a criatura
+## sairia com o número de outra, sem sintoma. O fallback existe para o caso de
+## um bundle antigo no disco, que é o único jeito de isso chegar aqui.
+func class_primary_stat(class_code: String) -> String:
+	var value: Variant = creature_class(class_code).get("primaryStat", null)
+	return "" if value == null else str(value)
+
+
+## Quanto a classe soma ao seu `primaryStat`, em pontos percentuais: `20` é
+## +20%. Zero quando a classe não existe ou o bundle não traz o campo.
+##
+## O número vem do catálogo e não daqui — regra 1 deste repo. `1.20` não
+## aparece em GDScript nenhum: mudar o bônus das cinco classes é um PATCH em
+## `creature_classes`, não um commit.
+func class_primary_stat_bonus_pct(class_code: String) -> float:
+	var value: Variant = creature_class(class_code).get("primaryStatBonusPct", null)
+	if value == null:
+		return 0.0
+	var pct := float(value)
+	# Negativo viraria um debuff que ninguém pediu; o CHECK do banco já
+	# recusa, e isto cobre bundle velho no disco.
+	return pct if pct > 0.0 else 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -376,8 +467,12 @@ func duelist_codes() -> Array:
 
 
 ## Duelistas de um mapa, para o mundo saber quem instanciar como arena.
-## Mesmo padrão de `merchants_in_map` — qual criatura o duelista usa e qual
-## Glifo ele concede não vêm daqui, ver comentário de `ArenaActor`.
+##
+## Mesmo padrão de `merchants_in_map`, e desde 2026-08 cada duelista traz o
+## bloco `duel` — contra quem, em que nível e qual Glifo a vitória concede.
+## Isso eram três constantes no `WorldPopulator`, e o nível entre elas era
+## número de balanceamento em código, contra a regra 1. `duel.grantsGlyph`
+## nulo é normal: só a arena do último mapa de uma era concede Glifo.
 func duelists_in_map(map_code: String) -> Array:
 	var out: Array = []
 	for code in _duelists:
@@ -494,12 +589,100 @@ func relic_capture_rate_at_level(relic_code: String, level: int) -> float:
 
 
 # ---------------------------------------------------------------------------
+# Set do jogador — Amplificador e Encantador
+#
+# O Relicário fica de fora deste bloco de propósito: ele tem tabela, curva e
+# progressão próprias (`_relics` acima). O que estas funções indexam é o
+# resto do set — as peças passivas, fabricadas de minério, cujo modelo já
+# chega achatado com números e receita num dicionário só.
+#
+# Aqui não há fórmula nenhuma, nem uma classe `EquipmentMath` ao lado: o
+# efeito é `modificador *= 1 ± valor/100`, que é aritmética que `Battle` já
+# faz para as habilidades de suporte. Uma classe de fórmula para reembrulhar
+# uma linha seria a duplicação que o repo evita, não a separação que ele pede.
+# ---------------------------------------------------------------------------
+
+## Os dois slots do set fora do Relicário. Strings porque é o que o bundle
+## traz em `equipment[].slot`; um slot novo entra no catálogo e nesta lista.
+const SLOT_AMPLIFIER := "amplifier"
+const SLOT_ENCHANTER := "enchanter"
+
+
+func equipment(code: String) -> Dictionary:
+	return _equipment.get(code, {})
+
+
+func equipment_codes() -> Array:
+	return _equipment.keys()
+
+
+func has_equipment() -> bool:
+	return not _equipment.is_empty()
+
+
+## Modelos de um slot, do tier mais barato para o mais caro. A ordem é a da
+## bancada e a da janela do set — e é por tier, não por código, para que um
+## modelo intercalado depois (um T2 alternativo) caia no lugar certo sem
+## depender de alguém ter escolhido bem o número do `EQP-`.
+func equipment_in_slot(slot: String) -> Array:
+	var out: Array = []
+	for code: String in _equipment:
+		if str(_equipment[code].get("slot", "")) == slot:
+			out.append(_equipment[code])
+	out.sort_custom(func(a, b): return int(a.get("tier", 0)) < int(b.get("tier", 0)))
+	return out
+
+
+func equipment_slot(code: String) -> String:
+	return str(equipment(code).get("slot", ""))
+
+
+func equipment_name(code: String) -> String:
+	var e := equipment(code)
+	return str(e.get("name", code)) if not e.is_empty() else code
+
+
+func equipment_tier(code: String) -> int:
+	return int(equipment(code).get("tier", 0))
+
+
+## O par que o combate lê. Separados em duas funções pelo mesmo motivo de
+## `item_effect_code`/`item_effect_value`: quem chama tem de pegar os dois,
+## e ler o valor sem o código ao lado é o erro que a separação torna visível.
+func equipment_effect_code(code: String) -> String:
+	return str(equipment(code).get("effectCode", ""))
+
+
+func equipment_effect_value(code: String) -> float:
+	return float(equipment(code).get("effectValue", 0.0))
+
+
+## A receita, como `[{itemCode, quantity}]`. Vazia para um código que não
+## existe — a bancada trata isso como "não fabricável" em vez de fabricar de
+## graça, que é o que uma receita vazia significaria se lida ao pé da letra.
+func equipment_recipe(code: String) -> Array:
+	var r: Variant = equipment(code).get("recipe", [])
+	return r if typeof(r) == TYPE_ARRAY else []
+
+# ---------------------------------------------------------------------------
 # atalhos que combinam dados + fórmulas
 # ---------------------------------------------------------------------------
 
-## Os cinco stats efetivos da criatura no nível dado.
+## Os cinco stats efetivos da criatura no nível dado, já com o bônus da
+## classe aplicado.
 ## Dicionário vazio se a criatura não existe ou está sem stats — o que o
 ## export já deveria ter impedido de acontecer.
+##
+## **Este é o funil único dos stats.** Combate (`Combatant.from_bestiary`),
+## time, ficha e painel da ativa passam todos por aqui, e é por isso que o
+## bônus da classe entra neste ponto e não em `Combatant`: aplicado lá, a luta
+## veria o número especializado e a ficha mostraria outro, e a divergência
+## leria como bug de interface.
+##
+## A classe soma ao SEU stat e a mais nenhum — Arambi engrossa `defense`,
+## Torumã engrossa `hp`. Não existe multiplicador que dependa da classe do
+## oponente: o bônus é o mesmo contra qualquer adversário, o que é a diferença
+## entre especialização e a matriz CLS×CLS que o projeto não tem.
 func stats_at_level(creature_code: String, level: int) -> Dictionary:
 	var c := creature(creature_code)
 	if c.is_empty():
@@ -509,13 +692,26 @@ func stats_at_level(creature_code: String, level: int) -> Dictionary:
 		return {}
 
 	var growth := float(s["growthRate"])
-	return {
+	var out := {
 		"hp": CombatMath.stat_at_level(int(s["hp"]), growth, level),
 		"attack": CombatMath.stat_at_level(int(s["attack"]), growth, level),
 		"defense": CombatMath.stat_at_level(int(s["defense"]), growth, level),
 		"speed": CombatMath.stat_at_level(int(s["speed"]), growth, level),
 		"charge": CombatMath.stat_at_level(int(s["charge"]), growth, level),
 	}
+
+	var class_code := str(c.get("class", ""))
+	var stat := class_primary_stat(class_code)
+	# `out.has(stat)` não é paranoia: um bundle antigo no disco pode trazer um
+	# `primaryStat` que não é um dos cinco, e escrever a chave nova em vez de
+	# multiplicar a existente daria uma criatura com seis stats e o bônus
+	# perdido — exatamente o tipo de furo silencioso que o export aborta para
+	# nunca chegar aqui.
+	if stat != "" and out.has(stat):
+		out[stat] = CombatMath.stat_with_class_bonus(
+			int(out[stat]), class_primary_stat_bonus_pct(class_code))
+
+	return out
 
 
 ## Código do elemento de uma habilidade, ou "" quando ela não tem afinidade.

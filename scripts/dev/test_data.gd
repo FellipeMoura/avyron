@@ -35,9 +35,13 @@ func _init() -> void:
 	_test_known_abilities(db)
 	_test_turn_order()
 	_test_contract_integrity(db)
+	_test_class_contract(db)
+	_test_class_bonus(db)
 	_test_palette_contract(db)
 	_test_mining_contract(db)
 	_test_biome_contract(db)
+	_test_biome_partition(db)
+	_test_progression_contract(db)
 	_test_relics_contract(db)
 	_test_relic_math(db)
 
@@ -154,31 +158,99 @@ func _test_stat_curve(db: BestiaryData) -> void:
 	# floor(85 * (1 + 0.037 * 49)) = floor(239.105)
 	_check("stat_at_level(85, 0.037, 50)", CombatMath.stat_at_level(85, 0.037, 50), 239)
 
+	# `stats_at_level` devolve o valor JÁ com o bônus da classe, e o esperado
+	# é derivado dos dois lados em vez de fixado num número: travar "85" aqui
+	# foi o que quebrou quando a classe passou a especializar um stat, e
+	# travar "102" só adiaria o mesmo problema para o próximo tuning.
+	var base := int(db.creature("CRT-021")["stats"]["attack"])
+	var class_code := str(db.creature("CRT-021").get("class", ""))
+	var pct := db.class_primary_stat_bonus_pct(class_code) \
+		if db.class_primary_stat(class_code) == "attack" else 0.0
+
 	var lv1 := db.stats_at_level("CRT-021", 1)
 	var lv50 := db.stats_at_level("CRT-021", 50)
-	_check("CRT-021 ataque nivel 1", lv1["attack"], 85)
+	# Nível 1 zera a curva, então o que sobra é a base mais o bônus da classe.
+	_check("CRT-021 ataque nivel 1", lv1["attack"], CombatMath.stat_with_class_bonus(base, pct))
 	_check_true("stats crescem com o nivel",
 		lv50["attack"] > lv1["attack"] and lv50["hp"] > lv1["hp"],
 		"atk %d -> %d" % [lv1["attack"], lv50["attack"]])
 
 
+## O anel elemental, verificado pela FORMA e não por uma lista escrita à mão.
+##
+## A lista existia — `["ELE-002", "ELE-001", ...]` — e envelheceu na primeira
+## vez que o anel mudou de tamanho: com Gelo removido em 2026-08 ela apontava
+## para um elemento que não existe mais, e `element_multiplier` devolvia
+## neutro para um par inexistente sem reclamar de nada. O teste teria passado
+## por acidente se o par vizinho também tivesse sumido.
+##
+## O que importa guardar não é QUAIS elementos estão no ciclo — isso é
+## conteúdo, e o catálogo decide — mas que o grafo de "vence" seja **um único
+## ciclo que passa por todos**. Essa é a simetria que faz nenhum elemento ser
+## objetivamente melhor, e ela é derivável.
 func _test_element_ring(db: BestiaryData) -> void:
 	print("anel elemental:")
-	# Agua -> Fogo -> Natureza -> Terra -> Gelo -> Eletricidade -> Agua
-	_check("Agua vs Fogo", db.element_multiplier("ELE-002", "ELE-001"), 2.0)
-	_check("Fogo vs Agua", db.element_multiplier("ELE-001", "ELE-002"), 0.5)
-	_check("Eletricidade vs Agua", db.element_multiplier("ELE-005", "ELE-002"), 2.0)
-	_check("Fogo vs Terra (neutro)", db.element_multiplier("ELE-001", "ELE-004"), 1.0)
 
-	# Cada elemento vence exatamente um e perde para exatamente um.
-	var ring := ["ELE-002", "ELE-001", "ELE-003", "ELE-004", "ELE-006", "ELE-005"]
-	var strong_ok := true
-	for i in ring.size():
-		var atk: String = ring[i]
-		var def: String = ring[(i + 1) % ring.size()]
-		if db.element_multiplier(atk, def) != 2.0 or db.element_multiplier(def, atk) != 0.5:
-			strong_ok = false
-	_check_true("anel fechado nos 6 pares", strong_ok)
+	var codes := db.element_codes()
+	_check_true("tem elementos", codes.size() >= 3, "%d" % codes.size())
+
+	# Quem cada elemento vence, e quem ele perde. Um elemento com dois de
+	# qualquer um dos lados já não é um anel — é uma teia.
+	var beats := {}
+	var multi: Array[String] = []
+	for atk: String in codes:
+		var won: Array[String] = []
+		var lost: Array[String] = []
+		for def: String in codes:
+			if atk == def:
+				continue
+			var m := db.element_multiplier(atk, def)
+			if m == 2.0:
+				won.append(def)
+			elif m == 0.5:
+				lost.append(def)
+		if won.size() != 1 or lost.size() != 1:
+			multi.append("%s vence %d e perde para %d" % [atk, won.size(), lost.size()])
+		if won.size() == 1:
+			beats[atk] = won[0]
+	_check("elementos fora do padrao um-vence-um-perde", multi.size(), 0)
+
+	# Vantagem e desvantagem são o MESMO par lido dos dois lados: se A vence B
+	# com 2.0, B tem de perder para A com 0.5. Metade da tabela declarada sem
+	# a outra metade daria um elemento que ganha de graça.
+	var asymmetric: Array[String] = []
+	for atk: String in beats:
+		var def: String = beats[atk]
+		if db.element_multiplier(def, atk) != 0.5:
+			asymmetric.append("%s > %s sem a volta" % [atk, def])
+	_check("pares sem a contrapartida 0.5", asymmetric.size(), 0)
+
+	# Um único ciclo cobrindo todos: seguir "vence" a partir de qualquer um
+	# tem de visitar cada elemento exatamente uma vez e voltar ao início.
+	# Dois ciclos separados passariam nas duas checagens acima e ainda assim
+	# partiriam o jogo em duas metades que nunca se enfrentam.
+	var start: String = codes[0]
+	var walk: Array[String] = []
+	var cursor: String = start
+	for _i in codes.size():
+		walk.append(cursor)
+		if not beats.has(cursor):
+			break
+		cursor = str(beats[cursor])
+	_check("elementos visitados pelo ciclo", walk.size(), codes.size())
+	_check_true("o ciclo fecha em si mesmo", cursor == start,
+		" -> ".join(walk) + " -> " + cursor)
+
+	# Par fora do anel é neutro por omissão, e é a omissão que mantém a tabela
+	# pequena: 5 elementos declaram 10 linhas, não 25.
+	var neutral_ok := true
+	for atk: String in codes:
+		for def: String in codes:
+			if atk == def or str(beats.get(atk, "")) == def or str(beats.get(def, "")) == atk:
+				continue
+			if db.element_multiplier(atk, def) != 1.0:
+				neutral_ok = false
+	_check_true("par fora do anel e neutro por omissao", neutral_ok)
 
 	# Golpes utilitários não têm elemento. `str(null)` em GDScript devolve
 	# "<null>", então ler o campo cru passaria despercebido em qualquer
@@ -327,6 +399,158 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 		else "%d de %d" % [db.creature_codes().size(), db.creature_codes().size()])
 
 
+## O contrato da classe como **especialização de atributo**.
+##
+## Até 2026-08 classe era linhagem: CLS-001 era "artrópodes" e uma criatura
+## que não coubesse em nenhuma das três não entrava no jogo. O elenco abriu
+## para cinco e a classe passou a dizer qual dos cinco stats a criatura
+## especializa — taxonomia continua existindo na biologia e deixou de existir
+## no dado.
+##
+## Isso move a classe de descritiva para executável, e é por isso que estas
+## checagens são `_check` e não `_warn`: `stats_at_level` multiplica um stat
+## por causa delas, e um furo aqui entrega a criatura com o número de outra
+## sem sintoma nenhum.
+func _test_class_contract(db: BestiaryData) -> void:
+	print("contrato das classes:")
+
+	# Invariante 1 — o elenco é fechado em cinco. Diferente das contagens de
+	# criatura e golpe (que crescem com o catálogo e por isso só são testadas
+	# como "> 0"), esta é uma decisão de design travada: uma sexta classe é
+	# uma mudança que precisa passar por aqui de propósito.
+	var codes := db.class_codes()
+	codes.sort()
+	_check("quantidade de classes", codes.size(), 5)
+	_check("codigos do elenco", str(codes),
+		str(["CLS-001", "CLS-002", "CLS-003", "CLS-004", "CLS-005"]))
+
+	# Invariante 2 — cada classe especializa exatamente um dos cinco stats que
+	# `stats_at_level` devolve. Um token fora dessa lista seria um bônus
+	# aplicado a uma chave que não existe: perdido, e calado.
+	var valid := ["hp", "attack", "defense", "speed", "charge"]
+	var bad_stat: Array = []
+	var bad_bonus: Array = []
+	for class_code: String in codes:
+		var stat := db.class_primary_stat(class_code)
+		if not valid.has(stat):
+			bad_stat.append("%s (%s)" % [class_code, stat if stat != "" else "vazio"])
+		var pct := db.class_primary_stat_bonus_pct(class_code)
+		if pct <= 0.0:
+			bad_bonus.append("%s (%.2f)" % [class_code, pct])
+	_check("classes com primaryStat invalido", bad_stat.size(), 0)
+	_check("classes sem modificador", bad_bonus.size(), 0)
+
+	# Invariante 3 — toda criatura tem exatamente uma classe, e ela existe.
+	# `creature.class` é string única no bundle, então "exatamente uma" é
+	# forma; o que dá para furar é apontar para código que não existe.
+	var no_class: Array = []
+	for code in db.creature_codes():
+		var class_code := str(db.creature(str(code)).get("class", ""))
+		if class_code == "" or db.creature_class(class_code).is_empty():
+			no_class.append("%s (%s)" % [str(code), class_code])
+	_check("criaturas sem classe valida", no_class.size(), 0)
+
+	# Invariante 4 — nada no dado amarra classe a linhagem. O campo que fazia
+	# isso era `biologicalScope`, e ele saiu do bundle junto com a coluna.
+	# Testar a ausência dele é testar que nenhum código do jogo *poderia*
+	# validar classe por taxonomia, que é mais forte do que testar que
+	# nenhum código faz isso hoje.
+	var taxonomic: Array = []
+	for class_code: String in codes:
+		for key in ["biologicalScope", "lineage", "taxon", "clade"]:
+			if db.creature_class(class_code).has(key):
+				taxonomic.append("%s.%s" % [class_code, key])
+	_check("campos de taxonomia no bloco de classes", taxonomic.size(), 0)
+
+	# Invariante 7 — não existe vantagem de classe contra classe. Duas formas
+	# de furar: um bloco de pares no bundle (espelho de `elementalAdvantages`)
+	# ou uma classe referenciando outra em algum campo próprio. As duas ficam
+	# fechadas aqui, porque a primeira vez que alguém tentar vai ser por uma
+	# delas.
+	# O bundle cru, lido aqui e não guardado por `BestiaryData`: o índice em
+	# memória é o que o jogo usa, e manter o JSON inteiro vivo só para um
+	# teste seria pagar memória em runtime por uma checagem de bancada.
+	var bundle: Variant = JSON.parse_string(
+		FileAccess.get_file_as_string(BestiaryData.BUNDLE_PATH))
+	var top_keys: Array = (bundle as Dictionary).keys() if bundle is Dictionary else []
+	var advantage_blocks: Array = []
+	for key: String in top_keys:
+		if key != "elementalAdvantages" and key.to_lower().contains("advantage"):
+			advantage_blocks.append(key)
+	_check("blocos de vantagem alem do elemental", advantage_blocks.size(), 0)
+	var cross: Array = []
+	for class_code: String in codes:
+		var entry := db.creature_class(class_code)
+		for key: String in entry:
+			var value := str(entry[key])
+			for other: String in codes:
+				if other != class_code and value.contains(other):
+					cross.append("%s.%s -> %s" % [class_code, key, other])
+	_check("classes referenciando outra classe", cross.size(), 0)
+	print("")
+
+
+## Invariantes 5 e 6: o bônus atinge SÓ o `primaryStat`, e o número vem do
+## bundle.
+##
+## As duas juntas são o ponto inteiro da mudança. Uma classe que engrossasse
+## os cinco stats seria um buff global disfarçado de especialização; e um
+## `1.20` escrito em GDScript seria a regra 1 deste repo quebrada no lugar
+## mais caro de descobrir, porque só apareceria como "o PATCH não fez efeito".
+func _test_class_bonus(db: BestiaryData) -> void:
+	print("bonus da classe:")
+
+	var stats := ["hp", "attack", "defense", "speed", "charge"]
+	var checked := 0
+	for code in db.creature_codes():
+		var creature_code := str(code)
+		var c := db.creature(creature_code)
+		if c.get("stats", null) == null:
+			continue
+		var class_code := str(c.get("class", ""))
+		var boosted := db.class_primary_stat(class_code)
+		if boosted == "":
+			continue
+
+		var pct := db.class_primary_stat_bonus_pct(class_code)
+		var raw: Dictionary = c["stats"]
+		var growth := float(raw["growthRate"])
+		var final := db.stats_at_level(creature_code, 1)
+
+		# Nível 1 zera a curva (`1 + growth * 0`), então o que sobra na
+		# diferença entre a base do bundle e o valor final é exatamente o
+		# bônus da classe — e mais nada.
+		var wrong: Array = []
+		for stat: String in stats:
+			var base := CombatMath.stat_at_level(int(raw[stat]), growth, 1)
+			var expected := CombatMath.stat_with_class_bonus(base, pct) if stat == boosted else base
+			if int(final[stat]) != expected:
+				wrong.append("%s: %d != %d" % [stat, int(final[stat]), expected])
+		if not wrong.is_empty():
+			_check_true("%s: bonus so no %s" % [creature_code, boosted], false, str(wrong))
+			return
+		checked += 1
+
+	_check_true("bonus atinge so o primaryStat de cada criatura", checked > 0,
+		"%d criaturas conferidas" % checked)
+
+	# Invariante 6: o número é parâmetro, não constante. Se `1.20` estivesse
+	# escrito na fórmula, os três resultados abaixo seriam iguais — e é
+	# exatamente assim que um valor hardcoded passa despercebido, porque o
+	# caso de 20% continuaria certo.
+	_check("bonus de 0% nao muda nada", CombatMath.stat_with_class_bonus(100, 0.0), 100)
+	_check("bonus de 20% sobre 100", CombatMath.stat_with_class_bonus(100, 20.0), 120)
+	_check("bonus de 50% sobre 100", CombatMath.stat_with_class_bonus(100, 50.0), 150)
+
+	# E o valor real vem do catálogo: se o bestiário mudar os 20% para 25, é
+	# esta leitura que muda, sem tocar em GDScript.
+	var sample := str(db.class_codes()[0])
+	_check_true("modificador de %s vem do bundle" % sample,
+		db.class_primary_stat_bonus_pct(sample) > 0.0,
+		"%.1f%%" % db.class_primary_stat_bonus_pct(sample))
+	print("")
+
+
 ## O bloco `mining` é opcional para `load_bundle` — o jogo sobe sem ele com um
 ## aviso, porque combate não depende de minério. Aqui não é opcional: um export
 ## sem mineração é um export velho, e é este teste que tem de dizer isso em vez
@@ -400,13 +624,153 @@ func _test_biome_contract(db: BestiaryData) -> void:
 		not db.biome_mining_weights(WorldRoot.DEFAULT_BIOME).is_empty(),
 		"%d pesos" % db.biome_mining_weights(WorldRoot.DEFAULT_BIOME).size())
 
+	# Nomeia os biomas em vez de listar códigos: é a única leitura de
+	# `db.biome()` no jogo, e é ela que mantém o array `biomes` do bundle
+	# sendo consumido por alguém em vez de exportado no vazio.
 	var no_rates: Array = []
 	for code in of_map:
 		if db.biome_mining_weights(str(code)).is_empty():
-			no_rates.append(code)
+			var b := db.biome(str(code))
+			no_rates.append("%s (%s)" % [str(code), str(b.get("name", "?"))])
 	_warn("biomas do mapa com taxas de mineracao", no_rates.is_empty(),
 		"sem taxas: %s" % str(no_rates) if not no_rates.is_empty()
 		else "%d de %d" % [of_map.size(), of_map.size()])
+
+
+## A partição espacial de bioma: a tradução de ±1 para metros, e a promessa
+## de cobertura total.
+##
+## Esta suíte existe por causa de uma armadilha específica. As regiões do
+## catálogo vêm em coordenadas NORMALIZADAS, e as notas delas amarram os
+## números a constantes daqui — a nota da RGN-001 diz, com todas as letras,
+## que `-0.533` é o `COAST_RAMP_START` sobre o meio-lado de 30 m. Nada obriga
+## as duas pontas a continuarem de acordo: mexer no `COAST_RAMP_START` sem
+## reautorar a região faz a fronteira do bioma descolar da rampa do terreno, e
+## o sintoma é o jogador subindo para o seco e a mineração ainda respondendo
+## "mar raso" — plausível, silencioso e caro de rastrear meses depois.
+##
+## Por isso o teste MEDE a fronteira em vez de conferir o número: varre o eixo
+## e pergunta onde o bioma troca. É o mesmo raciocínio do teste de direção da
+## câmera — provar a aritmética que o olho não pega.
+func _test_biome_partition(db: BestiaryData) -> void:
+	print("particao de bioma:")
+
+	var half := float(MapTerrain.SIZE) * 0.5
+	var mb := MapBiomes.create(db, WorldRoot.DEFAULT_MAP, half)
+
+	_check_true("mapa %s tem particao no bundle" % WorldRoot.DEFAULT_MAP,
+		mb.has_partition(), "%d regioes" % mb.region_count())
+	if not mb.has_partition():
+		return
+
+	# Cobertura total é a promessa do catch-all, e é invariante: sem ela, um
+	# ponto do mapa não responde bioma nenhum e a mineração cai no fallback
+	# declarado — a fórmula troca de perfil sem nada acusar.
+	var cov: Dictionary = mb.coverage_report(1.0)
+	_check_true("particao cobre o mapa inteiro", int(cov["uncovered"]) == 0,
+		"%d de %d pontos sem bioma%s" % [int(cov["uncovered"]), int(cov["total"]),
+			(" — ex.: %s" % str(cov["worst"])) if int(cov["uncovered"]) > 0 else ""])
+
+	# A medição, na LINHA DE CENTRO do lobo: onde, em metros, a costa deixa de
+	# responder? Desde que a costa virou lobo, x = 0 não serve — o centro dela
+	# está deslocado, e medir fora do eixo daria um alcance menor que o real
+	# pela geometria do círculo, não por divergência nenhuma.
+	var cx := MapTerrain.COAST_CENTER_X
+	var coast := str(mb.biome_at(Vector3(cx, 0.0, -half + 1.0)))
+	var boundary := -half
+	var z := -half + 1.0
+	while z <= 0.0:
+		if str(mb.biome_at(Vector3(cx, 0.0, z))) == coast:
+			boundary = z
+		z += 0.05
+	_check_true("fronteira da costa bate com a rampa do terreno",
+		absf(boundary - MapTerrain.COAST_RAMP_START) <= 0.25,
+		"regiao troca em z=%.2f, COAST_RAMP_START=%.2f" % [boundary, MapTerrain.COAST_RAMP_START])
+
+	# O miolo é o recife, e é a região específica se sobrepondo ao catch-all —
+	# se a ordem de avaliação inverter, o centro passa a responder mar aberto.
+	_check_true("o miolo responde uma regiao especifica, nao o catch-all",
+		str(mb.biome_at(Vector3.ZERO)) != str(mb.biome_at(Vector3(0.0, 0.0, half - 1.0))),
+		"centro=%s, borda=%s" % [str(mb.biome_at(Vector3.ZERO)),
+			str(mb.biome_at(Vector3(0.0, 0.0, half - 1.0)))])
+
+	# Alcançável passou a ser a lista que importa: com a partição ligada, o
+	# jogador pisa em qualquer um destes, e bioma sem taxa derruba a fórmula
+	# para só-classe em silêncio — o furo que a auditoria de 2026-08 fechou
+	# para UM bioma e que a partição reabre para todos.
+	var reachable := mb.reachable_biomes()
+	var no_rates: Array = []
+	for code in reachable:
+		if db.biome_mining_weights(str(code)).is_empty():
+			no_rates.append(str(code))
+	_check_true("todo bioma alcancavel tem taxas de mineracao", no_rates.is_empty(),
+		"sem taxas: %s" % str(no_rates) if not no_rates.is_empty()
+		else "%d alcancaveis" % reachable.size())
+
+	# Alvo, não erro: o bioma existe e é bom, só não tem onde ficar ainda.
+	var unreachable := mb.unreachable_biomes()
+	var named: Array = []
+	for code in unreachable:
+		named.append("%s (%s)" % [str(code), str(db.biome(str(code)).get("name", "?"))])
+	_warn("todo bioma do mapa e alcancavel", unreachable.is_empty(),
+		"sem regiao: %s" % str(named) if not unreachable.is_empty()
+		else "%d de %d" % [reachable.size(), reachable.size()])
+
+
+## Progressão entre mapas: arena, Glifo e travessia (documento
+## `glifos-e-portais`).
+##
+## Espelha os critérios do export, com a mesma divisão de portas. São erro:
+## duelista sem bloco `duel` (a arena não teria contra quem encenar) e
+## travessia exigindo Glifo que arena nenhuma concede — esta última é a que
+## trava a campanha em silêncio, porque o guardião simplesmente nunca deixa
+## passar e nada reporta.
+##
+## É alvo, não erro: Glifo concedido que travessia nenhuma exige. Enquanto a
+## era seguinte não tiver mapa, é exatamente onde Daleth está.
+func _test_progression_contract(db: BestiaryData) -> void:
+	print("contrato de progressao:")
+
+	var granted: Dictionary = {}
+	for code in db.duelist_codes():
+		var d := db.duelist(str(code))
+		var duel: Variant = d.get("duel")
+		_check_true("duelista %s traz o bloco duel" % str(code), duel is Dictionary,
+			str(duel))
+		if not (duel is Dictionary):
+			continue
+		var opponent := str((duel as Dictionary).get("opponentCode", ""))
+		_check_true("oponente de %s existe no elenco" % str(code),
+			not db.creature(opponent).is_empty(), opponent)
+		_check_true("nivel do oponente de %s dentro do teto" % str(code),
+			int((duel as Dictionary).get("opponentLevel", 0)) <= db.level_cap(),
+			"%d / %d" % [int((duel as Dictionary).get("opponentLevel", 0)), db.level_cap()])
+		var glyph: Variant = (duel as Dictionary).get("grantsGlyph")
+		if glyph != null and str(glyph) != "":
+			granted[str(glyph)] = str(code)
+			_check_true("Glifo %s concedido por %s tem nome no catalogo"
+				% [str(glyph), str(code)],
+				db.glyph_name(str(glyph)) != str(glyph), db.glyph_name(str(glyph)))
+
+	# Travessia exigente sem quem conceda o Glifo é beco sem saída.
+	var required: Dictionary = {}
+	for map_code in db.map_codes():
+		for link in db.connections_from_map(str(map_code)):
+			if not (link is Dictionary):
+				continue
+			var need: Variant = (link as Dictionary).get("requiredGlyph")
+			if need == null or str(need) == "":
+				continue
+			required[str(need)] = "%s -> %s" % [str(map_code), str((link as Dictionary).get("to", "?"))]
+			_check_true("travessia %s exige Glifo que alguma arena concede"
+				% required[str(need)], granted.has(str(need)), str(need))
+
+	var unused: Array = []
+	for glyph_code in granted:
+		if not required.has(glyph_code):
+			unused.append("%s (%s)" % [str(glyph_code), str(granted[glyph_code])])
+	_warn("todo Glifo concedido abre alguma travessia", unused.is_empty(),
+		"sem travessia: %s" % str(unused) if not unused.is_empty() else "%d Glifo(s)" % granted.size())
 
 
 ## Mesmo espírito de `_test_mining_contract`: `relics` é opcional em
@@ -519,8 +883,11 @@ func _test_relic_math(db: BestiaryData) -> void:
 	# Desvantagem elemental: acha o elemento que bate o do relicário (mesmo
 	# oráculo que `RelicMath.capture_chance` usa por dentro, via
 	# `element_multiplier`) e confirma que a penalidade reduz a chance.
+	# A lista sai do bundle, não de códigos escritos aqui: uma lista fixa
+	# sobrevive a um elemento ser removido do catálogo sem falhar — só para de
+	# achar o par, e a checagem inteira some em silêncio dentro do `if` abaixo.
 	var disadvantage_element := ""
-	for candidate in ["ELE-001", "ELE-002", "ELE-003", "ELE-004", "ELE-005", "ELE-006"]:
+	for candidate: String in db.element_codes():
 		if db.element_multiplier(relic_element, candidate) < 1.0:
 			disadvantage_element = candidate
 			break

@@ -9,7 +9,11 @@ extends RefCounted
 ## Os dois pesos vêm do bundle (`mining.rates`). O **bioma** diz o que o chão
 ## tem; a **classe da criatura ativa** diz o que ela sabe achar. Multiplicar é
 ## o que faz trocar a criatura ativa mudar de verdade o que sai da picareta —
-## um Draconis prospecta prata e cristal onde um Loricati tira âmbar.
+## um Yaruki prospecta prata e cristal onde um Arambi tira âmbar.
+##
+## Os pesos são por CLASSE, e classe hoje é especialização de atributo, não
+## linhagem. Isso não muda nada aqui: a fórmula sempre leu um `classCode`, e
+## o que mudou foi o que o código significa do outro lado.
 ##
 ## Ninguém guarda a distribuição em cache. São doze minerais: recalcular custa
 ## menos que uma linha de log, e o preço de cachear seria invalidar em toda
@@ -100,8 +104,12 @@ static func sample(rng: RandomNumberGenerator, db: BestiaryData, class_code: Str
 	return dist[-1]
 
 
-## Quanto a classe acelera a mineração. 1.0 é neutro; Theria escava a 1.1,
-## Draconis a 0.9. Vira divisor do cooldown no `WorldRoot`.
+## Quanto a classe acelera a mineração. 1.0 é neutro; Kaíra escava a 1.1,
+## Yaruki a 0.9. Vira divisor do cooldown no `WorldRoot`.
+##
+## Nada a ver com `primaryStatBonusPct`: este é o ritmo de trabalho fora de
+## combate, aquele é a especialização de atributo. Classe pode ter os dois, e
+## eles não precisam apontar para o mesmo lugar.
 static func speed_modifier(db: BestiaryData, class_code: String) -> float:
 	if db == null:
 		return 1.0
@@ -126,10 +134,12 @@ static func role_label(db: BestiaryData, class_code: String) -> String:
 
 ## Os `count` minerais mais prováveis para o par (classe, bioma), só os nomes.
 ##
-## `workFunction.preferredOres` existe no bundle, mas com chaves semânticas
-## (`fossilAmber`, `elementalCrystal`) que não são códigos `ITM-*`. Traduzir
-## essas chaves exigiria um mapa hardcoded — exatamente o que a migração para
-## dado veio matar. Os pesos já dizem a mesma coisa, e dizem em números.
+## `workFunction.preferredOres` NÃO existe mais no bundle — saiu em 2026-08
+## pela regra de que campo só viaja se alguém o lê, e ninguém aqui lia. As
+## chaves eram semânticas (`fossilAmber`, `elementalCrystal`), não códigos
+## `ITM-*`, e traduzi-las exigiria um mapa hardcoded — exatamente o que a
+## migração para dado veio matar. Os pesos já dizem a mesma coisa, e dizem em
+## números; é deles que esta lista sai.
 static func preferred_names(db: BestiaryData, class_code: String, biome_code: String, count: int = 3) -> Array[String]:
 	var out: Array[String] = []
 	for entry in distribution(db, class_code, biome_code):

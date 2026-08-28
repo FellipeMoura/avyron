@@ -40,22 +40,23 @@ extends Node3D
 @export var starter_code := "CRT-002"
 @export var encounter_level := 10
 
-## Bioma que o mundo usa, de todos os que o mapa tem.
+## Bioma de FALLBACK — o que vale quando a consulta por posição não responde.
 ##
-## PZ-01 tem quatro no catálogo (Costa Primordial, Mar raso, Jardins Recifais,
-## Mar Profundo) e o mundo usa **um**: não existe noção espacial de bioma aqui
-## — `MapDressing` veste o mapa inteiro com um kit só, e não há região a que
-## prender um bioma diferente. Enquanto isso não existir, escolher é o
-## honesto; derivar do mapa seria fingir que a escolha vem do dado.
+## Até 2026-08 esta constante era o bioma do mapa inteiro, e o comentário aqui
+## explicava por que declarar era mais honesto que derivar: não existia
+## partição espacial a que prender bioma nenhum. Ela existe agora
+## (`MapBiomes`, alimentada por `maps[].biomeRegions`), e o mundo **pergunta** —
+## ver `current_biome()`.
 ##
-## Por que `BIO-001` e não o primeiro da lista: é o único dos treze com taxas
-## em `mining_rates`. Nos outros a fórmula `peso_classe × peso_bioma` perde
-## metade **em silêncio** — `MiningTable` trata lado ausente como neutro e a
-## mineração vira só classe, sem erro. `test_data.gd` prende isso.
+## O fallback continua porque a partição é dado, e dado pode faltar: mapa sem
+## regiões autoradas, ou ponto fora de todas elas num catálogo sem catch-all.
+## Nesses dois casos o mundo precisa de uma resposta, e uma resposta errada em
+## silêncio é o modo de falha que este arquivo evita em todo o resto.
 ##
-## Para virar consulta de verdade, faltam duas coisas, nesta ordem: as 12
-## taxas de cada bioma restante (o documento `mineracao` já manda) e uma
-## partição espacial do mapa que diga em que bioma o jogador está pisando.
+## Por que `BIO-001`: dos quatro do PZ-01 é o do mar aberto, que é onde o
+## jogador passa a maior parte do tempo — um fallback que erra deve errar para
+## o lugar mais provável. Ele tem taxas de mineração como os outros doze desde
+## 2026-08-28, e `test_data.gd` prende que continue tendo.
 const DEFAULT_BIOME := "BIO-001"
 
 ## Onde o jogador está. O mapa escolhe o elenco selvagem; o bioma é metade da
@@ -63,7 +64,15 @@ const DEFAULT_BIOME := "BIO-001"
 const DEFAULT_MAP := "PZ-01"
 
 @export var map_code := DEFAULT_MAP
-@export var biome_code := DEFAULT_BIOME
+
+## A partição espacial deste mapa, e o bioma em que o jogador está agora.
+##
+## `_biome_code` é cache do resultado de `current_biome()`, atualizado no
+## `_process`. Existe como campo (em vez de consulta a cada uso) porque a
+## TROCA é que interessa: é ela que refresca o painel, e detectá-la exige
+## lembrar do quadro anterior de qualquer jeito.
+var _map_biomes: MapBiomes
+var _biome_code := DEFAULT_BIOME
 
 var _camera: IsoCamera
 var _player: Node3D
@@ -94,6 +103,12 @@ var _inventory_hidden := false
 var _relic: PlayerRelic
 var _relic_station: RelicStationActor
 var _relic_screen: RelicStationScreen
+## O resto do set — posse e o que está vestido. Nasce vazio: todo jogador
+## começa com o relicário starter, mas sem nenhuma peça fabricada, porque a
+## bancada É o sistema de aquisição e o boot não pode passar por cima dele.
+var _loadout := PlayerLoadout.new()
+var _crafting_bench: CraftingBenchActor
+var _crafting_screen: CraftingScreen
 var _mine_rng := RandomNumberGenerator.new()
 var _mine_cooldown := 0.0
 var _mine_label: Label
@@ -115,16 +130,32 @@ var _portal_guardian: PortalGuardianActor
 ## o aviso lá se não achar.
 
 ## Segundos entre minerações consecutivas, antes do perfil de trabalho da
-## classe ativa. Theria (×1.1) espera menos, Draconis (×0.9) espera mais.
+## classe ativa. Kaíra (×1.1) espera menos, Yaruki (×0.9) espera mais.
 const MINE_COOLDOWN_SEC := 3.0
 
 
-## Avisa se o bioma declarado não é um dos que o mapa tem.
+## Confere, na abertura, as promessas do bioma — todas por gritarem em vez de
+## quebrarem.
 ##
-## Não derruba o jogo — um bioma errado ainda roda, só perde metade da fórmula
-## de mineração. É exatamente por não quebrar que precisa gritar: o sintoma
-## seria "a picareta parou de dar cristal", meses depois, sem nada apontando
-## para cá.
+## Bioma errado não derruba o jogo: ele roda perdendo metade da fórmula de
+## mineração, e o sintoma é "a picareta parou de dar cristal" meses depois,
+## sem nada apontando para cá. É por não quebrar que precisa gritar.
+##
+## São promessas de naturezas diferentes, e por isso saem por portas
+## diferentes:
+##
+## - o FALLBACK pertencer ao mapa é invariante de código, e uma constante
+##   apontando para fora do mapa é erro nosso — `push_error`;
+## - o mapa TER partição é estado de conteúdo. Mapa sem regiões autoradas
+##   ainda não existe como lugar dividido, e o mundo declara o mapa inteiro
+##   como antes: é escopo por fazer, não contradição — aviso;
+## - bioma do mapa que região nenhuma reivindica é inalcançável em jogo, e o
+##   exportador já avisa do lado de lá. A conferência se repete aqui porque
+##   bundle e jogo podem divergir de versão, e é o jogo que sofre.
+##
+## A COBERTURA da partição não é conferida aqui: varrer milhares de pontos na
+## abertura de cada partida pagaria todo quadro para provar algo que não muda
+## entre execuções. Quem cobra isso é `test_data.gd`, uma vez, na suíte.
 func _assert_biome_belongs_to_map() -> void:
 	if _db == null:
 		return
@@ -132,9 +163,17 @@ func _assert_biome_belongs_to_map() -> void:
 	if available.is_empty():
 		push_warning("mapa %s nao lista biomas no bundle — conferencia impossivel" % map_code)
 		return
-	if not available.has(biome_code):
-		push_error("bioma %s nao pertence ao mapa %s (o mapa tem %s) — a mineracao vai cair para so-classe em silencio"
-			% [biome_code, map_code, str(available)])
+	if not available.has(DEFAULT_BIOME):
+		push_error("bioma de fallback %s nao pertence ao mapa %s (o mapa tem %s) — a mineracao vai cair para so-classe em silencio"
+			% [DEFAULT_BIOME, map_code, str(available)])
+	if _map_biomes == null or not _map_biomes.has_partition():
+		push_warning("mapa %s sem regioes de bioma no bundle — o mundo inteiro responde %s"
+			% [map_code, DEFAULT_BIOME])
+		return
+	var unreachable := _map_biomes.unreachable_biomes()
+	if not unreachable.is_empty():
+		push_warning("biomas do mapa %s que regiao nenhuma reivindica: %s — inalcancaveis em jogo"
+			% [map_code, str(unreachable)])
 
 
 func _ready() -> void:
@@ -147,6 +186,16 @@ func _ready() -> void:
 	# resolvem esse identificador, e a falha é erro de compilação, não de
 	# runtime.
 	_progress = get_node_or_null("/root/Progress") as PlayerProgress
+
+	# A partição vem ANTES da guarda, e a guarda é justamente quem cobra que
+	# ela exista — montada depois, a checagem reprovaria todo mapa, sempre.
+	#
+	# O meio-lado sai da CONSTANTE do terreno, não da instância: as regiões do
+	# catálogo vêm normalizadas em ±1 e é esse divisor que as traduz para
+	# metros, então a partição depende do TAMANHO do mapa, não do relevo dele.
+	# É o que a deixa nascer aqui em cima, antes de existir malha nenhuma.
+	_map_biomes = MapBiomes.create(_db, map_code, float(MapTerrain.SIZE) * 0.5)
+	_biome_code = current_biome()
 	_assert_biome_belongs_to_map()
 
 	# A câmera continua processando durante a pausa. Um Tween acompanha o
@@ -221,9 +270,10 @@ func _ready() -> void:
 		_companion.terrain = _terrain
 	_merchants = WorldPopulator.spawn_merchants(self, _db, map_code, _on_merchant_engaged, _terrain)
 	_relic_station = WorldPopulator.spawn_relic_station(self, _on_relic_station_engaged, _terrain)
+	_crafting_bench = WorldPopulator.spawn_crafting_bench(self, _on_crafting_bench_engaged, _terrain)
 	_arenas = WorldPopulator.spawn_arenas(self, _db, map_code, _on_arena_engaged, _terrain)
 	_portal_guardian = WorldPopulator.spawn_portal_guardian(
-		self, _progress, _on_portal_guardian_engaged, _terrain)
+		self, _db, map_code, _progress, _on_portal_guardian_engaged, _terrain)
 
 	# O cenário (ambiente + props de bioma) entra por último e é apresentação
 	# pura: nada dele emite sinal, entra em fórmula ou guarda estado.
@@ -241,6 +291,9 @@ func _ready() -> void:
 	# que precisa dele, para apoiar os três corpos no relevo enquanto os leva
 	# até os postos de batalha.
 	_encounter.terrain = _terrain
+	# Mesma injeção pós-`setup` do terreno. O objeto é sempre este — o loadout
+	# muda por dentro, nunca é substituído —, então a referência não envelhece.
+	_encounter.loadout = _loadout
 
 	_build_hud()
 
@@ -265,6 +318,8 @@ func _process(delta: float) -> void:
 	if _selection:
 		_selection.update()
 
+	_update_biome()
+
 
 # ---------------------------------------------------------------------------
 # HUD
@@ -272,7 +327,7 @@ func _process(delta: float) -> void:
 
 func _build_hud() -> void:
 	var panels := WorldHud.build(
-		self, _db, biome_code, _inventory, activate_slot, use_item_on_slot, _on_inventory_changed)
+		self, _db, _biome_code, _inventory, activate_slot, use_item_on_slot, _on_inventory_changed)
 	_hint = panels.hint
 	_info = panels.info
 	_active_panel = panels.active_panel
@@ -286,6 +341,39 @@ func _build_hud() -> void:
 	# ainda nulo — o painel "criatura ativa" nascia em branco até o próximo
 	# evento de time (captura, troca).
 	_roster.changed.connect(_on_roster_changed)
+	_on_roster_changed()
+
+
+## Em que bioma o jogador está, agora.
+##
+## Pública porque é o que os testes headless perguntam — eles movem o corpo e
+## conferem a resposta, sem sintetizar quadro nenhum.
+##
+## O fallback entra em dois casos, e os dois são de dado, não de posição: mapa
+## sem partição autorada, e ponto fora de todas as regiões (catálogo sem
+## catch-all). Quem grita por eles é `_assert_biome_belongs_to_map`, uma vez na
+## abertura — aqui o silêncio é obrigatório, porque isto roda todo quadro.
+func current_biome() -> String:
+	if _map_biomes == null or _player == null:
+		return DEFAULT_BIOME
+	var found := _map_biomes.biome_at(_player.global_position)
+	return found if found != "" else DEFAULT_BIOME
+
+
+## Detecta a travessia de fronteira e reconstrói o que depende do bioma.
+##
+## Passa por `_on_roster_changed` em vez de mexer no painel direto: ele é o
+## ponto único que sabe redesenhar a ficha da ativa com os números do time em
+## mãos, e duplicar essa chamada aqui criaria um segundo lugar para os dois
+## discordarem — que é exatamente o que a auditoria de 2026-08 desfez em outros
+## quatro pontos deste arquivo.
+func _update_biome() -> void:
+	var now := current_biome()
+	if now == _biome_code:
+		return
+	_biome_code = now
+	if _active_panel:
+		_active_panel.set_biome(now)
 	_on_roster_changed()
 
 
@@ -389,7 +477,7 @@ func _roster_open() -> bool:
 ## divergência não dava sintoma só porque o pause segurava tudo. Um guarda que
 ## parece ser a proteção sem ser é pior que nenhum: leitor confia nele.
 func _modal_open() -> bool:
-	return _duel != null or _shop != null or _relic_screen != null
+	return _duel != null or _shop != null or _relic_screen != null or _crafting_screen != null
 
 
 ## Ponto de entrada do clique. Público porque os testes headless disparam
@@ -501,7 +589,7 @@ func toggle_set_window() -> void:
 	_set_window.toggle()
 	if _set_window.is_open():
 		_clear_selection()
-		_set_window.refresh(_db, _relic)
+		_set_window.refresh(_db, _relic, _loadout)
 
 
 ## Esconde/reexibe o painel de bolsa (tecla `V`) — puramente cosmético, não
@@ -610,6 +698,11 @@ func _active_class_code() -> String:
 ## O que sai daqui é decidido por dois fatores do bundle: o bioma em que o
 ## jogador está e a classe da criatura que ele tem à frente. Nada de tabela
 ## local — trocar a ativa muda o resultado, e é para ser sentido.
+##
+## Desde a partição espacial, ANDAR também muda: `_biome_code` é a resposta de
+## `current_biome()` para a posição corrente, não mais um bioma declarado para
+## o mapa inteiro. Minerar na costa e minerar no recife passaram a ser coisas
+## diferentes sem o jogador tocar em menu nenhum.
 func trigger_mine() -> void:
 	if _modal_open():
 		return  # não minera com duelo, loja ou posto do Relicário por cima
@@ -618,7 +711,7 @@ func trigger_mine() -> void:
 		return
 
 	var class_code := _active_class_code()
-	var mineral := MiningTable.sample(_mine_rng, _db, class_code, biome_code)
+	var mineral := MiningTable.sample(_mine_rng, _db, class_code, _biome_code)
 	if mineral.is_empty():
 		# Bundle exportado antes do módulo de mineração, ou bioma sem taxas
 		# cadastradas. Dizer isso é melhor que uma tecla que não faz nada.
@@ -714,6 +807,115 @@ func _on_relic_screen_closed() -> void:
 		layer.queue_free()
 	_relic_screen = null
 	_show_world_hud()
+
+
+# ---------------------------------------------------------------------------
+# bancada — fabricar equipamento
+# ---------------------------------------------------------------------------
+
+func _on_crafting_bench_engaged(_actor: CraftingBenchActor) -> void:
+	if _modal_open():
+		return
+
+	_hide_world_hud()
+
+	_crafting_screen = CraftingScreen.new()
+	_crafting_screen.name = "CraftingScreen"
+	_crafting_screen.closed.connect(_on_crafting_screen_closed)
+	_crafting_screen.craft_requested.connect(craft_equipment)
+	_crafting_screen.equip_requested.connect(equip_equipment)
+
+	var layer := CanvasLayer.new()
+	layer.name = "CraftingLayer"
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	layer.add_child(_crafting_screen)
+	add_child(layer)
+
+	_crafting_screen.setup(_db, _inventory, _loadout)
+	# Sem zoom de câmera, mesma razão da loja: o que importa é a tabela.
+	get_tree().paused = true
+
+
+func _on_crafting_screen_closed() -> void:
+	get_tree().paused = false
+	var layer := get_node_or_null("CraftingLayer")
+	if layer:
+		layer.queue_free()
+	_crafting_screen = null
+	_show_world_hud()
+
+
+## Fabrica um modelo, cobrando a receita da bolsa. É o dono da bolsa **e** do
+## loadout que arbitra, exatamente como `use_item_on_slot` faz com a cura, e
+## pela mesma razão: a tela que pede não pode ser a que cobra.
+##
+## A ordem é medir → recusar → cobrar → registrar. **Tudo ou nada**: a
+## conferência varre a receita inteira antes de o primeiro minério sair, senão
+## uma receita de três ingredientes com o último faltando deixaria o jogador
+## sem os dois primeiros e sem a peça.
+##
+## Público pelo mesmo motivo de `trigger_mine`: os testes headless chamam
+## direto, sem sintetizar tecla.
+func craft_equipment(equipment_code: String) -> void:
+	if _db == null or _inventory == null or equipment_code == "":
+		return
+	var model := _db.equipment(equipment_code)
+	if model.is_empty():
+		_finish_craft("Modelo desconhecido.")
+		return
+	if _loadout.owns(equipment_code):
+		_finish_craft("Voce ja tem %s." % _db.equipment_name(equipment_code))
+		return
+
+	var recipe := _db.equipment_recipe(equipment_code)
+	if recipe.is_empty():
+		_finish_craft("Sem receita para %s." % _db.equipment_name(equipment_code))
+		return
+
+	# Passo 1: medir. Nenhum `remove` antes desta varredura terminar.
+	var missing: Array[String] = []
+	for line in recipe:
+		var item_code := str(line["itemCode"])
+		var need := int(line["quantity"])
+		var have := _inventory.quantity(item_code)
+		if have < need:
+			missing.append("%s (falta %d)" % [_db.item_name(item_code), need - have])
+	if not missing.is_empty():
+		_finish_craft("Falta material: %s." % ", ".join(missing))
+		return
+
+	# Passo 2: cobrar. Já se sabe que dá para todos.
+	for line in recipe:
+		_inventory.remove(str(line["itemCode"]), int(line["quantity"]))
+
+	# Passo 3: registrar. `acquire` já veste — ver `PlayerLoadout.acquire`.
+	_loadout.acquire(equipment_code, _db.equipment_slot(equipment_code))
+	_finish_craft("Fabricou e equipou: %s." % _db.equipment_name(equipment_code))
+
+
+## Veste ou tira um modelo que o jogador já possui.
+func equip_equipment(equipment_code: String, equip: bool) -> void:
+	if _db == null or equipment_code == "":
+		return
+	var slot := _db.equipment_slot(equipment_code)
+	if equip:
+		if _loadout.equip(equipment_code, slot):
+			_finish_craft("Equipado: %s." % _db.equipment_name(equipment_code))
+		else:
+			_finish_craft("Voce nao tem %s." % _db.equipment_name(equipment_code))
+	else:
+		_loadout.unequip(slot)
+		_finish_craft("Guardado: %s." % _db.equipment_name(equipment_code))
+
+
+## Redesenha a bancada e a janela do set com a mensagem do que acabou de
+## acontecer. As duas, porque fabricar muda o que a janela `E` mostra — e o
+## jogador pode ter deixado as duas abertas em sessões diferentes.
+func _finish_craft(message: String) -> void:
+	if _crafting_screen:
+		_crafting_screen.refresh(message)
+	if _set_window and _set_window.is_open():
+		_set_window.refresh(_db, _relic, _loadout)
 
 
 func _hide_world_hud() -> void:

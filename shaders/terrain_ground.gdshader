@@ -10,13 +10,25 @@ uniform sampler2D noise_tex;
 uniform vec3 color_base : source_color = vec3(0.54, 0.51, 0.39);
 uniform vec3 color_alt : source_color = vec3(0.45, 0.44, 0.33);
 uniform vec3 color_slope : source_color = vec3(0.36, 0.38, 0.33);
-// Faixa "seca" da costa: tom próprio na banda de Z além de coast_band_start,
-// só acima de coast_dry_level — a base da rampa continua molhada. Bandas em
-// uniform porque a geografia é do MapTerrain, não do shader.
+// Trecho "seco" da costa: tom próprio, só acima de coast_dry_level — a base
+// da rampa continua molhada.
+//
+// A costa deixou de ser banda de Z em 2026-08-28 e virou LOBO: as quatro
+// medidas abaixo são a mesma forma composta (círculo da barriga ∪ retângulo
+// da largura) que o MapTerrain usa para levantar a malha, e que o catálogo
+// descreve em coordenada normalizada. Vêm em uniform pelo mesmo motivo de
+// sempre — a geografia é do terreno, o shader é neutro. Raio 0 desliga o
+// trecho, como já acontece com a ilha.
 uniform vec3 color_coast : source_color = vec3(0.70, 0.64, 0.49);
-uniform float coast_band_start = 14.0;
-uniform float coast_band_full = 19.0;
+uniform float coast_center_x = 0.0;
+uniform float coast_lobe_r = 0.0;
+uniform float coast_rect_z = 0.0;
+uniform float coast_rect_half_w = 0.0;
+uniform float coast_feather = 5.0;
 uniform float coast_dry_level = 0.9;
+// Meio-lado do mapa: o centro do lobo fica NA borda -Z, fora da malha, e sem
+// esta medida o shader não sabe onde essa borda está.
+uniform float map_half = 30.0;
 // A ilha do miolo usa o MESMO tom seco da costa, em faixa radial em vez de
 // banda de Z. Raio de base 0 = mapa sem ilha, e o trecho nem roda. Os valores
 // chegam do MapTerrain (é a geografia dele que levanta a malha).
@@ -45,7 +57,17 @@ void fragment() {
 	float n = broad * 0.7 + fine * 0.3;
 	vec3 c = mix(color_base, color_alt, smoothstep(0.35, 0.65, n));
 	float dry_gate = smoothstep(coast_dry_level * 0.5, coast_dry_level, world_y);
-	float coastal = smoothstep(coast_band_start, coast_band_full, -world_xz.y) * dry_gate;
+	float coastal = 0.0;
+	if (coast_lobe_r > 0.0) {
+		// A barriga: círculo centrado na borda -Z.
+		float dc = distance(world_xz, vec2(coast_center_x, -map_half));
+		float lobe = 1.0 - smoothstep(coast_lobe_r - coast_feather, coast_lobe_r, dc);
+		// A largura: retângulo com as bordas suavizadas pela mesma folga.
+		float band = 1.0 - smoothstep(coast_rect_z, coast_rect_z + coast_feather, world_xz.y);
+		float side = 1.0 - smoothstep(coast_rect_half_w - coast_feather, coast_rect_half_w,
+			abs(world_xz.x - coast_center_x));
+		coastal = max(lobe, band * side) * dry_gate;
+	}
 	if (island_base_radius > 0.0) {
 		float d = distance(world_xz, island_center);
 		coastal = max(coastal,

@@ -23,6 +23,29 @@ static func stat_at_level(base: int, growth_rate: float, level: int) -> int:
 	return int(floor(float(base) * (1.0 + growth_rate * float(level - 1))))
 
 
+## Aplica o bônus da classe a UM stat já escalado pelo nível.
+##
+##     valor = floor(valor_no_nivel * (1 + pct / 100))
+##
+## `pct` é o `primaryStatBonusPct` da classe, em pontos percentuais — `20`
+## significa +20%. O número vem do bundle; nenhum multiplicador de classe está
+## escrito neste arquivo, o que é a regra 1 aplicada ao caso.
+##
+## A classe modifica **um** stat, o `primaryStat` dela, e é `BestiaryData` que
+## sabe qual — aqui só mora a aritmética, como no resto de `CombatMath`. Dois
+## detalhes que a forma esconde:
+##
+## - o bônus entra DEPOIS da curva de nível, não sobre a base. Aplicar antes
+##   faria a vantagem da classe crescer junto com `growthRate` e uma criatura
+##   de nível 50 abriria uma distância que ninguém dimensionou.
+## - o piso é 1 pelo mesmo motivo de `effective_attack`: a fórmula de dano
+##   divide pela defesa, e um zero vindo de um stat base 0 travaria a conta.
+static func stat_with_class_bonus(value: int, bonus_pct: float) -> int:
+	if bonus_pct <= 0.0:
+		return value
+	return maxi(1, int(floor(float(value) * (1.0 + bonus_pct / 100.0))))
+
+
 ## Multiplicador elemental do atacante contra o defensor.
 ##
 ## O anel cobre 12 pares; qualquer combinação ausente é neutra. Tratar a

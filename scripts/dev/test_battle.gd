@@ -75,8 +75,18 @@ func _battle(seed_value: int = 1234, level: int = 20) -> Battle:
 func _test_combatant_build() -> void:
 	print("montagem do combatente:")
 	var c := Combatant.from_bestiary(_db, "CRT-021", 1)
-	_check("HP nivel 1", c.max_hp, 70)
-	_check("ataque nivel 1", c.base_attack, 85)
+	# Derivado do bundle, não fixado: `Combatant` monta a partir de
+	# `stats_at_level`, que desde 2026-08 já entrega o stat da classe
+	# multiplicado pelo `primaryStatBonusPct` dela. Um literal aqui testaria
+	# o balanceamento do dia em que foi escrito, não a montagem.
+	var expected := _db.stats_at_level("CRT-021", 1)
+	_check("HP nivel 1", c.max_hp, expected["hp"])
+	_check("ataque nivel 1", c.base_attack, expected["attack"])
+	# E o bônus chegou de verdade: CRT-021 é da classe que especializa ataque,
+	# então o valor montado tem de estar acima da base crua do bundle.
+	_check_true("bonus da classe chega ao combatente",
+		c.base_attack > int(_db.creature("CRT-021")["stats"]["attack"]),
+		"%d > %d" % [c.base_attack, int(_db.creature("CRT-021")["stats"]["attack"])])
 	_check("comeca com HP cheio", c.hp, c.max_hp)
 	_check("carga comeca zerada", c.charge_meter, 0.0)
 	_check_true("tem Despertar", c.has_awakening, c.awakening_name)

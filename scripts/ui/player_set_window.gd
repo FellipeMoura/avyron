@@ -11,11 +11,13 @@ extends PanelContainer
 ## sem exigir estar em ponto nenhum — o mesmo espírito da janela do time
 ## (`RosterWindow`, tecla `T`).
 ##
-## Somente leitura por enquanto — sem clique, sem escolha, sem modo. Quando o
-## set ganhar mais peças (buff de batalha, Despertar, troca, exploração —
-## fora de escopo aqui, ver documento `relicario`), cada uma vira uma nova
-## seção de texto aqui, não uma janela nova: a lista de seções é o que cresce,
-## não o número de telas que o jogador precisa lembrar.
+## Somente leitura, e continua sendo com o set em três peças: quem *gerencia*
+## é o ponto fixo do mapa — o posto para o Relicário, a bancada para o resto.
+## Esta janela responde "o que estou usando?", de qualquer lugar.
+##
+## O plano de crescer por **seção** e não por janela foi o que se cumpriu:
+## Amplificador e Encantador entraram como duas seções aqui, e o jogador não
+## teve de aprender tela nenhuma. A regra segue valendo para a próxima peça.
 
 const COL_BONE  := "#F2EDE0"
 const COL_MOSS  := "#7A8C6B"
@@ -64,11 +66,14 @@ func close() -> void:
 	hide()
 
 
-## Redesenha com o relicário equipado — `relic == null` é estado normal
-## enquanto não existir sistema de aquisição (ou, hoje, se o bundle não tiver
-## o modelo starter — ver `WorldRoot._pick_starter_relic`), não um erro a
-## esconder.
-func refresh(db: BestiaryData, relic: PlayerRelic) -> void:
+## Redesenha com o set atual. `relic == null` é estado normal enquanto não
+## existir sistema de aquisição (ou, hoje, se o bundle não tiver o modelo
+## starter — ver `WorldRoot._pick_starter_relic`), não um erro a esconder.
+##
+## `loadout` tem padrão null e as seções aguentam isso porque a janela também
+## roda em bancada de teste sem mundo. Slot vazio, aliás, é o estado de todo
+## jogador no primeiro minuto: as peças não vêm no boot, se fabricam.
+func refresh(db: BestiaryData, relic: PlayerRelic, loadout: PlayerLoadout = null) -> void:
 	if _label == null:
 		return
 
@@ -80,11 +85,52 @@ func refresh(db: BestiaryData, relic: PlayerRelic) -> void:
 		lines.append("[color=%s]nenhum relicario equipado[/color]" % COL_SLATE)
 	else:
 		lines.append_array(_relic_lines(db, relic))
+
 	lines.append("")
-	lines.append("[color=%s][ sem outras pecas de equipamento ainda ][/color]" % COL_SLATE)
+	lines.append_array(_slot_lines(db, loadout, BestiaryData.SLOT_AMPLIFIER, "AMPLIFICADOR"))
+	lines.append("")
+	lines.append_array(_slot_lines(db, loadout, BestiaryData.SLOT_ENCHANTER, "ENCANTADOR"))
+
 	lines.append("")
 	lines.append("[color=%s][Esc] fecha[/color]" % COL_SLATE)
 	_label.text = "\n".join(lines)
+
+
+## Uma seção de slot do loadout. Slot vazio diz **onde se resolve isso**, e
+## não só que está vazio: "nada equipado" sozinho deixaria o jogador sem saber
+## que existe uma bancada, e a peça fica invisível até ele achar o ponto no
+## mapa por acaso.
+func _slot_lines(
+	db: BestiaryData, loadout: PlayerLoadout, slot: String, title: String
+) -> Array[String]:
+	var out: Array[String] = []
+	out.append("[color=%s]%s[/color]" % [COL_SLATE, title])
+	if db == null or loadout == null:
+		out.append("  [color=%s]nada equipado[/color]" % COL_SLATE)
+		return out
+
+	var code := loadout.equipped_in(slot)
+	if code == "":
+		out.append("  [color=%s]nada equipado  ·  fabrique na bancada[/color]" % COL_SLATE)
+		return out
+
+	out.append("  [color=%s]%s[/color]   [color=%s]T%d[/color]" % [
+		COL_BONE, db.equipment_name(code), COL_MOSS, db.equipment_tier(code),
+	])
+	out.append("  [color=%s]efeito[/color]  %s" % [COL_SLATE, _effect_line(db, code)])
+	return out
+
+
+## O modificador em uma frase, com o alvo saindo do **slot** e o sinal saindo
+## do código do efeito — as duas fontes que `Battle` usa, lidas do mesmo
+## jeito. Nenhum texto aqui inventa quem leva o efeito.
+func _effect_line(db: BestiaryData, code: String) -> String:
+	var effect := db.equipment_effect_code(code)
+	var value := int(db.equipment_effect_value(code))
+	var stat := "defesa" if effect.ends_with("_defense") else "ataque"
+	if effect.begins_with("debuff_"):
+		return "-%d%% de %s do adversario" % [value, stat]
+	return "+%d%% de %s da sua criatura" % [value, stat]
 
 
 func _relic_lines(db: BestiaryData, relic: PlayerRelic) -> Array[String]:

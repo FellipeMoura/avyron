@@ -15,8 +15,14 @@ extends Node3D
 
 ## Mapa a povoar. Quando houver mais de um, vira parâmetro da cena.
 @export var map_code := "PZ-01"
-@export var creature_count := 8
-@export var spawn_radius := 22.0
+## Contagem e raio subiram no resize de 2026-08-28 (mapa de 60 para 120 m),
+## mas NÃO na proporção da área. Manter a densidade de antes daria ~41 corpos
+## rigados simultâneos, e esse número nunca foi medido nesta cena — 24 é o
+## maior que dá para afirmar sem medir. Se o mapa for para os 350 m do alvo,
+## este é o campo que deixa de ser contagem fixa e vira população perto do
+## jogador; a 120 m ainda não precisa.
+@export var creature_count := 24
+@export var spawn_radius := 50.0
 @export var min_separation := 4.0
 @export var level := 10
 

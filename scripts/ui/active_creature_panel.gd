@@ -51,12 +51,23 @@ func _ready() -> void:
 	add_child(_label)
 
 
-## O bioma entra no setup, não no refresh: é configuração do mundo e só muda
-## quando o jogador troca de mapa, enquanto o refresh roda a cada captura.
+## O bioma entra pelo setup e é trocado por `set_biome`, nunca pelo refresh:
+## o refresh roda a cada captura e recebe os números do time, que não têm nada
+## a ver com onde o jogador está pisando.
 func setup(db: BestiaryData, biome_code: String) -> void:
 	_db = db
 	_biome_code = biome_code
 	refresh("", 1, 0, 6)
+
+
+## Troca o bioma corrente sem redesenhar — quem redesenha é o refresh seguinte,
+## que é quem tem os números do time em mãos.
+##
+## Existe desde que o bioma virou consulta por posição: ele muda enquanto o
+## jogador anda, e chamar `setup` de novo a cada fronteira apagaria o painel
+## para o estado vazio no meio da caminhada.
+func set_biome(biome_code: String) -> void:
+	_biome_code = biome_code
 
 
 ## `hp`/`max_hp` chegam prontos do time em vez de saírem de `stats_at_level`:
@@ -106,6 +117,14 @@ func refresh(creature_code: String, level: int, roster_size: int, roster_capacit
 		lines.append("")
 		lines.append("[color=%s]mineração[/color]  [color=%s]%s · ×%.1f[/color]"
 			% [COL_SLATE, COL_MOSS, role, MiningTable.speed_modifier(_db, class_code)])
+		# O bioma é a outra metade de `peso_classe × peso_bioma`, e sem ele o
+		# painel explicaria metade do resultado. Desde que virou consulta por
+		# posição ele também é o único lugar em que o jogador VÊ a partição
+		# espacial funcionando: atravessar uma fronteira troca este nome e a
+		# lista de preferidos junto.
+		var biome_name := str(_db.biome(_biome_code).get("name", ""))
+		if biome_name != "":
+			lines.append("[color=%s]%s[/color]" % [COL_SLATE, biome_name])
 		var preferred := MiningTable.preferred_names(_db, class_code, _biome_code, 3)
 		if not preferred.is_empty():
 			lines.append("[color=%s]%s[/color]" % [COL_SLATE, " · ".join(preferred)])

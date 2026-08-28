@@ -95,7 +95,7 @@ const GROUND_Y := 0.0
 
 ## Amplitude e frequência do bob vertical em repouso. Um trilobita parado que
 ## não respira é um adereço no chão; um leve sobe-e-desce dá vida sem custar
-## nada — e casa com o rig flutuante que Loricati usa por padrão. Em movimento
+## nada — e casa com o rig flutuante que Arambi usa por padrão. Em movimento
 ## os dois crescem, em `_bob`.
 const BOB_AMPLITUDE := 0.04
 const BOB_HZ := 1.1

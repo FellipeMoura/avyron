@@ -70,7 +70,12 @@ const RIG_DISTANCE := 20.0
 ## `base_size` for retunado depois, sem precisar remedir os limites.
 const ZOOM_STEP := 0.1
 const ZOOM_MULT_MIN := 0.5
-const ZOOM_MULT_MAX := 2.0
+## Subiu de 2.0 para 3.0 no resize de 2026-08-28. Não é preferência: a 60 m
+## o afastamento máximo enquadrava o mapa INTEIRO, e a 120 m enquadraria um
+## quarto dele. Perder a visão de conjunto por completo trocaria a leitura do
+## mapa sem ninguém ter decidido isso — 3.0 devolve ~92 m de largura, que é a
+## maior parte do mapa novo.
+const ZOOM_MULT_MAX := 3.0
 
 var _target: Node3D
 var _lookahead := Vector3.ZERO
