@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.441",
-  "generatedAt": "2026-08-28T21:24:59.875Z",
+  "dataVersion": "0.447",
+  "generatedAt": "2026-08-31T23:59:15.447Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -229,7 +229,7 @@
           "shape": "rect",
           "params": {
             "x0": -0.8,
-            "x1": 0.66,
+            "x1": 0.85,
             "z0": -1,
             "z1": -0.72
           }
@@ -250,7 +250,7 @@
           "shape": "circle",
           "params": {
             "r": 0.47,
-            "cx": -0.34,
+            "cx": -0.4,
             "cz": 0
           }
         },
@@ -261,18 +261,8 @@
           "params": {
             "x0": -1,
             "x1": -0.3,
-            "z0": 0.72,
+            "z0": 0.22,
             "z1": 1
-          }
-        },
-        {
-          "code": "RGN-005",
-          "biome": "BIO-004",
-          "shape": "band",
-          "params": {
-            "to": 1,
-            "axis": "z",
-            "from": 0.47
           }
         },
         {
@@ -280,9 +270,9 @@
           "biome": "BIO-004",
           "shape": "rect",
           "params": {
-            "x0": 0.54,
+            "x0": 0.3,
             "x1": 1,
-            "z0": -0.1,
+            "z0": -0.6,
             "z1": 1
           }
         },

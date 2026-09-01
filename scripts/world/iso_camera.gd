@@ -19,7 +19,15 @@ extends Camera3D
 ## Especificação: documentos `camera-e-perspectiva` e
 ## `escala-e-camera-de-batalha` no bestiário.
 
-## Inclinação acima do horizonte.
+## Inclinação acima do horizonte. Isométrico clássico — o mesmo ângulo que a
+## silhueta de corte de cada criatura do bestiário assume (ver docstring da
+## classe).
+##
+## Chegou a subir para -60° em 2026-08 ("diorama visto de cima", pra esconder
+## horizonte e borda do mapa sem abrir pra perspectiva), mas isso contradizia
+## o próprio contrato de silhueta que o docstring da classe descreve — ninguém
+## tinha decidido invalidar aquele teste, o ângulo só divergiu por conta
+## própria. Voltou para -30° em 2026-08-31.
 const PITCH_DEGREES := -30.0
 ## Azimute.
 const YAW_DEGREES := 45.0

@@ -58,7 +58,9 @@ extends StaticBody3D
 const SIZE := 120
 ## Raio (em métrica de quadrado, max(|x|,|z|)) da zona plana central.
 ## ESCALA com o mapa — era 16 num mapa de 60.
-const FLAT_RADIUS := 32.0
+## A zona central foi ampliada para deixar mais ar no mar raso e reforçar a
+## leitura do abismo à direita sem transformar o centro em massa rochosa.
+const FLAT_RADIUS := 38.0
 ## Altura máxima das colinas na zona externa.
 const HILL_HEIGHT := 2.5
 ## Altura extra do rim de borda, somada por cima das colinas.
@@ -91,7 +93,13 @@ const TERRAIN_SEED := 20260824
 ## produzir margem de praia em vez de ilha redonda.
 const COAST_CENTER_X := -4.2
 const COAST_LOBE_R := 27.6
-const COAST_RECT_HALF_W := 43.8
+## Centro e meia-largura do retângulo, em metros — independentes do centro
+## do círculo acima. Até 2026-08-31 os dois usavam a MESMA constante porque
+## os dados do catálogo coincidiam por acaso (retângulo simétrico ao redor
+## do mesmo x do círculo); a reautoria de `RGN-001` (só o lado +X) quebrou
+## essa coincidência, e o retângulo passou a precisar do próprio centro.
+const COAST_RECT_CENTER_X := 1.5
+const COAST_RECT_HALF_W := 49.5
 const COAST_RECT_Z := -43.2
 
 ## Largura da rampa, em metros. NÃO escala com o mapa: junto com
@@ -130,6 +138,56 @@ const ISLAND_CENTER := Vector2(0.0, 0.0)
 const ISLAND_TOP_RADIUS := 4.0
 const ISLAND_BASE_RADIUS := 9.0
 const ISLAND_HEIGHT := 2.6
+
+## Relevo macro do PZ-01, um por bioma do catálogo (menos a costa e a ilha,
+## que têm bloco próprio acima). Até 2026-08-31 estas quatro formas vinham de
+## uma leitura livre de concept art, sem relação com `map_biome_regions` — o
+## relevo visível e a partição que a mineração consulta apontavam para
+## lugares diferentes do mapa. A partir da reautoria de geografia macro desta
+## data, cada forma é a MESMA região do catálogo, convertida para metros
+## (normalizado × meio-lado do mapa): `REEF_*` é `RGN-002` (BIO-003, Jardins
+## Recifais), `GLACIAL_*` é `RGN-004` (BIO-014, Plataforma Glacial),
+## `ABYSS_*` é `RGN-007` (BIO-004, Mar Profundo). Mudar uma sem reautorar a
+## região correspondente reabre exatamente esse furo.
+##
+## A altura de cada forma (`REEF_HEIGHT`, `GLACIAL_HEIGHT`, `ABYSS_DEPTH`)
+## continua sendo decisão só deste arquivo — o catálogo não descreve relevo,
+## só a partição em planta (x/z). É apresentação (Camada A na terminologia
+## do plano de refinamento), livre para ajustar sem tocar em dado.
+const REEF_CENTER := Vector2(-24.0, 0.0)
+const REEF_RADIUS := 28.2
+## Era 4,8 até 2026-08-31. O novo centro do recife (aprovado, `RGN-002`) fica
+## a 24 m da origem — dentro do próprio raio, então a franja do recife agora
+## alcança a orla da ilha (a 9 m da origem). `submerged()` trata recife como
+## sempre molhado FORA de costa/ilha, então a altura do recife nunca decide
+## nada por si só — só nos pontos que também são `on_island`/`on_coast`, onde
+## a altura crua é o que resolve `submerged`. 4,8 m ali empurrava a orla da
+## ilha para cima da linha d'água por acidente; 3,0 m mantém a folga que
+## `test_world.gd` cobra (a orla continua molhada) sem mudar o alcance em
+## planta do recife, que é o que o catálogo define.
+const REEF_HEIGHT := 3.0
+## Início (em x) e largura da transição do abismo, mais a cota abaixo da qual
+## ele passa a valer — os três batem com `RGN-007`: `x0 = 0.3 · 60 = 18`,
+## `z0 = -0.6 · 60 = -36`. O gate em `z` é novo: sem ele, o abismo (função só
+## de x até 2026-08-31) descia a faixa seca da costa onde ela cruza x > 18 —
+## um corte que já existia por baixo do platô antes desta rodada, e que o
+## alargamento da costa (`COAST_RECT_HALF_W`) só pioraria se não fosse
+## corrigido junto.
+const ABYSS_X0 := 18.0
+const ABYSS_Z0 := -36.0
+const ABYSS_FEATHER := 10.0
+const ABYSS_DEPTH := 15.0
+## Retângulo com cantos suavizados — `RGN-004` é `rect`, não `circle`; até
+## 2026-08-31 este relevo usava um círculo que não correspondia à forma real
+## da região. `GLACIAL_X0`/`GLACIAL_Z1` caem exatamente na borda do mapa
+## (±60), então o esmaecimento ali é só estética de canto, não fronteira de
+## bioma.
+const GLACIAL_X0 := -60.0
+const GLACIAL_X1 := -18.0
+const GLACIAL_Z0 := 13.2
+const GLACIAL_Z1 := 60.0
+const GLACIAL_FEATHER := 10.0
+const GLACIAL_HEIGHT := 1.5
 
 ## Margem entre a borda do terreno e o limite em que um corpo ainda pode ser
 ## posto. Além dos ±30 m da malha não há chão nenhum — nem visual, nem colisão,
@@ -204,6 +262,12 @@ func _height_formula(x: float, z: float, noise: FastNoiseLite) -> float:
 	# ali) e não alcança nem a costa nem o rim — não há segundo relevo para
 	# negociar no caminho.
 	h += _island_profile(x, z) * ISLAND_HEIGHT
+	# Relevo por bioma (ver docstring de REEF_CENTER acima): o recife ganha
+	# volume, o abismo abre à direita só onde o catálogo diz Mar Profundo, e o
+	# canto glacial sobe na região que o catálogo reserva pra ele.
+	h += _reef_profile(x, z) * REEF_HEIGHT
+	h -= _abyss_profile(x, z) * ABYSS_DEPTH
+	h += _glacial_profile(x, z) * GLACIAL_HEIGHT
 	return h
 
 
@@ -211,6 +275,34 @@ func _height_formula(x: float, z: float, noise: FastNoiseLite) -> float:
 func _island_profile(x: float, z: float) -> float:
 	var d := Vector2(x - ISLAND_CENTER.x, z - ISLAND_CENTER.y).length()
 	return 1.0 - smoothstep(ISLAND_TOP_RADIUS, ISLAND_BASE_RADIUS, d)
+
+
+func _reef_profile(x: float, z: float) -> float:
+	var d := Vector2(x - REEF_CENTER.x, z - REEF_CENTER.y).length()
+	return 1.0 - smoothstep(REEF_RADIUS * 0.72, REEF_RADIUS, d)
+
+
+## Rampa em x a partir de `ABYSS_X0`, com um portão em z: só vale a partir de
+## `ABYSS_Z0` — fora disso é 0, mesmo com x grande. É o portão que impede o
+## abismo de morder o platô seco da costa (ver docstring de `ABYSS_X0`).
+func _abyss_profile(x: float, z: float) -> float:
+	var fx := smoothstep(ABYSS_X0, ABYSS_X0 + ABYSS_FEATHER, x)
+	var fz := smoothstep(ABYSS_Z0, ABYSS_Z0 + ABYSS_FEATHER, z)
+	return fx * fz
+
+
+## Retângulo com cantos suavizados: mínimo de duas rampas por eixo, cada uma
+## subindo de um lado e descendo do outro — a mesma forma de um `rect` do
+## catálogo, com esmaecimento (`GLACIAL_FEATHER`) nas quatro bordas em vez de
+## corte reto.
+func _glacial_profile(x: float, z: float) -> float:
+	var fx := minf(
+		smoothstep(GLACIAL_X0, GLACIAL_X0 + GLACIAL_FEATHER, x),
+		1.0 - smoothstep(GLACIAL_X1 - GLACIAL_FEATHER, GLACIAL_X1, x))
+	var fz := minf(
+		smoothstep(GLACIAL_Z0, GLACIAL_Z0 + GLACIAL_FEATHER, z),
+		1.0 - smoothstep(GLACIAL_Z1 - GLACIAL_FEATHER, GLACIAL_Z1, z))
+	return fx * fz
 
 
 ## Quanto da costa existe neste ponto: 1 no platô seco, 0 em mar aberto.
@@ -232,7 +324,7 @@ func _coast_profile(x: float, z: float, margin: float = 0.0) -> float:
 	var band := 1.0 - smoothstep(rect_z, rect_z + COAST_RAMP_WIDTH, z)
 	var half_w := COAST_RECT_HALF_W + margin
 	var side := 1.0 - smoothstep(half_w - COAST_RAMP_WIDTH, half_w,
-		absf(x - COAST_CENTER_X))
+		absf(x - COAST_RECT_CENTER_X))
 	return maxf(lobe, band * side)
 
 
@@ -362,6 +454,7 @@ func _add_mesh(palette: Dictionary) -> void:
 	material.set_shader_parameter("coast_center_x", COAST_CENTER_X)
 	material.set_shader_parameter("coast_lobe_r", COAST_LOBE_R)
 	material.set_shader_parameter("coast_rect_z", COAST_RECT_Z)
+	material.set_shader_parameter("coast_rect_center_x", COAST_RECT_CENTER_X)
 	material.set_shader_parameter("coast_rect_half_w", COAST_RECT_HALF_W)
 	material.set_shader_parameter("coast_feather", COAST_RAMP_WIDTH)
 	material.set_shader_parameter("map_half", float(SIZE) * 0.5)

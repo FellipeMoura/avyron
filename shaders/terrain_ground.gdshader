@@ -23,6 +23,9 @@ uniform vec3 color_coast : source_color = vec3(0.70, 0.64, 0.49);
 uniform float coast_center_x = 0.0;
 uniform float coast_lobe_r = 0.0;
 uniform float coast_rect_z = 0.0;
+// Centro do retângulo, independente do centro do círculo acima — ver
+// comentário de COAST_RECT_CENTER_X em map_terrain.gd.
+uniform float coast_rect_center_x = 0.0;
 uniform float coast_rect_half_w = 0.0;
 uniform float coast_feather = 5.0;
 uniform float coast_dry_level = 0.9;
@@ -65,7 +68,7 @@ void fragment() {
 		// A largura: retângulo com as bordas suavizadas pela mesma folga.
 		float band = 1.0 - smoothstep(coast_rect_z, coast_rect_z + coast_feather, world_xz.y);
 		float side = 1.0 - smoothstep(coast_rect_half_w - coast_feather, coast_rect_half_w,
-			abs(world_xz.x - coast_center_x));
+			abs(world_xz.x - coast_rect_center_x));
 		coastal = max(lobe, band * side) * dry_gate;
 	}
 	if (island_base_radius > 0.0) {

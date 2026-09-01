@@ -31,7 +31,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.1, 0)
 shape = SubResource("BoxShape3D_o6xl0")
 
 [node name="Player" type="CharacterBody3D" parent="." unique_id=1224443601]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.9, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 3.1, -46)
 script = ExtResource("2_jyhfs")
 
 [node name="Mesh" type="MeshInstance3D" parent="Player" unique_id=1280034150]
@@ -41,7 +41,7 @@ mesh = SubResource("CapsuleMesh_tipki")
 shape = SubResource("CapsuleShape3D_choun")
 
 [node name="IsoCamera" type="Camera3D" parent="." unique_id=725748541]
-transform = Transform3D(0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, -0.35355338, 0.6123724, 12.247448, 11, 12.247448)
+transform = Transform3D(0.70710677, -0.35355338, 0.6123724, 0, 0.8660254, 0.5, -0.70710677, -0.35355338, 0.6123724, 23.247448, 13.1, -33.752552)
 projection = 1
 size = 17.15
 far = 200.0

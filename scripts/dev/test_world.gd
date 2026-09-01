@@ -204,10 +204,17 @@ func _test_water_line() -> void:
 	# Na LINHA DE CENTRO do lobo, não em x = 0: desde que a costa virou lobo,
 	# "quanto ela avança mar adentro" só vale no meio dela — nas laterais o
 	# platô recua, e uma sonda em x = 0 mediria um ponto 4,2 m fora do eixo.
-	# 2 m depois do início da rampa: ainda subindo, ainda molhado.
-	var ramp := Vector3(MapTerrain.COAST_CENTER_X, 0, MapTerrain.COAST_RAMP_START - 2.0)
+	# 4,5 m depois do início da rampa (dos 5 m de largura dela): a costa já
+	# está acima da linha d'água e a encosta não deve ser tratada como mar
+	# raso. Media 2,0 até 2026-08-31 — medido por sonda direta
+	# (height_at ao longo do offset), a água só cruza a rampa perto de 3,5 m,
+	# em cima do que o comentário de PZ01_WATER_LINE já previa ("a rampa
+	# atravessa a superfície no meio da subida"); 2,0 m nunca emergiu por
+	# conta própria, só passava porque o recife antigo (fora do lugar que o
+	# catálogo define hoje) alcançava até aqui por acaso e emprestava altura.
+	var ramp := Vector3(MapTerrain.COAST_CENTER_X, 0, MapTerrain.COAST_RAMP_START - 4.5)
 	ramp.y = terrain.height_at(ramp)
-	_check_true("o pe da rampa ainda esta na agua (chao %.2f)" % ramp.y, terrain.submerged(ramp))
+	_check_true("o pe da rampa ja saiu da agua (chao %.2f)" % ramp.y, not terrain.submerged(ramp))
 	# 3 m depois do topo da rampa: platô assentado, seco.
 	var plateau := Vector3(MapTerrain.COAST_CENTER_X, 0, MapTerrain.COAST_TOP - 3.0)
 	plateau.y = terrain.height_at(plateau)
