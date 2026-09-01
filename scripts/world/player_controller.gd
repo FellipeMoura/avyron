@@ -20,6 +20,34 @@ const WALK_SPEED := 5.2
 const ACCEL_TIME := 0.15
 const BRAKE_TIME := 0.10
 
+## Velocidade de subida do empuxo, quando `_floating()` está ativo.
+##
+## Até 2026-09-01 o corpo seguia a colisão o tempo todo, gravidade incluída,
+## também em mar aberto — o que combinava com a maior parte do leito (raso,
+## perto da cota), mas o Mar Profundo (`MapTerrain.ABYSS_*`) desce 15 m e sobe
+## de volta numa rampa mais íngreme que os 45° que o `CharacterBody3D` aceita
+## como piso. Resultado: o jogador caía lá dentro e não tinha como escalar de
+## volta andando — "cai, some e não volta mais". A partir daqui, quando
+## `_floating()` está ativo o corpo NÃO segue mais o leito: cai normalmente
+## enquanto está acima da cota (entrar na água por cima ainda afunda um
+## pouco, para não flutuar no ar) e sobe de volta para a cota assim que fica
+## abaixo dela. É empuxo por velocidade, não teleporte de posição — continua
+## passando por `move_and_slide`, então colisão horizontal (e vertical, se o
+## corpo trombar nalgum relevo que ainda esteja acima da cota, como o topo do
+## recife) segue valendo normalmente.
+##
+## O gatilho é `MapTerrain.should_float` — ver `_floating()` e o histórico das
+## duas versões erradas que vieram antes dele no comentário de lá.
+const FLOAT_RISE_SPEED := 3.0
+
+## Faixa ao redor da cota em que a velocidade vertical do empuxo zera em vez
+## de alternar entre subir e cair. Sem isto o corpo ultrapassa o alvo a cada
+## quadro (sobe a `FLOAT_RISE_SPEED` fixos, sem desacelerar perto da cota) e a
+## gravidade do quadro seguinte não zera a velocidade herdada — só a reduz aos
+## poucos —, então ele continua subindo um pouco além do alvo antes de
+## finalmente cair de novo. O resultado lia como "quicando" mesmo parado.
+const FLOAT_DEADBAND := 0.1
+
 ## A aparência do domador na v1 — sem tela de criação, uma receita fixa do
 ## kit de personagens (mesmo sistema dos NPCs, ver CharacterRig). Quando a
 ## criação de personagem entrar, esta constante vira o valor inicial do que
@@ -79,7 +107,16 @@ func _physics_process(delta: float) -> void:
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
 
-	if is_on_floor():
+	if _floating():
+		var target_y := terrain.water_line + staged_ground_offset()
+		var diff := target_y - global_position.y
+		if absf(diff) < FLOAT_DEADBAND:
+			velocity.y = 0.0
+		elif diff > 0.0:
+			velocity.y = FLOAT_RISE_SPEED
+		else:
+			velocity.y -= gravity * delta
+	elif is_on_floor():
 		velocity.y = 0.0
 	else:
 		velocity.y -= gravity * delta
@@ -104,6 +141,27 @@ func submerged() -> bool:
 	if terrain == null:
 		return false
 	return terrain.submerged(global_position - Vector3(0.0, staged_ground_offset(), 0.0))
+
+
+## Verdadeiro quando a física normal (gravidade + colisão) para de valer no
+## eixo Y, e o empuxo (ver `FLOAT_RISE_SPEED`) assume.
+##
+## `MapTerrain.should_float(pos)` — leito fundo ou íngreme demais para andar,
+## a MESMA pergunta que `CompanionActor` faz (via `surface_or_ground`) para
+## resolver o próprio Y sem ter física nenhuma. Deliberadamente NÃO consulta
+## `is_on_floor()`: essa foi a versão anterior (revertida no mesmo dia), e o
+## defeito dela é sutil — `is_on_floor()` reflete o QUADRO atual do motor, não
+## só o terreno. Um corpo momentaneamente no ar por qualquer motivo alheio à
+## profundidade (cair de um teleporte, de um `y` de partida acima do chão) já
+## fica `not is_on_floor()`, e como `submerged()` é incondicional fora de
+## `on_dry_land`, isso bastava para flutuar em vez de cair até o leito raso e
+## comum que estava logo abaixo — nunca chegava a ser tocado. Consultar o
+## RELEVO (`should_float`, calculado do mesmo campo de altura que gera a
+## malha e a colisão) em vez do ESTADO do motor evita os dois problemas de
+## uma vez: fecha a lacuna que fazia o Mar Profundo "descer e depois subir" e
+## não abre a nova que fazia o leito raso comum flutuar à toa.
+func _floating() -> bool:
+	return terrain != null and terrain.should_float(global_position)
 
 
 

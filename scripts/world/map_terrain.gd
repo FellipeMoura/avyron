@@ -11,16 +11,22 @@ extends StaticBody3D
 ## ortográfica. Relevo é apresentação com colisão, não labirinto: nada aqui
 ## deve criar rota bloqueada.
 ##
-## Duas exceções ao plano, as duas de propósito e as duas com rampa andável: a
-## COSTA na borda -Z e a ILHA no miolo, que carrega a arena. Quem assume chão
+## Três exceções ao plano, as três de propósito e as três com rampa andável: a
+## COSTA na borda -Z, a ILHA no miolo (que carrega a arena) e, desde
+## 2026-09-01, o PLATÔ GLACIAL no canto -X/+Z (`on_glacial`). Quem assume chão
 ## plano perto da origem (spawn, encenação) tem de perguntar a altura, não
 ## presumir zero — a origem do mapa hoje é o topo da ilha, a 2,6 m.
 ##
 ## Corpos com física (jogador, criaturas selvagens — `CharacterBody3D` com
-## gravidade) seguem o relevo pela colisão, sem consulta. Quem NÃO tem física
-## (companheira, props do `MapDressing`, spawner sorteando posição) pergunta a
-## altura via `height_at` — a resposta é interpolada da MESMA grade que gera
-## malha e colisão, então visual, física e consulta nunca discordam.
+## gravidade) seguem o relevo pela colisão, sem consulta — DENTRO da geografia
+## seca (`on_dry_land`). Fora dela é sempre mar, por design (`submerged`), e o
+## jogador (`PlayerController._floating`) flutua na cota em vez de seguir a
+## colisão até o leito — sem isso, o Mar Profundo (`ABYSS_*`, 15 m abaixo da
+## cota) vira poço sem saída: a rampa dele é íngreme demais para escalar de
+## volta andando. Quem NÃO tem física (companheira, props do `MapDressing`,
+## spawner sorteando posição) pergunta a altura via `height_at` — a resposta é
+## interpolada da MESMA grade que gera malha e colisão, então visual, física e
+## consulta nunca discordam.
 ##
 ## Substitui o `Ground` chapado de `main.tscn` em runtime (`WorldRoot`), com o
 ## mesmo nome de nó — `test_world` confere a existência de "Ground" e o clique
@@ -153,7 +159,10 @@ const ISLAND_HEIGHT := 2.6
 ## A altura de cada forma (`REEF_HEIGHT`, `GLACIAL_HEIGHT`, `ABYSS_DEPTH`)
 ## continua sendo decisão só deste arquivo — o catálogo não descreve relevo,
 ## só a partição em planta (x/z). É apresentação (Camada A na terminologia
-## do plano de refinamento), livre para ajustar sem tocar em dado.
+## do plano de refinamento), livre para ajustar sem tocar em dado — com a
+## MESMA ressalva já registrada para `REEF_HEIGHT`: `GLACIAL_HEIGHT` também
+## responde por `on_glacial`/`submerged` (ver abaixo), então não é livre de
+## baixar sem checar a folga sobre `PZ01_WATER_LINE`.
 const REEF_CENTER := Vector2(-24.0, 0.0)
 const REEF_RADIUS := 28.2
 ## Era 4,8 até 2026-08-31. O novo centro do recife (aprovado, `RGN-002`) fica
@@ -187,7 +196,15 @@ const GLACIAL_X1 := -18.0
 const GLACIAL_Z0 := 13.2
 const GLACIAL_Z1 := 60.0
 const GLACIAL_FEATHER := 10.0
-const GLACIAL_HEIGHT := 1.5
+## Era 1,5 até 2026-09-01, quando o platô glacial passou a ser terra firme
+## declarada (`on_glacial`, ver abaixo) em vez de relevo só decorativo. Medido
+## por sonda real (`probe_glacial_height.gd`, descartada): no NÚCLEO da região
+## (fora da pena de esmaecimento das quatro bordas) a altura mínima é
+## exatamente `GLACIAL_HEIGHT` — `hills` nunca subtrai, só soma — então a
+## folga sobre `PZ01_WATER_LINE` (1,25) é `GLACIAL_HEIGHT - 1,25` garantida,
+## não estatística. 1,5 dava só 0,25 m; 1,8 dá 0,55 m, mesma ordem de grandeza
+## da folga da costa (`COAST_HEIGHT` 1,6 sobre a mesma cota).
+const GLACIAL_HEIGHT := 1.8
 
 ## Margem entre a borda do terreno e o limite em que um corpo ainda pode ser
 ## posto. Além dos ±30 m da malha não há chão nenhum — nem visual, nem colisão,
@@ -200,6 +217,28 @@ const BOUNDS_MARGIN := 2.0
 ## (`MapDressing.water_line`). `-INF` = mapa seco, e aí nada está submerso —
 ## o padrão das bancadas de teste, que montam terreno sem bioma.
 var water_line := -INF
+
+## Profundidade abaixo da cota a partir da qual o leito conta como fundo
+## demais para "seguir o relevo" continuar parecendo natural — ver
+## `should_float`, que combina isto com inclinação.
+##
+## O valor cobre a variação máxima do relevo "sempre molhado" sem geografia
+## especial — `hills` nunca passa de `HILL_HEIGHT` (2,5) acima de uma base 0,
+## então o pior caso raso é ~1,25 m abaixo da cota (`PZ01_WATER_LINE`, 1,25).
+## 3,0 m dá folga sem chegar perto do Mar Profundo, que passa dos 10 m.
+const SHALLOW_DEPTH := 3.0
+
+## Tangente do maior ângulo que ainda conta como piso — os mesmos 45° que o
+## `CharacterBody3D` aceita por padrão (`floor_max_angle`), e que toda rampa
+## deste mapa foi desenhada para respeitar (ver os comentários de
+## `ISLAND_HEIGHT`/`COAST_RAMP_WIDTH`/`GLACIAL_FEATHER`). `tan(45°) = 1`.
+const MAX_WALKABLE_SLOPE := 1.0
+## Distância da amostra usada para medir inclinação em `should_float` — o
+## espaçamento da própria grade do relevo (a malha e a colisão nascem em
+## células de 1 m, ver o comentário de `SIZE`), então a inclinação medida é a
+## MESMA que separa dois vértices vizinhos da malha, sem suavizar nem
+## exagerar o degrau real.
+const SLOPE_SAMPLE := 1.0
 
 var _heights: PackedFloat32Array
 var _dim: int
@@ -226,6 +265,71 @@ func height_at(world_pos: Vector3) -> float:
 	var h01 := _heights[(z0 + 1) * _dim + x0]
 	var h11 := _heights[(z0 + 1) * _dim + x0 + 1]
 	return lerpf(lerpf(h00, h10, fx), lerpf(h01, h11, fx), fz)
+
+
+## O leito aqui está fundo demais pra "seguir o relevo" continuar parecendo
+## andar em vez de mergulhar? Só profundidade — ver `should_float` para a
+## pergunta completa (profundidade OU inclinação), que é a que os dois
+## consumidores de fato fazem.
+func is_deep(world_pos: Vector3) -> bool:
+	if is_inf(water_line):
+		return false
+	return water_line - height_at(world_pos) > SHALLOW_DEPTH
+
+
+## Este ponto é água funda ou íngreme demais para seguir o relevo — o corpo
+## deveria estar flutuando na superfície, não andando/caindo no leito?
+##
+## ## Histórico: já foram DUAS versões erradas antes desta
+##
+## 1ª (`PlayerController` até 2026-09-01, geografia declarada
+## `on_dry_land`): flutuava a caminho fixo até a BEIRA DA FORMA da
+## costa/ilha/platô glacial e só então caía o resto da distância até o leito
+## real, quase sempre bem mais raso ali. Lia como "parar de flutuar antes de
+## subir".
+##
+## 2ª (`PlayerController`, só `is_deep`/`SHALLOW_DEPTH`): a rampa do Mar
+## Profundo é tão íngreme (`ABYSS_FEATHER`/`ABYSS_DEPTH`) que fica
+## intransitável ANTES de a profundidade cruzar `SHALLOW_DEPTH` — nesse
+## intervalo o corpo caía de verdade em vez de flutuar. Lia como "desce um
+## pouco e depois sobe", como se a superfície do Mar Profundo fosse mais alta
+## que o resto.
+##
+## 3ª (`PlayerController`, só `not is_on_floor()`): parecia a resposta certa —
+## o motor de física já calcula inclinação. Mas `is_on_floor()` reflete o
+## QUADRO atual do motor, não só o terreno: um corpo momentaneamente no ar por
+## qualquer motivo (cair de um teleporte, um `y` de partida acima do chão em
+## teste) fica `not is_on_floor()` mesmo sobre leito raso e comum — e como
+## `submerged()` já é incondicionalmente verdadeiro fora de `on_dry_land`
+## (regra "recife não é ilhota"), isso bastava para flutuar em vez de cair
+## até o chão raso ali do lado, que nunca chegava a ser tocado.
+##
+## Esta versão junta profundidade (`is_deep`) E inclinação — as duas
+## calculadas do MESMO campo de altura que gera a malha e a colisão, então a
+## resposta é sempre a mesma em qualquer quadro, parada ou em movimento, no ar
+## ou não. Sem lacuna: em água aberta (fora de `on_dry_land`, onde
+## `submerged()` já é sempre verdadeiro) só falta o leito realmente permitir
+## andar — raso E de inclinação suave — para não flutuar.
+func should_float(world_pos: Vector3) -> bool:
+	if is_inf(water_line) or not submerged(world_pos):
+		return false
+	if is_deep(world_pos):
+		return true
+	var h := height_at(world_pos)
+	var hx := height_at(world_pos + Vector3(SLOPE_SAMPLE, 0.0, 0.0))
+	var hz := height_at(world_pos + Vector3(0.0, 0.0, SLOPE_SAMPLE))
+	var slope := maxf(absf(hx - h), absf(hz - h)) / SLOPE_SAMPLE
+	return slope > MAX_WALKABLE_SLOPE
+
+
+## A altura em que um corpo SEM física (`CompanionActor`, que só consulta,
+## nunca colide) deveria estar: o próprio relevo, ou a cota da água onde ele é
+## fundo ou íngreme demais (`should_float`) para "andar no leito" continuar
+## parecendo natural.
+func surface_or_ground(world_pos: Vector3) -> float:
+	if should_float(world_pos):
+		return water_line
+	return height_at(world_pos)
 
 
 func _build(palette: Dictionary) -> void:
@@ -351,24 +455,49 @@ func on_island(world_pos: Vector3, margin: float = 0.0) -> bool:
 	return d <= ISLAND_BASE_RADIUS + margin
 
 
+## O platô glacial (`RGN-004`, BIO-014) — terceira geografia declarada seca,
+## desde 2026-09-01. Até então `GLACIAL_*` só levantava relevo decorativo
+## sobre um leito que `submerged()` continuava tratando como sempre molhado
+## (a mesma regra "recife não é ilhota"); a partir de agora o platô negocia
+## com a cota como a costa e a ilha — pedido do usuário, porque um bioma com
+## fauna e minério próprios (ver `CLAUDE.md`, minério glacial exclusivo) lendo
+## como fundo de mar contradizia o resto do design.
+##
+## Sem `margin`: ao contrário de `on_coast`/`on_island`, ainda não existe
+## consumidor pedindo keep-out mar adentro aqui — spawner e `MapDressing`
+## continuam livres para usar o platô (é bioma de fauna, não adro de NPC).
+## Adicionar o parâmetro sem chamador é complexidade especulativa.
+func on_glacial(world_pos: Vector3) -> bool:
+	return _glacial_profile(world_pos.x, world_pos.z) > 0.0
+
+
+## Toda geografia seca declarada — o funil único que `submerged()` consulta e
+## que qualquer outro sistema com a mesma pergunta ("aqui é sempre molhado,
+## não importa a altura?") deve usar em vez de repetir a lista à mão.
+## `PlayerController._floating` é o primeiro consumidor externo: fora daqui o
+## corpo flutua na cota em vez de afundar até o leito.
+func on_dry_land(world_pos: Vector3) -> bool:
+	return on_coast(world_pos) or on_island(world_pos) or on_glacial(world_pos)
+
+
 ## Este ponto está debaixo d'água?
 ##
-## **Fora da costa e da ilha a resposta é sempre sim**, independentemente da
-## altura: o PZ-01 é o leito de um mar, e um recife que sobe 2,5 m continua
-## sendo recife, não ilhota. Só esses dois lugares negociam com a cota — são
-## os dois em que a rampa atravessa a superfície no meio da subida,
-## exatamente como a névoa já conta.
+## **Fora da costa, da ilha e do platô glacial a resposta é sempre sim**,
+## independentemente da altura: o PZ-01 é o leito de um mar, e um recife que
+## sobe 2,5 m continua sendo recife, não ilhota. Só esses três lugares
+## negociam com a cota — são os três em que a rampa atravessa a superfície no
+## meio da subida, exatamente como a névoa já conta.
 ##
 ## Testar só a altura seria a outra leitura possível, e foi descartada: 315 das
 ## células do anel externo passam da cota por causa das colinas, e o jogador
-## emergiria de pé no meio do recife em cada uma delas. Ilhota de verdade é
-## geografia declarada (`on_island`), não altura que calhou de passar da cota —
-## foi essa distinção que fez a ilha precisar de um predicado próprio em vez
-## de afrouxar a regra para todo mundo.
+## emergiria de pé no meio do recife em cada uma delas. Terra firme de verdade
+## é geografia declarada (`on_dry_land`), não altura que calhou de passar da
+## cota — foi essa distinção que fez a ilha (e agora o platô glacial)
+## precisar de predicado próprio em vez de afrouxar a regra para todo mundo.
 func submerged(world_pos: Vector3) -> bool:
 	if is_inf(water_line):
 		return false
-	if not on_coast(world_pos) and not on_island(world_pos):
+	if not on_dry_land(world_pos):
 		return true
 	return world_pos.y < water_line
 

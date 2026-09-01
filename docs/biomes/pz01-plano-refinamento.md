@@ -32,7 +32,12 @@ imagem bata com a referência.
 | `MapTerrain.height_at(pos)` | `map_terrain.gd` | props, spawner, encenação de duelo, atores fixos |
 | `MapTerrain.on_coast(pos, margin)` | idem | `MiningTable`, `MapDressing`, `CreatureSpawner` |
 | `MapTerrain.on_island(pos, margin)` | idem | idem |
+| `MapTerrain.on_glacial(pos)` | idem, desde 2026-09-01 | `on_dry_land`, `submerged` |
+| `MapTerrain.on_dry_land(pos)` | idem, desde 2026-09-01 | `submerged` |
+| `MapTerrain.should_float(pos)` (funda `is_deep` + inclinação) | idem, desde 2026-09-01 | `PlayerController._floating`, `CompanionActor._ground_y` (via `surface_or_ground`) |
 | `MapTerrain.submerged(pos)` | idem | `PlayerController` (andar vs. nadar), névoa |
+| `PlayerController._floating()` / `FLOAT_RISE_SPEED` | `player_controller.gd`, desde 2026-09-01 | física do jogador (Y quando `should_float`) |
+| `CompanionActor._ground_y()` | `companion_actor.gd`, desde 2026-09-01 | Y da companheira (sem física própria) |
 | `MapTerrain.clamp_to_bounds(pos)` | idem | `BattleStaging` |
 | `MapTerrain.water_line` | idem, injetado por `MapDressing.water_line()` | névoa de altura, `submerged` |
 | `WorldPopulator.MERCHANT_SPOT` / `RELIC_STATION_SPOT` / `CRAFTING_BENCH_SPOT` / `ARENA_SPOT` / `PORTAL_SPOT` / `PLAYER_START_SPOT` | `world_populator.gd` | `WorldRoot._ready` |
@@ -147,6 +152,109 @@ proporções do overview — para os 5 biomas, não só BIO-002.
 - [ ] **👤 Você** abre o editor e confere a silhueta macro contra o
       overview antes de eu seguir pra Fase 2 — ainda sem textura/asset
       novo, só forma e proporção.
+
+---
+
+## Entre Fase 1 e Fase 2 — dois pontos de física declarados
+
+Duas pendências abertas pelo usuário depois da Fase 1, resolvidas em
+2026-09-01 antes de começar a Fase 2 — as duas mexem em Camada B
+(predicado geográfico novo, e a física vertical do jogador), então entram
+aqui e não como "detalhe" de asset.
+
+- [x] **👤 Você** pediu: o platô glacial (BIO-014) também devia ser terra
+      firme — hoje só a costa e a ilha eram exceção à regra "fora delas é
+      sempre mar", e um bioma com fauna e minério próprios (minério glacial
+      exclusivo, ver `CLAUDE.md`) lendo como leito de mar contradizia o
+      resto do design.
+      **🤖 Eu** declarei `MapTerrain.on_glacial(pos)` — terceiro predicado de
+      geografia seca, mesmo padrão de `on_coast`/`on_island` — e um funil
+      único `on_dry_land(pos)` que os três compõem, usado por `submerged()`
+      e (novo) por `PlayerController`. Medido por sonda direta (descartada
+      depois): o núcleo do platô nunca ficava a menos de 0,25 m da cota com
+      `GLACIAL_HEIGHT` em 1,5 — margem fina demais (mesma lição do recife
+      nesta rodada); subiu para 1,8 m, folga de 0,55 m, mesma ordem de
+      grandeza da costa. `test_world.gd` ganhou a seção "platô glacial"
+      (núcleo seco, pé da rampa molhado, rampa andável) e uma das três sondas
+      de "sempre molhado" precisou trocar de lugar — o ponto antigo passou a
+      cair dentro do platô e virou seco por altura, não mais "sempre".
+- [x] **👤 Você** pediu: é possível o jogador **flutuar** em vez de mergulhar
+      em água profunda, sempre na superfície? Isso descreve um bug real, não
+      só uma preferência: o Mar Profundo (`ABYSS_*`) desce 15 m, a rampa dele
+      é mais íngreme que os 45° que o `CharacterBody3D` aceita como piso, e
+      o jogador que caía lá dentro ficava PRESO — sem como escalar de volta
+      andando.
+      **🤖 Eu** dei ao `PlayerController` um modo de empuxo: fora de
+      `on_dry_land`, o corpo para de seguir a colisão no eixo Y — cai
+      normalmente enquanto está acima da cota (entrar na água por cima ainda
+      afunda um pouco) e sobe de volta (`FLOAT_RISE_SPEED = 3,0 m/s`) assim
+      que cruza abaixo dela. Continua passando por `move_and_slide` (só o Y é
+      diferente), então colisão horizontal segue valendo. `test_playable.gd`
+      ganhou uma fase nova: larga o corpo em queda livre sobre o Mar
+      Profundo e prova que ele assenta perto da cota (medido: pés a 1,33 m,
+      cota 1,25 m) em vez de no leito, 15 m abaixo.
+- [x] **👤 Você** jogou e trouxe três defeitos reais na primeira versão do
+      empuxo, todos corrigidos no mesmo dia: (1) o corpo ficava "quicando"
+      parado, mesmo sem nadar; (2) a criatura companheira caía no Mar Profundo
+      enquanto o jogador flutuava por cima; (3) ao sair da água pra terra
+      seca, o corpo parava de flutuar e só então subia — um degrau visível.
+      **🤖 Eu** reprojetei em torno de uma causa raiz só: o gatilho de
+      flutuação era `on_dry_land` (a FORMA da costa/ilha/platô glacial), que
+      cobre a rampa inteira, mas a rampa inteira já é rasa — o degrau do item
+      3 era exatamente esse descompasso entre "geometria diz seco" e "leito
+      ainda está fundo". Troquei o gatilho para `MapTerrain.is_deep(pos)`
+      (profundidade real: mais de `SHALLOW_DEPTH` = 3 m abaixo da cota), com
+      `surface_or_ground(pos)` como par pra quem só consulta altura sem
+      física. Isso resolveu o item 3 de graça — a rampa nunca é funda o
+      bastante pra acionar o empuxo, então o corpo sobe andando o tempo
+      todo — e deu à `CompanionActor` (que só faz `global_position.y =
+      height_at(...)`, sem gravidade) o mesmo tratamento, resolvendo o item
+      2. O item 1 era bug à parte na física do empuxo: a velocidade de subida
+      era fixa (nunca desacelerava perto da cota) e ultrapassava o alvo a
+      cada quadro; a gravidade do quadro seguinte não zerava a velocidade
+      herdada, só reduzia aos poucos, então o corpo continuava subindo um
+      pouco além antes de cair de novo — um ciclo-limite. Uma zona morta
+      (`FLOAT_DEADBAND` = 0,1 m) que zera a velocidade perto da cota, em vez
+      de deixá-la oscilar entre subir e cair, resolveu. `test_playable.gd`
+      ganhou uma checagem de amplitude na cauda da janela de assentamento
+      (medido: 0,000 m em 30 quadros — perfeitamente parado), `test_world.gd`
+      ganhou a invariante "nenhuma rampa é funda o bastante pra flutuação" nos
+      três pés de rampa já medidos, e `test_companion.gd` ganhou um caso de
+      companheira sobre água funda (antes: afundava até -14,96 m; depois:
+      para exatamente na cota, 1,25 m).
+- [x] **🤖 Eu** rodei as 16 suítes headless do projeto (não só as 4 do
+      contrato congelado) — 0 falhas. Duas mexiam em predicado geográfico
+      consumido amplamente (`on_dry_land`) e em física do corpo que quase
+      toda suíte jogável instancia; a varredura completa foi para não deixar
+      um consumidor fora das quatro suítes de referência passar despercebido.
+- [x] **👤 Você** trouxe um quarto defeito, parecido com o item 3 mas na
+      direção OPOSTA: entrando no Mar Profundo (não saindo dele), o corpo
+      descia um pouco e só então subia — "como se a superfície do Mar
+      Profundo fosse mais alta que o resto". **🤖 Eu** achei a causa: o
+      gatilho da rodada 2 (`is_deep`, limiar de profundidade) tinha uma
+      LACUNA — a rampa do Mar Profundo fica intransitável (inclinação >45°)
+      bem ANTES de a profundidade cruzar o limiar de 3 m, e nesse intervalo o
+      corpo caía de verdade, sem empuxo nenhum, até o limiar finalmente
+      disparar. Troquei o gatilho pela primeira vez para `not is_on_floor()`
+      (a mesma determinação de inclinação que o motor de física já calcula)
+      — e isso reabriu, na hora, o bug da rodada 2 só que na direção inversa:
+      um corpo momentaneamente no ar por QUALQUER motivo alheio à
+      profundidade (um `y` de partida no ar, por exemplo) já conta como
+      `not is_on_floor()`, e como `submerged()` é incondicional fora de
+      `on_dry_land`, isso bastava para flutuar em vez de simplesmente cair
+      até o leito raso comum que estava logo abaixo. `is_on_floor()` reflete
+      o ESTADO do motor no quadro, não o TERRENO. A versão final,
+      `MapTerrain.should_float`, junta profundidade E inclinação — as duas
+      calculadas do MESMO campo de altura que gera a malha e a colisão, então
+      a resposta nunca depende de quadro, velocidade ou como o corpo chegou
+      ali. `CompanionActor.surface_or_ground` passou a usar a mesma função
+      (antes só profundidade), unificando os dois consumidores.
+      `test_playable.gd` ganhou uma travessia A PÉ (não em queda livre) até o
+      Mar Profundo — assenta no chão raso primeiro, anda de verdade pela
+      rampa, e prova que o ponto mais fundo alcançado depois de perder o
+      chão nunca fica abaixo do último ponto em que ainda tinha chão (medido:
+      perdeu o chão em y=0,59, mínimo depois disso foi y=0,64 — subiu na
+      hora, sem afundar primeiro). As 16 suítes voltaram a passar.
 
 ---
 

@@ -167,8 +167,15 @@ func _ready() -> void:
 	_seed_trail(behind)
 
 
+## Até 2026-09-01 isto era só `terrain.height_at` — direto no relevo cru, sem
+## física, porque a companheira nunca teve gravidade. Isso a fazia mergulhar
+## de verdade no Mar Profundo (leito 15 m abaixo da cota) sempre que a trilha
+## a levava atrás do jogador por ali, mesmo com ele já flutuando na superfície
+## (`PlayerController._floating`). `surface_or_ground` é a mesma regra dos
+## dois: segue o relevo onde ele é raso, prende na cota onde é fundo demais
+## (`MapTerrain.is_deep`) para "andar no leito" continuar parecendo natural.
 func _ground_y() -> float:
-	return terrain.height_at(global_position) if terrain else GROUND_Y
+	return terrain.surface_or_ground(global_position) if terrain else GROUND_Y
 
 
 ## Semeia o rastro como se o jogador já tivesse vindo em linha reta até aqui.
