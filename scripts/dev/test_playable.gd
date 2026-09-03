@@ -16,29 +16,27 @@ const RUN_FRAMES := 90
 ## bioma anterior — e o teste passaria pelo motivo errado na primeira sonda,
 ## que é a que ainda não mudou de lugar.
 const PROBE_FRAMES := 3
-## Quadros para o empuxo assentar depois de largar o corpo em queda livre
-## sobre o Mar Profundo. Medido: caindo de y=6 até a cota (~2,15 m com a
-## cápsula), a gravidade (24 m/s²) cruza o alvo por volta do quadro 35 e o
-## empuxo (`PlayerController.FLOAT_RISE_SPEED`) converge dali — 120 quadros
-## (2 s a 60 Hz) dá folga de sobra sem deixar o teste lento.
-const FLOAT_SETTLE_FRAMES := 120
+## Quadros pro corpo assentar depois de largar em queda livre sobre o mar
+## aberto (y=6 até o leito raso, ~5,5 m de queda). Medido por sonda direta:
+## em headless o `_process` da `SceneTree` roda bem mais rápido que o passo
+## de física (60 Hz fixos) — a proporção observada foi de ~0,4 quadro de
+## física por quadro de `_process` —, então o orçamento tem de ser em
+## quadros de PROCESS, não de física, e generoso: 90 ainda pegava o corpo em
+## queda livre a -15 m/s.
+const SETTLE_FRAMES_OVER_SEA := 260
 ## Janela final (em quadros) onde a posição Y é amostrada para detectar
-## oscilação residual — o corpo "quicando" mesmo já perto da cota, sintoma
-## real de uma versão anterior do empuxo (velocidade de subida fixa que
-## ultrapassava o alvo a cada quadro, sem zerar perto dele).
+## oscilação residual — o corpo "quicando" mesmo já parado no leito.
 const STABILITY_WINDOW := 30
-## Quadros pra andar do chão raso até dentro do Mar Profundo a pé (não em
-## queda livre) — 3 s a 5,2 m/s cobrem uns 15 m, de sobra para atravessar os
-## 10 m da rampa (`MapTerrain.ABYSS_FEATHER`) partindo alguns metros antes.
-const CROSS_FRAMES := 180
-## Quadros pra cair e assentar no chão raso ANTES de começar a andar. Maior
-## que `SETTLE_FRAMES` de propósito: aquele cobre a folga pequena do spawn
-## real (~0,6 m, ver "Player nasce acima do relevo"); aqui o corpo parte de
-## y=6 solto, então precisa de mais tempo pra realmente pousar — sem isso o
-## primeiro quadro de física mediria `is_on_floor()` falso por partida no ar,
-## não pela rampa do abismo, e a travessia mediria a flutuação errada desde o
-## quadro zero.
-const SETTLE_ON_GROUND_FRAMES := 60
+## Quadros pra nadar do mar aberto, atravessar o ponto de acesso da ilha
+## (`MapTerrain.ACCESS_RAMPS[2]`, a 20 m de distância) e assentar de vez no
+## topo — não basta chegar na borda da rampa, tem de sobrar tempo pra
+## gravidade resolver o resto da subida via colisão real.
+const CROSS_FRAMES := 320
+## Quadros pro corpo assentar no leito raso ANTES de começar a andar — mesma
+## queda livre de y=6 que `_step_settle_check` mede (~200 quadros de
+## `_process` em headless, não os 60 que a proporção físico/processo ingênua
+## sugeriria).
+const SETTLE_ON_GROUND_FRAMES := 220
 
 ## Os lugares declarados do PZ-01 e o bioma que cada um deve responder.
 ##
@@ -85,18 +83,15 @@ var _start_physics_frame := 0
 var _elapsed_physics := 0
 var _failures := 0
 var _checks := 0
-## 0 = medindo a caminhada, 1 = sondando o bioma por posição, 2 = flutuação
-## (queda livre), 3 = travessia a pé até o Mar Profundo.
+## 0 = medindo a caminhada, 1 = sondando o bioma por posição, 2 = queda livre
+## sobre o mar aberto, 3 = travessia a pé até o ponto de acesso da ilha.
 var _phase := 0
 var _probe := 0
 var _probe_frames := 0
-var _float_frames := 0
-var _float_min_y := INF
-var _float_max_y := -INF
+var _settle_frames := 0
+var _settle_min_y := INF
+var _settle_max_y := -INF
 var _cross_frames := 0
-var _last_floor_y := 0.0
-var _min_after_loss := INF
-var _saw_floor_loss := false
 
 
 func _initialize() -> void:
@@ -113,7 +108,7 @@ func _process(_delta: float) -> bool:
 		return _step_crossing_check()
 
 	if _phase == 2:
-		return _step_float_check()
+		return _step_settle_check()
 
 	if _phase == 1:
 		return _step_biome_probes()
@@ -177,83 +172,91 @@ func _step_biome_probes() -> bool:
 	return false
 
 
-## Larga o corpo em queda livre sobre o Mar Profundo (mesmo ponto da sonda de
-## bioma "o mar profundo" acima — já verificado como interior do abismo) e
-## prova que o empuxo (`PlayerController._floating`/`FLOAT_RISE_SPEED`) o
-## segura perto da cota em vez de deixá-lo cair os 15 m do leito do
-## `ABYSS_DEPTH`. Antes de 2026-09-01 o corpo caía e ficava PRESO lá embaixo —
-## a rampa do abismo é íngreme demais (>45°) para o `CharacterBody3D` escalar
-## de volta andando.
-func _step_float_check() -> bool:
-	if _float_frames == 0:
+## Larga o corpo em queda livre sobre o mar aberto (mesmo ponto da sonda de
+## bioma "o mar profundo" acima) e prova que ele assenta no leito raso
+## (`MapTerrain.SEA_HEIGHT`) por gravidade normal, sem quicar — e continua
+## submerso lá, porque fora da terra firme é sempre mar (`submerged`),
+## independente da altura.
+##
+## Histórico: até 2026-09-01 isto testava o EMPUXO (o corpo boiava na cota em
+## vez de afundar), porque o mar tinha profundidade de verdade e um poço de
+## 15 m (Mar Profundo, removido) prendia quem caísse lá numa rampa íngreme
+## demais para escalar de volta andando. O poço não existe mais, e agora nem
+## o mar aberto comum tem profundidade que justifique empuxo — encolher
+## `SEA_HEIGHT` até o leito ficar sempre raso tornou o sistema de empuxo
+## inteiro desnecessário (removido de `PlayerController`/`MapTerrain`).
+func _step_settle_check() -> bool:
+	if _settle_frames == 0:
 		_player.global_position = biome_probes()[3][0]
 		_player.velocity = Vector3.ZERO
-	_float_frames += 1
-	# Amostra só a cauda: os primeiros quadros ainda são queda livre e depois
-	# a convergência inicial do empuxo, os dois com variação grande e
-	# esperada — a pergunta aqui é se o corpo SOSSEGA, não a trajetória até lá.
-	if _float_frames > FLOAT_SETTLE_FRAMES - STABILITY_WINDOW:
-		_float_min_y = minf(_float_min_y, _player.global_position.y)
-		_float_max_y = maxf(_float_max_y, _player.global_position.y)
-	if _float_frames < FLOAT_SETTLE_FRAMES:
+	_settle_frames += 1
+	# Amostra só a cauda: os primeiros quadros ainda são queda livre, com
+	# variação grande e esperada — a pergunta aqui é se o corpo SOSSEGA no
+	# leito, não a trajetória até lá.
+	if _settle_frames > SETTLE_FRAMES_OVER_SEA - STABILITY_WINDOW:
+		_settle_min_y = minf(_settle_min_y, _player.global_position.y)
+		_settle_max_y = maxf(_settle_max_y, _player.global_position.y)
+	if _settle_frames < SETTLE_FRAMES_OVER_SEA:
 		return false
 
-	print("\nflutuacao no mar profundo:")
+	print("\nqueda livre sobre o mar aberto:")
 	var capsule := (_player.get_node("Collision") as CollisionShape3D).shape as CapsuleShape3D
 	var feet := _player.global_position.y - capsule.height * 0.5
-	_check_true("flutua perto da cota em vez de afundar no leito (pes %.2f, cota %.2f)" % [
-		feet, MapDressing.PZ01_WATER_LINE],
-		absf(feet - MapDressing.PZ01_WATER_LINE) < 0.5)
+	_check_true("assenta no leito raso, nao boia na cota (pes %.2f, SEA_HEIGHT %.2f)" % [
+		feet, MapTerrain.SEA_HEIGHT],
+		absf(feet - MapTerrain.SEA_HEIGHT) < 0.1)
 	_check_true("nao fica quicando parado (amplitude %.3f m nos ultimos %d quadros)" % [
-		_float_max_y - _float_min_y, STABILITY_WINDOW],
-		(_float_max_y - _float_min_y) < 0.15)
+		_settle_max_y - _settle_min_y, STABILITY_WINDOW],
+		(_settle_max_y - _settle_min_y) < 0.15)
+	var terrain := _scene.get_node_or_null("Ground") as MapTerrain
+	if terrain:
+		_check_true("continua submerso, longe de qualquer terra firme",
+			terrain.submerged(_player.global_position))
 
 	_phase = 3
 	return false
 
 
-## Diferente da fase 2 (queda livre de cima): aqui o corpo ANDA, a pé, do chão
-## raso até dentro do Mar Profundo — prova que a TRAVESSIA não tem o defeito
-## real que a versão anterior do empuxo tinha: descer um pouco além do ponto
-## em que perdeu o chão antes de o empuxo pegar, o que lia como "a superfície
-## do Mar Profundo é mais alta que o resto". Ponto de partida alguns metros
-## a oeste de `ABYSS_X0`, chão raso e andável; `move_right` + `move_down`
-## juntos (matemática de `IsoCamera.screen_to_world_direction`, mesma da
-## direção W já provada em `_test_direction_math` de `test_world.gd`) andam
-## em +X do mundo, direto rampa do abismo adentro.
+## Diferente da fase 2 (queda livre no mar aberto): aqui o corpo ANDA de
+## verdade, via input real (não teleporte), do mar aberto até dentro de um
+## ponto de acesso (`MapTerrain.ACCESS_RAMPS[2]`, o da ilha da arena) — prova
+## que a rampa calibrada (`ACCESS_RAMP_INNER`/`OUTER`) é andável na prática,
+## não só na conta analítica que `test_world.gd` já confere.
+##
+## Início no mar aberto, ao sul do ponto de acesso (que fica em (0, -9), de
+## frente pra costa) — assenta no leito raso primeiro (mesma folga de
+## `_step_settle_check`), depois anda pra dentro dele. `move_left` +
+## `move_down` juntos (matemática de `IsoCamera.screen_to_world_direction`,
+## mesma da direção W já provada em `_test_direction_math` de
+## `test_world.gd`) andam em +Z do mundo, direto rumo ao ponto de acesso.
 func _step_crossing_check() -> bool:
 	if _cross_frames == 0:
-		_player.global_position = Vector3(MapTerrain.ABYSS_X0 - 3.0, 6.0, -16.0)
+		_player.global_position = Vector3(0.0, 6.0, -20.0)
 		_player.velocity = Vector3.ZERO
 
 	_cross_frames += 1
 
 	if _cross_frames == SETTLE_ON_GROUND_FRAMES:
-		_last_floor_y = _player.global_position.y
-		Input.action_press("move_right")
+		Input.action_press("move_left")
 		Input.action_press("move_down")
-	if _cross_frames < SETTLE_ON_GROUND_FRAMES:
-		return false
-
-	if _player.is_on_floor():
-		_last_floor_y = _player.global_position.y
-	else:
-		_saw_floor_loss = true
-		_min_after_loss = minf(_min_after_loss, _player.global_position.y)
-
 	if _cross_frames < SETTLE_ON_GROUND_FRAMES + CROSS_FRAMES:
 		return false
 
-	Input.action_release("move_right")
+	Input.action_release("move_left")
 	Input.action_release("move_down")
 
-	print("\ntravessia a pe para o mar profundo:")
-	_check_true("assentou no chao raso antes de comecar a andar (y %.2f)" % _last_floor_y,
-		_last_floor_y < 3.0)
-	_check_true("chegou a perder o chao (entrou na rampa intransitavel)", _saw_floor_loss)
-	_check_true("nao afunda alem do ponto onde perdeu o chao (minimo %.2f, perdeu em %.2f)" % [
-		_min_after_loss, _last_floor_y],
-		_min_after_loss > _last_floor_y - 0.5)
+	print("\ntravessia a nado ate o ponto de acesso da ilha:")
+	var terrain := _scene.get_node_or_null("Ground") as MapTerrain
+	var capsule := (_player.get_node("Collision") as CollisionShape3D).shape as CapsuleShape3D
+	var feet := _player.global_position.y - capsule.height * 0.5
+	_check_true("passou de verdade pelo ponto de acesso (z %.2f, partiu de -20)" % _player.global_position.z,
+		_player.global_position.z > -15.0)
+	_check_true("assentou em LAND_HEIGHT depois de subir a rampa (pes %.2f, LAND_HEIGHT %.2f)" % [
+		feet, MapTerrain.LAND_HEIGHT],
+		absf(feet - MapTerrain.LAND_HEIGHT) < 0.1)
+	if terrain:
+		_check_true("o terreno concorda: esta em terra firme",
+			terrain.on_dry_land(_player.global_position))
 
 	_summary()
 	return true

@@ -14,7 +14,15 @@ const COL_MOSS := "#7A8C6B"
 const COL_EMBER := "#C6552F"
 const COL_SLATE := "#6B7280"
 
+## Espelhado pelo bestiário (`pnpm game:export`) a partir de
+## `apps/web/public/crt-cards/`, um `.png` por criatura, nomeado pelo código —
+## mesmo contrato dos props de bioma: diretório inteiro, sem entrar no bundle.
+## Cobertura é parcial de propósito (arte chega uma criatura de cada vez), por
+## isso `ResourceLoader.exists` decide entre mostrar e esconder, nunca um erro.
+const CARDS_DIR := "res://cards/"
+
 var _label: RichTextLabel
+var _card: TextureRect
 
 
 func _ready() -> void:
@@ -40,13 +48,36 @@ func _ready() -> void:
 	style.set_content_margin_all(16)
 	add_theme_stylebox_override("panel", style)
 
+	# PanelContainer estica QUALQUER filho direto para o retângulo inteiro —
+	# com dois filhos eles se sobreporiam. O HBox é o único filho direto por
+	# isso, e é ele quem reparte o espaço entre o card e o texto.
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 12)
+	add_child(row)
+
+	_card = TextureRect.new()
+	_card.custom_minimum_size = Vector2(64, 64)
+	_card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# Sem isso, o tamanho MÍNIMO do TextureRect é o tamanho em pixels da arte
+	# original (a `expand_mode` padrão é `EXPAND_KEEP_SIZE`) — como o card é
+	# bem maior que 64×64, o painel inteiro inflava para acomodar a textura, o
+	# texto ia parar fora da área visível, e sobrava uma caixa preta enorme no
+	# lugar. `EXPAND_IGNORE_SIZE` desliga essa influência: quem manda no
+	# tamanho é só `custom_minimum_size` e o `stretch_mode` acima.
+	_card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.hide()
+	row.add_child(_card)
+
 	_label = RichTextLabel.new()
 	_label.bbcode_enabled = true
 	_label.fit_content = true
 	_label.scroll_active = false
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_label.add_theme_font_size_override("normal_font_size", 14)
-	add_child(_label)
+	row.add_child(_label)
 
 	hide()
 
@@ -54,6 +85,13 @@ func _ready() -> void:
 ## Popula o painel com dados da criatura e o exibe. `level` e `size_meters` já
 ## vêm do actor no mundo — o painel não recalcula nada, só formata.
 func show_for(db: BestiaryData, creature_code: String, level: int, size_meters: float) -> void:
+	var card_path := CARDS_DIR + creature_code + ".png"
+	if ResourceLoader.exists(card_path):
+		_card.texture = load(card_path)
+		_card.show()
+	else:
+		_card.hide()
+
 	var c := db.creature(creature_code)
 	var creature_name := str(c.get("name", creature_code))
 	var element_code := str(c.get("element", ""))

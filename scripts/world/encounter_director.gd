@@ -65,6 +65,13 @@ var _engaged_arena: ArenaActor
 var _staging: BattleStaging
 var _active_relic: PlayerRelic
 
+## Quantos eventos de `battle.log_events` já viraram efeito visual. `rendered`
+## dispara toda vez que o estado muda mas não carrega os eventos da rodada —
+## por isso o corte é pela CONTAGEM, não por um payload que o sinal não tem.
+## Zerado em `_set_duel`, que roda tanto ao abrir (duelo novo, log vazio)
+## quanto ao fechar (null) — os dois são "sem rodada ainda processada".
+var _battle_events_seen := 0
+
 
 func setup(
 	parent: Node3D,
@@ -114,6 +121,7 @@ func staging() -> BattleStaging:
 
 func _set_duel(duel: DuelScreen) -> void:
 	_duel = duel
+	_battle_events_seen = 0
 	_on_duel_changed.call(duel)
 
 
@@ -154,6 +162,7 @@ func engage_wild(actor: CreatureActor, relic: PlayerRelic, encounter_level: int)
 	duel.duel_level = encounter_level
 	duel.closed.connect(_on_duel_closed)
 	duel.rendered.connect(_sync_awakening_auras)
+	duel.rendered.connect(_play_battle_effects)
 	_set_duel(duel)
 
 	# CanvasLayer para o overlay ficar acima do 3D sem herdar a pausa do
@@ -207,6 +216,7 @@ func engage_arena(actor: ArenaActor, relic: PlayerRelic) -> void:
 	duel.is_wild = false
 	duel.closed.connect(_on_duel_closed)
 	duel.rendered.connect(_sync_awakening_auras)
+	duel.rendered.connect(_play_battle_effects)
 	_set_duel(duel)
 
 	var layer := CanvasLayer.new()
@@ -303,6 +313,75 @@ func _set_body_aura(body: Node, active: bool) -> void:
 		return
 	if body.has_method("set_awakening_aura"):
 		body.call("set_awakening_aura", active)
+
+
+## Um efeito visual por evento NOVO do log — a contraparte de
+## `_sync_awakening_auras` para golpe/status: aquele reespelha ESTADO
+## (idempotente de propósito), este reage a EVENTO (cada `"damage"`/`"buff"`/
+## `"debuff"`/`"heal"`/`"charge"` dispara exatamente uma vez, nunca de novo).
+## Eventos sem efeito (`"miss"`, `"invalid"`, `"switch"`, `"faint"`...) caem no
+## `_:` do `match` em `_play_one_battle_effect` e não fazem nada — omissão
+## deliberada, não lacuna: a v1 é golpe e status, não toda categoria de evento.
+func _play_battle_effects() -> void:
+	if _duel == null or _duel.battle == null:
+		return
+	var battle := _duel.battle
+	var events: Array = battle.log_events
+	if _battle_events_seen >= events.size():
+		return
+	for i in range(_battle_events_seen, events.size()):
+		_play_one_battle_effect(battle, events[i] as Dictionary)
+	_battle_events_seen = events.size()
+
+
+## `is_player` no evento (não `actor.code`) decide o lado — ver o comentário
+## de `Battle._log` sobre por que código não basta (duelo espécie-contra-a-
+## mesma-espécie tem o mesmo código dos dois lados).
+##
+## Dano recolore pelo elemento da HABILIDADE, não de quem a usa — golpes
+## utilitários sem elemento (`ability_element` vazio) caem no elemento de
+## quem usou como fallback, pra nunca sair cinza de engenharia. Status
+## (buff/debuff/heal/charge) não tem elemento próprio no catálogo — usa
+## sempre o de quem usou, mesmo quando aplicado no oponente (debuff).
+##
+## `actor.code` viaja como quinto argumento pra `ElementPalette` poder trocar
+## pelo `cardPalette` da CRIATURA quando ela tiver um — mas só pra status:
+## dano ignora esse código de propósito (`ElementPalette.play_battle_effect`
+## decide isso sozinha), porque a cor do golpe é da habilidade, nunca de quem
+## apanha.
+func _play_one_battle_effect(battle: Battle, event: Dictionary) -> void:
+	var is_player := bool(event.get("is_player", false))
+	var type := str(event.get("type", ""))
+	var actor: Combatant = battle.player_active() if is_player else battle.enemy
+	var actor_code := actor.code if actor != null else ""
+
+	match type:
+		"damage":
+			var ability_code := str(event.get("ability", ""))
+			var ability := actor.ability_by_code(ability_code) if actor != null else {}
+			var element_code := BestiaryData.ability_element(ability)
+			if element_code == "" and actor != null:
+				element_code = actor.element
+			# Dano acontece no ALVO — o lado oposto de quem agiu.
+			_dispatch_battle_effect(not is_player, "damage", element_code, ability_code, actor_code)
+		"buff", "heal", "charge":
+			_dispatch_battle_effect(is_player, type, actor.element if actor != null else "", "", actor_code)
+		"debuff":
+			_dispatch_battle_effect(not is_player, type, actor.element if actor != null else "", "", actor_code)
+
+
+## `player_side` true = companheira, false = criatura selvagem/duelista —
+## mesmo mapeamento de `_set_body_aura`. `source_creature_code` é sempre quem
+## AGIU, não o corpo que recebe a chamada — nem sempre são o mesmo (debuff:
+## quem "é dono" da cor é o atacante, quem recebe o efeito visual é o alvo).
+func _dispatch_battle_effect(
+	player_side: bool, kind: String, element_code: String, variant_seed: String, source_creature_code: String,
+) -> void:
+	var body: Node = _companion if player_side else _engaged_actor
+	if body == null or not is_instance_valid(body):
+		return
+	if body.has_method("play_battle_effect"):
+		body.call("play_battle_effect", kind, element_code, variant_seed, source_creature_code)
 
 
 func _on_duel_closed(outcome: int) -> void:

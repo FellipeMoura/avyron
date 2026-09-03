@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://oafmpnwnv4w1"
-path="res://.godot/imported/Ghost_Atlas_Monsters.png-95c232e38fde51c0456d9fa719f56c34.ctex"
+path.s3tc="res://.godot/imported/Ghost_Atlas_Monsters.png-95c232e38fde51c0456d9fa719f56c34.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "19edfe03ec2ac473b0a20d5684c8b79c"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://models/placeholders/flying/Ghost_Atlas_Monsters.png"
-dest_files=["res://.godot/imported/Ghost_Atlas_Monsters.png-95c232e38fde51c0456d9fa719f56c34.ctex"]
+dest_files=["res://.godot/imported/Ghost_Atlas_Monsters.png-95c232e38fde51c0456d9fa719f56c34.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

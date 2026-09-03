@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.447",
-  "generatedAt": "2026-08-31T23:59:15.447Z",
+  "dataVersion": "0.457",
+  "generatedAt": "2026-09-03T02:25:11.664Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -829,6 +829,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "cardPalette": {
+        "shadow": "#2a4745",
+        "mid": "#3e6660",
+        "highlight": "#6b9279"
+      },
       "stats": {
         "hp": 50,
         "attack": 35,
@@ -893,7 +898,12 @@
       "element": "ELE-002",
       "map": "PZ-01",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Squidle.glb",
+      "modelUrl": "/models/placeholders/easyanimated/Snake.glb",
+      "cardPalette": {
+        "shadow": "#463a34",
+        "mid": "#7f5246",
+        "highlight": "#6b826f"
+      },
       "stats": {
         "hp": 65,
         "attack": 70,
@@ -959,6 +969,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#4a5359",
+        "mid": "#71827d",
+        "highlight": "#9eaa9c"
+      },
       "stats": {
         "hp": 50,
         "attack": 45,
@@ -1024,6 +1039,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "cardPalette": {
+        "shadow": "#404e5a",
+        "mid": "#627279",
+        "highlight": "#8b9897"
+      },
       "stats": {
         "hp": 60,
         "attack": 30,
@@ -1089,6 +1109,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "cardPalette": {
+        "shadow": "#696f71",
+        "mid": "#bd8978",
+        "highlight": "#bdb8a6"
+      },
       "stats": {
         "hp": 45,
         "attack": 50,
@@ -1154,6 +1179,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Squidle.glb",
+      "cardPalette": {
+        "shadow": "#413549",
+        "mid": "#605b70",
+        "highlight": "#8f8892"
+      },
       "stats": {
         "hp": 75,
         "attack": 80,
@@ -1218,7 +1248,12 @@
       "element": "ELE-004",
       "map": "PZ-03",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Armabee_Evolved.glb",
+      "modelUrl": "/models/placeholders/dungeon/Puglin.glb",
+      "cardPalette": {
+        "shadow": "#53402e",
+        "mid": "#6e5238",
+        "highlight": "#8e6a48"
+      },
       "stats": {
         "hp": 85,
         "attack": 60,
@@ -1283,7 +1318,8 @@
       "element": "ELE-005",
       "map": "PZ-03",
       "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
-      "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "modelUrl": "/models/placeholders/easyanimated/Wasp.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 45,
         "attack": 55,
@@ -1348,7 +1384,8 @@
       "element": "ELE-001",
       "map": "PZ-03",
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Dragon_Evolved.glb",
+      "modelUrl": "/models/placeholders/dungeon/Imp.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 60,
         "attack": 65,
@@ -1414,6 +1451,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Ghost_Skull.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 40,
         "attack": 45,
@@ -1479,6 +1517,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#1d4066",
+        "mid": "#336c92",
+        "highlight": "#589bb0"
+      },
       "stats": {
         "hp": 60,
         "attack": 50,
@@ -1544,6 +1587,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#4e4348",
+        "mid": "#8e7c74",
+        "highlight": "#bfad8b"
+      },
       "stats": {
         "hp": 45,
         "attack": 50,
@@ -1609,6 +1657,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Vela dorsal alta e triangular sustentada por espinhos ósseos alongados; corpo quadrupede robusto, cauda longa afinada; cabeça alongada com dentes carniceiros diferenciados. Silhueta dominada pela vela — sinapsídeo comumente confundido com dinossauro.",
       "modelUrl": "/models/placeholders/big/MushroomKing.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 75,
         "attack": 75,
@@ -1674,6 +1723,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Vela dorsal com travessas ósseas transversais formando padrão de grade sobre os espinhos; corpo quadrupede baixo e denso, cauda curta; cabeça pequena de herbívoro. Contraponto visual ao Dimetrodon — mesma vela, padrão diferente, papel oposto.",
       "modelUrl": "/models/placeholders/big/Bunny.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 80,
         "attack": 40,
@@ -1739,6 +1789,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Cabeça bulbosa com crânio espesso arredondado adaptado a combate de topada; corpo curvado com dorso arqueado tipo urso-tatu, membros curtos; cauda curta. Silhueta corcunda dominante.",
       "modelUrl": "/models/placeholders/big/Cactoro.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 85,
         "attack": 55,
@@ -1804,6 +1855,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Corpo esguio quadrupede tipo grande felino; cabeça alongada com par de caninos superiores enormes que ultrapassam a mandíbula fechada; cauda longa. Silhueta de predador-lâmina — contraste direto com Moschops.",
       "modelUrl": "/models/placeholders/big/Monkroose.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 70,
         "attack": 85,
@@ -1869,6 +1921,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Corpo cilíndrico desproporcionalmente gigantesco em barril; cabeça minúscula em relação ao corpo; membros curtos afastados; cauda curta. Silhueta cômica: pequena cabeça sobre corpo bola — bom mini-boss territorial.",
       "modelUrl": "/models/placeholders/big/Orc.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 100,
         "attack": 45,
@@ -1934,6 +1987,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Corpo quadrupede blindado com fileiras de placas ósseas ao longo do dorso e flancos; cabeça larga com espinhos e verrugas ósseas laterais; membros grossos; cauda curta. Silhueta quadrada e couraçada — tanque de área.",
       "modelUrl": "/models/placeholders/big/Alien.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 95,
         "attack": 55,
@@ -1998,7 +2052,8 @@
       "element": "ELE-003",
       "map": "PZ-03",
       "silhouetteNote": "Pequeno lagartiforme quadrupede (~20 cm de comprimento total), corpo delgado, cauda longa afinada; cabeça triangular pequena. Silhueta neutra de réptil basal — criatura comum/inicial de mapa.",
-      "modelUrl": "/models/placeholders/big/Ninja.glb",
+      "modelUrl": "/models/placeholders/easyanimated/Snake.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 40,
         "attack": 40,
@@ -2064,6 +2119,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Diapsídeo esguio quadrupede com pernas longas relativas ao corpo (adaptação corredora); cauda longa como contrapeso; cabeça pequena com fenestras cranianas visíveis. Silhueta atlética.",
       "modelUrl": "/models/placeholders/big/Frog.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 45,
         "attack": 45,
@@ -2129,6 +2185,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Corpo alongado hidrodinâmico, cauda achatada em remo lateral; membros modificados em nadadeiras; focinho fino e alongado com dentes agulha finos e numerosos. Silhueta aquática — cobre nicho anfíbio.",
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 55,
         "attack": 50,
@@ -2194,6 +2251,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Pequeno reptil quadrupede com membranas de planeio sustentadas por costelas alongadas nas laterais do tronco; cabeca pequena com crista ossea baixa; cauda longa fina. Silhueta alada quando em glide, contraste aereo aos repteis terrestres do elenco.",
       "modelUrl": "/models/placeholders/big/Birb.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 40,
         "attack": 55,
@@ -2259,6 +2317,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Diapsideo esguio de pescoco alongado e cabeca pequena triangular; corpo quadrupede moderado, cauda longa afilada. Silhueta de pescoco como traco distintivo, generalista de porte medio do Permiano.",
       "modelUrl": "/models/placeholders/big/Demon.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 60,
         "attack": 55,
@@ -2324,6 +2383,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Corpo quadrupede alongado tipo crocodiliano primitivo; focinho comprido e estreito com dentes conicos numerosos; membros curtos afastados do corpo; cauda longa. Silhueta rasteira de emboscada, predador de Terra em contraponto agil ao Scutosaurus blindado.",
       "modelUrl": "/models/placeholders/big/Dino.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 70,
         "attack": 70,
@@ -2389,6 +2449,7 @@
       "map": "PZ-03",
       "silhouetteNote": "Vela dorsal baixa e rudimentar, menos proeminente que a do Dimetrodon; corpo quadrupede esguio de sinapsideo carnivoro; cauda longa afinada; cabeca alongada com dentes diferenciados. Silhueta-irma do Dimetrodon, mesma familia, porte menor.",
       "modelUrl": "/models/placeholders/big/Fish.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 60,
         "attack": 65,
@@ -2454,6 +2515,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "cardPalette": {
+        "shadow": "#60556d",
+        "mid": "#9d908f",
+        "highlight": "#d5c8b1"
+      },
       "stats": {
         "hp": 65,
         "attack": 45,
@@ -2510,6 +2576,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "cardPalette": {
+        "shadow": "#654133",
+        "mid": "#6e5780",
+        "highlight": "#a68e5c"
+      },
       "stats": {
         "hp": 35,
         "attack": 35,
@@ -2566,6 +2637,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "cardPalette": {
+        "shadow": "#634e4d",
+        "mid": "#c77c63",
+        "highlight": "#86928c"
+      },
       "stats": {
         "hp": 40,
         "attack": 45,
@@ -2622,6 +2698,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#255c77",
+        "mid": "#588b9a",
+        "highlight": "#c1d0c3"
+      },
       "stats": {
         "hp": 55,
         "attack": 50,
@@ -2678,6 +2759,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#2e2825",
+        "mid": "#67565b",
+        "highlight": "#a0979a"
+      },
       "stats": {
         "hp": 80,
         "attack": 70,
@@ -2734,6 +2820,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#1b2f37",
+        "mid": "#314f57",
+        "highlight": "#62878b"
+      },
       "stats": {
         "hp": 45,
         "attack": 35,
@@ -2790,6 +2881,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#365166",
+        "mid": "#759daa",
+        "highlight": "#a9d2d6"
+      },
       "stats": {
         "hp": 50,
         "attack": 35,
@@ -2846,6 +2942,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#373877",
+        "mid": "#6c6aa9",
+        "highlight": "#a79ad5"
+      },
       "stats": {
         "hp": 45,
         "attack": 30,
@@ -2902,6 +3003,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": {
+        "shadow": "#5a6266",
+        "mid": "#969289",
+        "highlight": "#cecab8"
+      },
       "stats": {
         "hp": 85,
         "attack": 40,
@@ -2958,6 +3064,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "cardPalette": {
+        "shadow": "#5f4145",
+        "mid": "#96726a",
+        "highlight": "#ccbca5"
+      },
       "stats": {
         "hp": 95,
         "attack": 60,
@@ -3014,6 +3125,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "cardPalette": {
+        "shadow": "#3f515a",
+        "mid": "#79837d",
+        "highlight": "#b4b0a9"
+      },
       "stats": {
         "hp": 60,
         "attack": 25,
@@ -3070,6 +3186,11 @@
       "map": "PZ-01",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "cardPalette": {
+        "shadow": "#423b42",
+        "mid": "#6c584f",
+        "highlight": "#758887"
+      },
       "stats": {
         "hp": 70,
         "attack": 60,
@@ -3126,6 +3247,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 50,
         "attack": 40,
@@ -3182,6 +3304,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 60,
         "attack": 40,
@@ -3238,6 +3361,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 60,
         "attack": 35,
@@ -3294,6 +3418,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 55,
         "attack": 40,
@@ -3350,6 +3475,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 55,
         "attack": 40,
@@ -3406,6 +3532,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 45,
         "attack": 35,
@@ -3462,6 +3589,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 75,
         "attack": 90,
@@ -3518,6 +3646,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 70,
         "attack": 80,
@@ -3574,6 +3703,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 65,
         "attack": 75,
@@ -3630,6 +3760,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 55,
         "attack": 65,
@@ -3686,6 +3817,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 50,
         "attack": 55,
@@ -3742,6 +3874,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 70,
         "attack": 55,
@@ -3798,6 +3931,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 55,
         "attack": 45,
@@ -3854,6 +3988,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 90,
         "attack": 75,
@@ -3910,6 +4045,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 100,
         "attack": 45,
@@ -3965,7 +4101,8 @@
       "element": "ELE-004",
       "map": "PZ-02",
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/easyanimated/Frog.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 80,
         "attack": 55,
@@ -4022,6 +4159,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 70,
         "attack": 60,
@@ -4077,7 +4215,8 @@
       "element": "ELE-004",
       "map": "PZ-02",
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/placeholders/easyanimated/Spider.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 75,
         "attack": 65,
@@ -4134,6 +4273,7 @@
       "map": "PZ-02",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 60,
         "attack": 35,
@@ -4190,6 +4330,7 @@
       "map": "PZ-03",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 60,
         "attack": 40,
@@ -4246,6 +4387,7 @@
       "map": "PZ-03",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 80,
         "attack": 85,
@@ -4302,6 +4444,7 @@
       "map": "PZ-03",
       "silhouetteNote": null,
       "modelUrl": null,
+      "cardPalette": null,
       "stats": {
         "hp": 55,
         "attack": 60,
@@ -4358,6 +4501,7 @@
       "map": "PZ-03",
       "silhouetteNote": null,
       "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "cardPalette": null,
       "stats": {
         "hp": 65,
         "attack": 45,

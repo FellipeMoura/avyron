@@ -40,6 +40,40 @@ uniform float island_top_radius = 0.0;
 uniform float island_base_radius = 0.0;
 uniform float noise_scale = 0.045;
 
+// Chão residual de dois biomas com textura própria em vez de cor lisa: o
+// platô glacial (BIO-014, gelo) e a costa (BIO-002, lama seca). Mapeamento
+// planar em XZ — o relevo aqui é só platô raso + rampas de acesso estreitas,
+// sem parede vertical que justifique triplanar. Raio 0 desliga o trecho,
+// mesmo padrão da costa/ilha acima; textura sem máscara correspondente não
+// aparece, mesmo sem uniform atribuído por outro mapa.
+uniform sampler2D ice_tex : source_color;
+uniform float ice_tex_scale = 0.12;
+uniform float ice_darken = 0.65;
+// Máscara do platô glacial BAKEADA pelo `MapTerrain` (mesma grade de altura,
+// mesmo `_glacial_profile` COM warp) — não recalculada aqui por fórmula
+// própria. A primeira versão desenhava um retângulo liso (sem o `_warp` que
+// a malha usa pra desalinhar a borda), e como o relevo do platô é degrau
+// reto (sobe pra LAND_HEIGHT quase exatamente na borda verdadeira, warp
+// incluso), qualquer feather de cor virava ou "quadrado demais" (estreito)
+// ou "marrom por cima de gelo andável" (largo) — os dois defeitos eram o
+// MESMO descompasso: a cor não sabia da mesma borda irregular que a altura
+// já tinha. Ler a máscara pronta garante concordância pixel a pixel, mesma
+// lição de sempre (geografia e altura não podem discordar).
+uniform sampler2D glacial_mask_tex;
+
+uniform sampler2D mud_tex : source_color;
+uniform float mud_tex_scale = 0.12;
+
+// A ilha (arena, sem bioma) usa uma textura à parte, e diferente das duas
+// acima ela NÃO é ladrilhada: as variantes da pasta Beach são cena inteira
+// (água + espuma + areia + pedra), não um padrão uniforme — repetir em XZ
+// criaria faixas de praia se repetindo. Em vez disso a escala é calibrada
+// pra UM tile cobrir o diâmetro inteiro da ilha (2 · island_base_radius), e
+// o UV é deslocado por +0,5 pra a costura do wrap cair fora da área visível
+// (fora do raio da ilha), não bem no meio dela.
+uniform sampler2D beach_tex : source_color;
+uniform float beach_tex_scale = 0.056;
+
 varying vec2 world_xz;
 varying float world_y;
 varying float slope;
@@ -60,7 +94,10 @@ void fragment() {
 	float n = broad * 0.7 + fine * 0.3;
 	vec3 c = mix(color_base, color_alt, smoothstep(0.35, 0.65, n));
 	float dry_gate = smoothstep(coast_dry_level * 0.5, coast_dry_level, world_y);
-	float coastal = 0.0;
+	// `coast_only`: só o lobo/retângulo da costa (BIO-002) — é a máscara da
+	// textura de lama, que não deve vazar pra ilha (arena, sem bioma) mesmo
+	// que as duas compartilhem o tom seco liso logo abaixo.
+	float coast_only = 0.0;
 	if (coast_lobe_r > 0.0) {
 		// A barriga: círculo centrado na borda -Z.
 		float dc = distance(world_xz, vec2(coast_center_x, -map_half));
@@ -69,15 +106,36 @@ void fragment() {
 		float band = 1.0 - smoothstep(coast_rect_z, coast_rect_z + coast_feather, world_xz.y);
 		float side = 1.0 - smoothstep(coast_rect_half_w - coast_feather, coast_rect_half_w,
 			abs(world_xz.x - coast_rect_center_x));
-		coastal = max(lobe, band * side) * dry_gate;
+		coast_only = max(lobe, band * side) * dry_gate;
 	}
+	// `island_only`: só a ilha (arena, sem bioma) — é a máscara da textura de
+	// praia, separada de `coast_only` pelo mesmo motivo (uma não deve vazar
+	// pra área da outra), mesmo as duas compartilhando o tom seco liso logo
+	// abaixo via `coastal`.
+	float island_only = 0.0;
 	if (island_base_radius > 0.0) {
 		float d = distance(world_xz, island_center);
-		coastal = max(coastal,
-			(1.0 - smoothstep(island_top_radius, island_base_radius, d)) * dry_gate);
+		island_only = (1.0 - smoothstep(island_top_radius, island_base_radius, d)) * dry_gate;
 	}
+	float coastal = max(coast_only, island_only);
 	c = mix(c, color_coast, coastal);
-	c = mix(c, color_slope, smoothstep(0.18, 0.45, slope) * (1.0 - coastal * 0.6));
+
+	// Platô glacial (BIO-014): a máscara já vem pronta (com warp) de
+	// `glacial_mask_tex` — mesma UV que `terrain_water.gdshader` usa pro
+	// `heightmap_tex` (mundo → [0, 2·map_half] → [0,1]), porque as duas vêm
+	// da MESMA grade. A filtragem bilinear da textura já dá o anti-aliasing
+	// da borda; não precisa de feather em separado.
+	float glacial = texture(glacial_mask_tex, (world_xz + vec2(map_half)) / (map_half * 2.0)).r;
+
+	vec3 mud_color = texture(mud_tex, world_xz * mud_tex_scale).rgb;
+	c = mix(c, mud_color, coast_only);
+	vec3 ice_color = texture(ice_tex, world_xz * ice_tex_scale).rgb * ice_darken;
+	c = mix(c, ice_color, glacial);
+	vec2 beach_uv = (world_xz - island_center) * beach_tex_scale + vec2(0.5);
+	vec3 beach_color = texture(beach_tex, beach_uv).rgb;
+	c = mix(c, beach_color, island_only);
+
+	c = mix(c, color_slope, smoothstep(0.18, 0.45, slope) * (1.0 - coastal * 0.6) * (1.0 - glacial * 0.6));
 	ALBEDO = c;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.1;

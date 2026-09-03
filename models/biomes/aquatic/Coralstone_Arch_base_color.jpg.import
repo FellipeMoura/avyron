@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ce3ms4r64ly01"
-path="res://.godot/imported/Coralstone_Arch_base_color.jpg-65cc267fd3c90b7f56e78ae8d513b1ad.ctex"
+path.s3tc="res://.godot/imported/Coralstone_Arch_base_color.jpg-65cc267fd3c90b7f56e78ae8d513b1ad.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "f7c9b8fc375b507fcc1d47766a06d093"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://models/biomes/aquatic/Coralstone_Arch_base_color.jpg"
-dest_files=["res://.godot/imported/Coralstone_Arch_base_color.jpg-65cc267fd3c90b7f56e78ae8d513b1ad.ctex"]
+dest_files=["res://.godot/imported/Coralstone_Arch_base_color.jpg-65cc267fd3c90b7f56e78ae8d513b1ad.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

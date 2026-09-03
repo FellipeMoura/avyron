@@ -22,8 +22,17 @@ extends SceneTree
 ##    normal e metallic-roughness próprios, e remapear ali suja a imagem. O
 ##    portão é o prefixo do caminho, e portão é exatamente o tipo de coisa que
 ##    se afrouxa sem querer.
-## 3. **Aura vazando do duelo para o mapa.** A casca é nó de verdade; esquecer
-##    de removê-la deixa a criatura acesa vagando pelo bioma.
+## 3. **Aura vazando do duelo para o mapa.** O efeito de área é nó de
+##    verdade; esquecer de removê-lo deixa a criatura acesa vagando pelo
+##    bioma.
+##
+## Os testes de rampa PURA de elemento (bias, recolor, material compartilhado)
+## usam propositalmente códigos de criatura SEM `cardPalette` no bundle atual
+## (CRT-026/CRT-045/CRT-046 — Aguas sem card, conferido à mão) — com card, o
+## comportamento correto É divergir da rampa de elemento, e testar "a rampa é
+## a do elemento" contra uma criatura que tem card estaria testando o
+## comportamento ERRADO. `_test_card_palette_override` cobre o caminho com
+## card, usando CRT-001 (tem card de verdade no bundle).
 
 const PLACEHOLDER := "/models/placeholders/big/Dino.glb"
 
@@ -59,6 +68,7 @@ func _run() -> void:
 	_test_legacy_body_untouched()
 	_test_aura_lifecycle()
 	_test_actor_aura()
+	_test_card_palette_override()
 
 	_db.free()
 
@@ -97,10 +107,11 @@ func _test_palette_comes_from_bundle() -> void:
 func _test_creature_bias() -> void:
 	print("\n-- deslocamento por criatura")
 	var spread := float(_db.element("ELE-001").get("palette", {}).get("spread", 0.0))
-	var a := ElementPalette.creature_bias("CRT-001", "ELE-001")
-	var b := ElementPalette.creature_bias("CRT-014", "ELE-001")
+	# CRT-026/CRT-045 sem card no bundle atual — ver nota no topo do arquivo.
+	var a := ElementPalette.creature_bias("CRT-026", "ELE-001")
+	var b := ElementPalette.creature_bias("CRT-045", "ELE-001")
 
-	_check_true("estavel entre chamadas", a == ElementPalette.creature_bias("CRT-001", "ELE-001"))
+	_check_true("estavel entre chamadas", a == ElementPalette.creature_bias("CRT-026", "ELE-001"))
 	_check_true("duas criaturas do mesmo elemento diferem", a != b,
 		"%.4f vs %.4f" % [a, b])
 	_check_true("dentro de [-spread, spread]", absf(a) <= spread and absf(b) <= spread,
@@ -115,7 +126,8 @@ func _test_creature_bias() -> void:
 
 func _test_body_recolor() -> void:
 	print("\n-- recoloracao do corpo placeholder")
-	var visual := CreatureActor.build_visual(2.0, "ELE-002", "CRT-002", PLACEHOLDER)
+	# CRT-026/CRT-046 sem card no bundle atual — ver nota no topo do arquivo.
+	var visual := CreatureActor.build_visual(2.0, "ELE-002", "CRT-026", PLACEHOLDER)
 	var meshes: Array[MeshInstance3D] = visual["mesh_instances"]
 	_check_true("o placeholder trouxe malha", not meshes.is_empty())
 	if meshes.is_empty():
@@ -141,7 +153,7 @@ func _test_body_recolor() -> void:
 
 	# Dois corpos do MESMO elemento têm de dividir o material — é o que
 	# preserva o batching. O que os distingue viaja na instância.
-	var other := CreatureActor.build_visual(2.0, "ELE-002", "CRT-005", PLACEHOLDER)
+	var other := CreatureActor.build_visual(2.0, "ELE-002", "CRT-046", PLACEHOLDER)
 	var other_meshes: Array[MeshInstance3D] = other["mesh_instances"]
 	if not other_meshes.is_empty():
 		_check_true("mesmo elemento compartilha o material",
@@ -149,6 +161,50 @@ func _test_body_recolor() -> void:
 
 	visual["mesh"].free()
 	other["mesh"].free()
+
+
+## Criatura com `cardPalette` no bundle (CRT-001 tem — conferido à mão) usa a
+## paleta da CARTA, não a do elemento, tanto na cor solta quanto na rampa do
+## corpo — e não compartilha material com outra criatura do mesmo elemento,
+## porque a rampa dela é única. Sem `creature_code` (chamada "cega"), a MESMA
+## função continua devolvendo a rampa pura do elemento — compatibilidade pra
+## quem chama sem saber (ou sem se importar com) qual criatura é.
+func _test_card_palette_override() -> void:
+	print("\n-- paleta da carta sobrepõe o elemento")
+	var card: Dictionary = _db.creature("CRT-001").get("cardPalette", {})
+	if card.is_empty():
+		_warn("CRT-001 sem cardPalette no bundle atual; sobreposicao nao pode ser verificada")
+		return
+
+	_check("card_palette le o bloco certo do bundle",
+		ElementPalette.card_palette("CRT-001"), card)
+	_check("mid COM creature_code usa a carta, nao o elemento",
+		ElementPalette.mid_color("ELE-002", "CRT-001"), Color(str(card["mid"])))
+	_check("mid SEM creature_code continua puro elemento",
+		ElementPalette.mid_color("ELE-002"), ElementPalette.mid_color("ELE-002", ""))
+	_check("criatura com card nao desloca (nao ha familia pra ela)",
+		ElementPalette.creature_bias("CRT-001", "ELE-002"), 0.0)
+
+	var visual := CreatureActor.build_visual(2.0, "ELE-002", "CRT-001", PLACEHOLDER)
+	var meshes: Array[MeshInstance3D] = visual.get("mesh_instances", [])
+	if not meshes.is_empty():
+		var override := meshes[0].get_surface_override_material(0)
+		if override is ShaderMaterial:
+			var ramp: GradientTexture1D = (override as ShaderMaterial).get_shader_parameter("ramp")
+			_check("primeira parada da rampa = shadow DA CARTA",
+				ramp.gradient.colors[0], Color(str(card["shadow"])))
+			_check("ultima parada da rampa = highlight DA CARTA",
+				ramp.gradient.colors[2], Color(str(card["highlight"])))
+
+		# Outra criatura do MESMO elemento, sem card, não pode compartilhar
+		# material com quem tem — a rampa de CRT-001 é só dela.
+		var elementOnly := CreatureActor.build_visual(2.0, "ELE-002", "CRT-026", PLACEHOLDER)
+		var elementOnlyMeshes: Array[MeshInstance3D] = elementOnly.get("mesh_instances", [])
+		if not elementOnlyMeshes.is_empty():
+			_check_true("criatura com card NAO compartilha material com quem nao tem",
+				elementOnlyMeshes[0].get_surface_override_material(0) != override)
+		(elementOnly["mesh"] as Node3D).free()
+	(visual["mesh"] as Node3D).free()
 
 
 ## O portão de caminho: `.glb` legado do Meshy passa intacto. Sem este teste,
@@ -177,42 +233,36 @@ func _test_legacy_body_untouched() -> void:
 # aura
 # ---------------------------------------------------------------------------
 
+## Diferente da casca antiga, o efeito de área não depende de malha nenhuma
+## — não precisa de `CreatureActor.build_visual` para existir, e é isso que
+## deixa a cápsula (criatura sem `.glb`) também despertar visível agora.
 func _test_aura_lifecycle() -> void:
-	print("\n-- casca da aura")
-	var visual := CreatureActor.build_visual(2.0, "ELE-005", "CRT-003", PLACEHOLDER)
-	var meshes: Array[MeshInstance3D] = visual["mesh_instances"]
-	if meshes.is_empty():
-		visual["mesh"].free()
+	print("\n-- efeito de area do Despertar")
+	var vfx := ElementPalette.attach_area_vfx("ELE-005", 2.0)
+	_check_true("instanciou o efeito de area", vfx != null)
+	if vfx == null:
 		return
+	_check_true("e um VFXElementalAreaBB", vfx is VFXElementalAreaBB)
+	if vfx is VFXElementalAreaBB:
+		var area: VFXElementalAreaBB = vfx
+		_check("cor primaria = aura do elemento",
+			area.primary_color, ElementPalette.aura_color("ELE-005"))
+		_check("cor secundaria = mid do elemento",
+			area.secondary_color, ElementPalette.mid_color("ELE-005"))
+		_check("cor terciaria = shadow do elemento",
+			area.tertiary_color, ElementPalette.shadow_color("ELE-005"))
+		_check_true("raio de area escala com o porte", area.area_radius > 0.0)
 
-	var mi: MeshInstance3D = meshes[0]
-	var parent := mi.get_parent()
-	var before := parent.get_child_count()
-
-	var shells := ElementPalette.attach_aura(meshes, "ELE-005")
-	_check("uma casca por malha", shells.size(), meshes.size())
-	_check("a casca entrou como IRMA da malha", parent.get_child_count(), before + 1)
-	if not shells.is_empty():
-		var shell: MeshInstance3D = shells[0]
-		_check_true("a casca usa o shader de aura",
-			shell.material_override is ShaderMaterial)
-		_check("a casca aponta o mesmo esqueleto", shell.skeleton, mi.skeleton)
-		_check_true("a casca nao projeta sombra",
-			shell.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
-
-	ElementPalette.detach_aura(shells)
+	ElementPalette.detach_area_vfx(vfx)
 	# Estado SÍNCRONO, não contagem de filhos: `queue_free` só é drenado no fim
 	# do quadro, e conferir `get_child_count` aqui reprovaria por artefato.
-	_check_true("detach marcou as cascas para remocao",
-		shells.all(func(s: MeshInstance3D) -> bool: return s.is_queued_for_deletion()))
+	_check_true("detach marcou o efeito para remocao", vfx.is_queued_for_deletion())
 
 	var light := ElementPalette.build_aura_light("ELE-005", 2.0)
 	_check("a luz usa a cor de aura do elemento",
 		light.light_color, ElementPalette.aura_color("ELE-005"))
 	_check_true("a luz nao gasta mapa de sombra", not light.shadow_enabled)
 	light.free()
-
-	visual["mesh"].free()
 
 
 ## O ciclo pelo ator, que é como o duelo usa. Idempotência importa: o sinal
@@ -231,9 +281,15 @@ func _test_actor_aura() -> void:
 	_check_true("acende", actor.is_awakened())
 	var lights := _count_lights(actor)
 	_check("acendeu uma luz", lights, 1)
+	_check("efeito de area entrou como filho",
+		actor.find_children("*", "VFXElementalAreaBB", true, false).size(), 1)
+	_check("burst de cast entrou como filho",
+		actor.find_children("*", "VFXElementalCastBB", true, false).size(), 1)
 
 	actor.set_awakening_aura(true)
 	_check("chamada repetida nao empilha luz", _count_lights(actor), lights)
+	_check("chamada repetida nao empilha efeito de area",
+		actor.find_children("*", "VFXElementalAreaBB", true, false).size(), 1)
 
 	actor.set_awakening_aura(false)
 	_check_true("apaga", not actor.is_awakened())

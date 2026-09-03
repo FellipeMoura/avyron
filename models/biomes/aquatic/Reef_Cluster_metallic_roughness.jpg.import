@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dj2ka5nrlxq28"
-path="res://.godot/imported/Reef_Cluster_metallic_roughness.jpg-c62687050aaa031b1bc2c894065c20b6.ctex"
+path.s3tc="res://.godot/imported/Reef_Cluster_metallic_roughness.jpg-c62687050aaa031b1bc2c894065c20b6.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "23ee8d2ad916bfecf57823cb3ae4cfb8"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://models/biomes/aquatic/Reef_Cluster_metallic_roughness.jpg"
-dest_files=["res://.godot/imported/Reef_Cluster_metallic_roughness.jpg-c62687050aaa031b1bc2c894065c20b6.ctex"]
+dest_files=["res://.godot/imported/Reef_Cluster_metallic_roughness.jpg-c62687050aaa031b1bc2c894065c20b6.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

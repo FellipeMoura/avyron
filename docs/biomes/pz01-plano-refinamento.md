@@ -263,33 +263,223 @@ aqui e não como "detalhe" de asset.
 Só começa depois da Fase 1 fechada — sem isso, o kit seria posicionado
 sobre uma geografia que ainda vai mudar de forma.
 
-- [ ] **🤖 Eu** renomeio a pasta `models/biomes/assets_BIO-001/` →
+- [x] **🤖 Eu** renomeei a pasta `models/biomes/assets_BIO-001/` →
       `assets_BIO-002/` (aqui e a fonte equivalente no `avyron-bestiary`) e
-      atualizo as referências em `map_dressing.gd` (`BIO001_KIT` e
-      companhia) — mecânico, corrige o nome errado registrado na seção 5
-      do doc de BIO-002.
-- [ ] **🤖 Eu** escrevo o povoador de densidade: trocar landmark avulso por
-      instanciamento do kit dentro da máscara de BIO-002, denso o
-      suficiente pra não sobrar chão liso visível (ver
-      [bio-002-costa-primordial.md, 3.2](bio-002-costa-primordial.md#32-composição-do-terreno--kit-bash-não-heightfield-puro)).
-      **Se as 8 peças atuais não cobrirem a variação que a máscara pede**
-      (ex.: falta variante com musgo, falta atol), isso pausa aqui e vira
-      pedido pontual de geração adicional — não uma rodada nova de
-      protótipo do zero.
-- [ ] **🤖 Eu** escrevo o shader triplanar de rocha+musgo para o chão
-      residual (3.4), o plano de água dedicado (3.3), e ajusto
-      iluminação/AO (3.5).
-- [ ] **🤖 Eu** removo o placeholder `pz01_reef_hero_01.tscn`.
-- [ ] **🤖 Eu** rodo os testes headless + gero screenshot headless
-      (`scripts/dev/shot_*.gd` descartável, apagado depois,
-      `--resolution 1600x900`, câmera real -30°/45°) — só pra pegar erro
-      grosseiro antes de te chamar, não pra decidir "ficou bom".
-- [ ] **👤 Você** abre o editor, joga, e dá o veredito estético final —
-      escala em movimento, leitura em câmera de verdade, densidade. Isso eu
-      não meço com confiabilidade num screenshot estático.
-- [ ] Iteração: você aponta o que não bate, eu ajusto parâmetro/posição e
-      reverifico, sem reabrir a Fase 1 a menos que a geografia em si esteja
-      errada.
+      atualizei as referências em `map_dressing.gd` (`BIO001_KIT` →
+      `BIO002_KIT`, 8 landmarks) — mecânico, corrige o nome errado registrado
+      na seção 5 do doc de BIO-002. Pasta continua fora do git em ambos os
+      repos (nunca foi commitada), mesmo estado de antes.
+- [x] **👤+🤖** achamos e resolvemos uma peça faltando antes de escrever o
+      povoador: o `avyron-bestiary/docs/BIOME_PROPS.md` (documento
+      autoritativo, desconhecia as 9 peças de `assets_BIO-001`) pede 4 papéis
+      pra Costa Primordial — poça de maré, rocha molhada, banco de lama/areia,
+      esteira algal/estromatólito. As 8 peças existentes cobrem os 3
+      primeiros por reinterpretação (`Oasis_Pool`, o grupo de rochas,
+      `Cracked_Earth`); nenhuma cobria o 4º. Você gerou o protótipo 2D e o
+      Meshy converteu (`Mossbound_Stone_Isles`). Processado antes de integrar
+      (nenhum script do projeto fazia isto automaticamente — `models:optimize`
+      e `models:biomes` só mexem em textura):
+      - origem recentrada da base do volume pra base real (estava enterrando
+        metade da peça — bug real, não estilo);
+      - 1.590 → 924 triângulos (piso real de simplificação automática, achado
+        por teste com `error` de 0,02 até 1,0 — a malha tem costuras de UV
+        internas que o `meshoptimizer` trava por segurança; 500 exigiria
+        edição manual de costura, não vale pra uma peça de scatter);
+      - textura 2048² → 256².
+      Registrada em `assets_BIO-002/Mossbound_Stone_Isles.glb` (espelhada no
+      `avyron-bestiary`) e no `PZ01_COAST_SCATTER_POOL` de `map_dressing.gd`,
+      porte 0,8–1,5. 6 suítes headless relevantes rodadas, 0 falhas, nenhum
+      aviso de asset ausente.
+- [x] **🤖 Eu** reconsiderei o povoador de densidade em vez de escrevê-lo do
+      zero: "kit-bash denso, sem chão liso visível" (3.2) descreve o
+      arquipélago de colunas basálticas da referência original, mas o
+      `BIOME_PROPS.md` — que você já tratou como autoritativo no item
+      anterior — pede o OPOSTO pra Costa Primordial: densidade ×0,15, "adro
+      da vila", deliberadamente vazio pra não esconder comerciante/posto/
+      portal. Como a decisão de manter as 8 peças genéricas (não regenerar
+      um kit de colunas) já era, na prática, abandonar a leitura de
+      arquipélago denso, escrever um sistema de kit-bash pra essa visão
+      ficaria resolvendo o problema errado. O sistema de landmark+scatter que
+      já existe (8 landmarks + até 26 no scatter da faixa costeira, mais a
+      peça nova) já cobre a função — "povoar a costa com props" —, e o
+      `CLEAR_RADIUS`/`_clear_spots()` já protege os pontos de serviço
+      independente da contagem. Não reduzi a densidade existente sem
+      confirmação visual seria destruir posição ajustada à mão sem
+      justificativa clara — fica pra você apontar se ler denso demais depois
+      de ver no editor.
+- [x] **🤖 Eu** escrevi o plano de água dedicado — não existia em NENHUMA
+      forma até aqui. `MapTerrain.build_water_mesh()` gera um único plano
+      (`PlaneMesh`, sem colisão) na cota do bioma, com
+      `shaders/terrain_water.gdshader` lendo profundidade da MESMA grade de
+      altura do relevo (bake num `heightmap_tex` de um canal) — não de
+      depth-buffer de tela, que não se dá bem com câmera ortográfica. Cor por
+      profundidade (rasa clara → funda escura, satura em 8 m), espuma onde a
+      profundidade se aproxima de zero, ondulação vertical leve só de
+      leitura. Chamado por `WorldRoot` logo depois de injetar `water_line`.
+- [x] **🤖 Eu** ajustei AO/iluminação (3.5): SSAO ligado no `Environment` do
+      PZ-01 — a lacuna original era luz ambiente achatada, sem volume nas
+      fendas entre rocha e base de prop. Não mexi na luz direcional/ambiente
+      em si, só acrescentei o SSAO; qualquer retuning de brilho é julgamento
+      visual que fica pra depois de ver.
+- [x] **🤖 Eu** removi o placeholder `pz01_reef_hero_01.tscn` — achei, ao
+      verificar minha própria mudança com stderr visível (as rodadas
+      anteriores usavam `2>$null` e escondiam isso), que o arquivo **nunca
+      carregou nesta versão do Godot**: `Color(r,g,b)` de 3 argumentos dentro
+      de `sub_resource`, que o parser 4.7.1 rejeita (`Expected 4 arguments`).
+      O fallback de `_place` também falhava (caminho reconstruído saía
+      malformado), então esse landmark nunca existiu de verdade em jogo —
+      sempre foi `push_warning` e nada instanciado. Removidos: o arquivo, a
+      constante `PZ01_REEF_HERO_SCENE`, o alias, e a linha do landmark morto
+      em `PZ01_LANDMARKS`.
+- [x] **🤖 Eu** achei e corrigi, na mesma verificação, dois casos de um bug
+      pré-existente (não causado por esta rodada — a ordem de tentativa já
+      era assim antes da troca de pasta): `_place()` tentava resolver TODO
+      nome nu pelo kit de BIO-002 primeiro, mesmo peças claramente do kit
+      aquático — cada uma disparava um erro real de "Resource file not
+      found" no log antes de acertar no fallback. `_place` ganhou um
+      parâmetro `primary_kit` (default `AQUA_KIT`), e os dois call sites que
+      usam nomes de BIO-002 (`PZ01_COAST_LANDMARKS`, e o scatter geral
+      quando `_pool_for_pos` devolve a pool da costa pela margem mais larga
+      dela) passam a indicar isso explicitamente. Log de carga de cena foi
+      de ~120 linhas de erro pra zero.
+- [x] **🤖 Eu** rodei as 16 suítes headless com stderr visível (não
+      `2>$null` — foi assim que os dois achados acima apareceram) — 0
+      falhas, 0 erros no log. Screenshot headless não funciona neste
+      ambiente (`--headless` do Godot não expõe framebuffer real; travou
+      tentando capturar textura nula, já registrado na rodada de física
+      anterior) — verificação ficou pela suíte + inspeção direta dos
+      arquivos processados.
+- [ ] **Deixado pra depois, não bloqueante**: o shader triplanar de
+      rocha+musgo pro chão residual (3.4). As texturas que existem
+      (`assets_BIO-002/*_base_color.jpg`) são fotos de props individuais,
+      2048², nunca preparadas pra tilar — escolher uma e avaliar se ela lê
+      bem repetida por um shader triplanar é julgamento visual que eu não
+      faço às cegas, ao contrário da água (que eu pude verificar
+      estruturalmente sem depender de olhar o resultado).
+
+---
+
+## Kit de colunas basálticas — a lacuna real, achada depois de jogar
+
+Você jogou, tirou um print e comparou com `bio-002-target.png`: o chão
+continua liso e pintado por baixo de props espalhados, longe do arquipélago
+de colunas da referência. Diagnóstico: as 8 peças de `assets_BIO-002` são
+rocha AVULSA, não colunas modulares desenhadas pra encaixar e formar
+terreno — nenhuma densidade de instanciamento fecha isso, é peça errada pra
+função, não parâmetro errado.
+
+- [x] **👤 Você** decidiu: não é pré-requisito ilhas cercadas de água — o
+      alvo é o CHÃO coberto só por elementos da referência, mesmo que isso
+      signifique tirar a água da costa por completo. Isso simplificou a
+      máscara (área inteira de `on_coast`, sem recortar "ilha vs. mar
+      aberto").
+- [x] **🤖 Eu** escrevi 3 prompts isolados (protótipo 2D pro ChatGPT, depois
+      Meshy): coluna basáltica base, variante com crosta de alga (reenquadrei
+      "musgo" da referência pra não violar a regra da era — cianobactéria
+      incrustada, não planta), e o atol/piscina de maré.
+- [x] **👤 Você** gerou os três protótipos e converteu no Meshy — saíram
+      como `Basalt_Sentinel` (coluna única com alga), `Fractured_Basalt_Column`
+      (feixe de sub-colunas, mais largo — leitura melhor que uma coluna
+      simples pra tilar), `Stone_Ring_Pool` (atol).
+- [x] **🤖 Eu** processei os três (mesmo tratamento da estromatólito, mais
+      um problema novo): origem recentrada pra base, textura 2048²→512²
+      (mais rica que o tier scatter — reaproveitada por centenas de
+      instâncias via UM material só, então o custo não multiplica por
+      instância), decimação até o piso real de cada malha (Sentinel
+      942→500, Ring Pool 880→500, Column 868→828 — o mesmo teto de costura
+      de UV da estromatólito). A `Basalt_Sentinel` veio com mapa normal e
+      metallic/roughness — removidos, a regra de cel-shading é só base color.
+- [x] **🤖 Eu** escrevi o preenchimento denso (`PZ01_COLUMN_POOL`,
+      `PZ01_COLUMN_COUNT = 260`): reaproveita o sistema de scatter existente
+      em vez de um `MultiMesh` novo — decisão explícita de menor risco,
+      trocando colisão individual por instância (inviável em 260+ peças sem
+      reescrever o sistema de props inteiro) por colunas sem colisão,
+      apoiadas visualmente no platô da costa que já é andável por baixo.
+      **Bug achado e corrigido no caminho**: a primeira versão testava contra
+      `occupied` (todos os landmarks/scatter já colocados) com o raio padrão
+      de exclusão (3,5 m) — ~38 props já espalhados pela faixa, cada um
+      "comendo" 3,5 m ao redor, cobriam quase toda a área disponível e só 2
+      das 260 colunas pedidas entravam. Corrigido pra testar só contra
+      `clear_spots` (pontos de serviço) com o raio cheio, e contra as
+      OUTRAS colunas com uma separação bem mais apertada (1,1 m) — confirmado
+      por print direto no loop: 260 de 260 colocadas, com folga (só 480 de um
+      teto de 3.900 tentativas — dá pra ir mais denso ainda se a densidade
+      atual não bastar).
+      O atol entrou como landmark único, longe de serviço e das outras
+      landmarks (>11 m).
+- [x] **🤖 Eu** rodei as 16 suítes headless (stderr visível) — 0 falhas, 0
+      erros no log. Achei e corrigi no caminho: os `.glb` novos precisaram de
+      um `--headless --editor --quit-after 40` pra gerar o cache de import
+      (mesmo motivo do `class_name` novo documentado no `CLAUDE.md`, só que
+      pra recurso em vez de script) — sem isso, `load()` falhava com "No
+      loader found".
+
+---
+
+- [x] **👤 Você** abriu o editor, jogou, e deu o veredito: o kit de BIO-002
+      (as 8 peças Meshy originais + `Mossbound_Stone_Isles` + o preenchimento
+      denso `PZ01_ROCK_FILL_POOL`) não bateu com a referência — mesmo
+      diagnóstico da "segunda tentativa" registrada acima, agora estendido ao
+      kit inteiro, não só ao preenchimento.
+- [x] **🤖 Eu** removi tudo isso em 2026-09-02: a pasta
+      `models/biomes/assets_BIO-002/` (e a fonte espelhada em
+      `avyron-bestiary/apps/web/public/models/biomes/assets_BIO-002/`, nenhuma
+      das duas cópias chegou a ser commitada) e todo consumo em
+      `map_dressing.gd` — `BIO002_KIT`, `PZ01_COAST_LANDMARKS`,
+      `PZ01_COAST_SCATTER_POOL`, `PZ01_ROCK_FILL_POOL/COUNT/MIN_SEP`, o
+      parâmetro `primary_kit`/fallback de `_place`, e o ramo de `_pool_for_pos`
+      que devolvia a pool da costa. A costa (`on_coast`) volta a ficar sem
+      prop nenhum — mesmo estado de antes da Fase 2, só o kit aquático
+      (`AQUA_KIT`) continua em uso no resto do mapa. 16 suítes headless
+      rodadas depois da remoção, 0 falhas, sem aviso de asset ausente no
+      log.
+- [ ] Próximo kit de BIO-002 (se/quando for gerado de novo) entra do zero,
+      não reaproveitando estas peças — ver `BIOME_PROPS.md` no bestiário para
+      o pedido de conteúdo já registrado (poça de maré, rocha molhada,
+      banco de lama/areia, esteira algal).
+- [x] **👤 Você** apontou, no print pós-remoção, 3 reflexos de luz perto da
+      ilha/costa — brilho especular real, não cel-shading, em peças do kit
+      **aquático** (`Terraced_Stone_Mounds` e um coral em cristal ao lado, na
+      posição do print). Causa: o kit aquático é anterior à regra "sem normal
+      map, sem specular, sem roughness" de `BIOME_PROPS.md` §5 — veio do
+      Meshy com `_metallic_roughness.jpg`/`_normal.jpg` próprios, e o
+      `KeyLight` (única luz do mapa com sombra, energia 1,35) reflete neles de
+      verdade. Não é regressão desta sessão — só ficou mais exposto com a
+      costa vazia.
+      **🤖 Eu** escrevi `MapDressing._flatten_specular`, chamada em `_place`
+      pra toda peça posta no mapa: zera `metallic`, satura `roughness` em 1,0
+      e desliga `normal_enabled` no material ativo de cada `MeshInstance3D`.
+      Muta o material IMPORTADO (compartilhado pelo cache de recurso do
+      Godot entre todas as instâncias do mesmo `.glb`), não duplica por
+      prop — é o efeito certo (kit inteiro achatado) sem criar um `Material`
+      novo a cada posicionamento. Achado no caminho: a primeira versão
+      duplicava o material por instância (`.duplicate()`) e isso disparava
+      `ERROR: Parameter "material" is null` do renderer dummy ao sair do
+      processo headless (`test_playable.gd`) — sumiu ao trocar pra mutação
+      direta do recurso compartilhado. 16 suítes headless rodadas depois,
+      0 falhas.
+- [x] **👤 Você** conferiu no editor e trouxe um segundo print: uma bolha
+      branca estourada, redonda, flutuando sobre a água — visualmente
+      diferente dos 3 reflexos em peça de cima. **🤖 Eu** propus uma primeira
+      hipótese (as luzes de preenchimento `CoastFill0/1`/`IslandFill`
+      refletindo na água espelhada) e apliquei `light_specular = 0.0` nelas —
+      **errada**: você confirmou que a bolha continuava depois. Descartada.
+      A causa real, achada com sonda direta (`probe_aqua_materials.gd`,
+      descartada depois) em vez de nova suposição: o item anterior
+      (`_flatten_specular`) não tinha resolvido nada de verdade.
+      `roughness = 1.0` é o FATOR default do glTF quando existe textura de
+      roughness — o valor final no shader é `fator × textura`, e a textura
+      (com pontos baixos = brilhante) passava direto sem o fator mudar nada.
+      Faltava também `metallic_specular` (o brilho dielétrico, 0,5 por
+      padrão, independente de `metallic`) — sozinho já bastava pra acender
+      hotspot em superfície curva sob o `KeyLight`. Corrigido de verdade:
+      `_flatten_specular` agora limpa `roughness_texture`/`metallic_texture`
+      (sem isso o fator não pega) e zera `metallic_specular` junto. Sonda
+      confirmou os quatro valores efetivos (não só o fator) zerados nas 11
+      peças depois da correção. 16 suítes headless rodadas, 0 falhas.
+      `light_specular = 0.0` nas luzes de preenchimento ficou mesmo assim —
+      não era a causa, mas é consistente com "banho de cor, não fonte de
+      leitura" e não custa nada.
 
 ---
 
@@ -306,4 +496,66 @@ Mesmo padrão da Fase 2, mas sem kit pronto — precisa gerar antes.
 - [ ] **🤖 Eu** rodo `pnpm game:export`, confiro o espelhamento em
       `models/biomes/`, e repito os passos de integração da Fase 2
       (povoador de densidade, shader, verificação) para este bioma.
+
+---
+
+## Relevo — de contínuo pra dois níveis fixos (2026-09-01)
+
+Depois de ver o resultado das colunas em jogo (denso, mas ainda distante da
+referência) e comparar com uma imagem de qualidade-alvo, a decisão foi
+recalibrar a ambição em vez de insistir no relevo contínuo: **`MapTerrain`
+inteiro virou só dois níveis fixos** — `SEA_HEIGHT` (mar) e `LAND_HEIGHT`
+(terra firme), sem ruído, sem colina, sem recife nem Mar Profundo com
+profundidade própria.
+
+- [x] **👤 Você** decidiu: sacrificar a leitura de profundidade que o relevo
+      contínuo dava, em troca de um gráfico mais controlado. Transição entre
+      os dois níveis só em **pontos de acesso específicos** (não rampa
+      contínua em toda borda) — 2 na costa, 2 no platô glacial, 1 na ilha da
+      arena, posições a meu critério.
+- [x] **🤖 Eu** reescrevi `MapTerrain`: removidas as constantes de ruído
+      (`FLAT_RADIUS`/`HILL_HEIGHT`/`TERRAIN_SEED`) e as três feições de bioma
+      com relevo próprio (`REEF_*`, `ABYSS_*`, a altura própria de
+      `GLACIAL_*`/`ISLAND_*`/`COAST_*`) — todas viram só `SEA_HEIGHT`/
+      `LAND_HEIGHT`. O Mar Profundo, especificamente, era a origem do bug que
+      abriu esta sessão inteira (poço sem saída) — não existe mais como
+      feição de relevo, só como partição de bioma (mineração/scatter
+      continuam vendo BIO-004 normalmente).
+- [x] **🤖 Eu** implementei os 5 pontos de acesso (`ACCESS_RAMPS`) como
+      rampa própria, NÃO reaproveitando o esmaecimento da forma da
+      costa/ilha/glacial — essa foi a primeira tentativa, e saiu íngreme
+      demais: aquele esmaecimento (5–10 m) foi calibrado pra uma diferença de
+      altura de ~1,6–1,8 m, não para os 6,6 m entre `SEA_HEIGHT` e
+      `LAND_HEIGHT` de hoje. Medido por sonda direta
+      (`probe_access_ramps.gd`, descartada): a primeira versão caía >3 m em
+      2 m de vão (quase 60°). A versão final tem vão próprio
+      (`ACCESS_RAMP_INNER`/`OUTER`, 12 m), calibrado pra ≤45° contra a
+      diferença cheia.
+- [x] **🤖 Eu** achei e corrigi, testando, um bug de consistência real:
+      `on_dry_land` (que `submerged`/`should_float` consultam) não sabia dos
+      pontos de acesso — o relevo já levantava o chão até `LAND_HEIGHT` ali,
+      mas a geografia continuava dizendo "não é terra firme", e o jogador
+      ficava em pé em chão sólido que o próprio jogo insistia em tratar como
+      flutuável. Corrigido incluindo `_access_ramp_profile` em `on_dry_land`.
+      Mesma classe de bug que a saga de `should_float` inteira já tinha
+      ensinado — geografia e altura precisam concordar.
+- [x] **🤖 Eu** simplifiquei a física de flutuação de volta pra
+      `not on_dry_land(pos)` — a primeira versão (2026-09-01, antes do corte
+      pra dois níveis) usava exatamente essa fórmula e foi abandonada por
+      bug real, mas a causa daquele bug (relevo contínuo criando pontos
+      "fora da terra firme, mas ainda rasos") deixou de existir. `is_deep`,
+      `SHALLOW_DEPTH`, `MAX_WALKABLE_SLOPE` e `SLOPE_SAMPLE` — toda a
+      maquinaria de profundidade+inclinação da rodada anterior — saíram por
+      não terem mais função.
+- [x] **🤖 Eu** reescrevi `test_world.gd` (a seção "linha d'água" inteira) e
+      `test_playable.gd`/`test_companion.gd` (as partes que dependiam do
+      relevo contínuo) pra verificar os NOVOS invariantes de verdade — parede
+      fora dos pontos de acesso, rampa andável dentro deles, os três núcleos
+      de terra firme em `LAND_HEIGHT` exato — em vez de só ajustar o texto
+      pra passar. `test_playable.gd` ganhou uma travessia a nado de ponta a
+      ponta até o ponto de acesso da ilha, provando o mecanismo por física
+      real, não só pela conta analítica de inclinação.
+- [x] **🤖 Eu** rodei as 16 suítes headless — 0 falhas.
+
+---
 - [ ] Repete para o próximo até fechar os 5 biomas do PZ-01.

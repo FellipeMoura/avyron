@@ -231,13 +231,23 @@ func _ready() -> void:
 	var flat_ground := get_node_or_null("Ground")
 	if flat_ground:
 		flat_ground.free()
-	_terrain = MapTerrain.create(MapDressing.ground_palette(map_code))
+	_terrain = MapTerrain.create(MapDressing.ground_palette(map_code), _map_biomes)
 	_terrain.name = "Ground"
 	# A cota da superfície é vestimenta do bioma, como a paleta: quem a define é
 	# `MapDressing` (a MESMA que fragmenta a névoa), quem responde "estou na
 	# água?" é o terreno.
 	_terrain.water_line = MapDressing.water_line(map_code)
 	add_child(_terrain)
+	_terrain.build_water_mesh()
+	# O ponto de início do jogador é fixo na costa primordial do PZ-01,
+	# ao lado do posto do Relicário. Isso evita o spawn no morro central,
+	# preserva a regra de layout do mapa e deixa a partida aberta em solo
+	# útil para exploração e serviços da vila costeira.
+	if _player and map_code == "PZ-01":
+		var start_pos := WorldPopulator.PLAYER_START_SPOT
+		start_pos.y = _terrain.height_at(start_pos) + 1.1
+		_player.global_position = start_pos
+
 	# O domador pergunta ao terreno se está submerso para escolher entre andar e
 	# nadar. Injetado aqui pelo mesmo motivo do spawner e da companheira.
 	var controller := _player as PlayerController
@@ -277,7 +287,7 @@ func _ready() -> void:
 
 	# O cenário (ambiente + props de bioma) entra por último e é apresentação
 	# pura: nada dele emite sinal, entra em fórmula ou guarda estado.
-	MapDressing.apply(self, map_code, _terrain)
+	MapDressing.apply(self, map_code, _terrain, _map_biomes)
 
 	# Ciclo de vida do duelo — engate, encenação, fechamento, drop/XP/glifo —
 	# vive em `EncounterDirector`. `_duel` continua espelhado aqui via

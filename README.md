@@ -98,6 +98,10 @@ Se pedir para escolher a Main Scene na primeira execução, aponte para `scenes/
 
 **Mapa** (`scenes/main.tscn`) — WASD anda, **F minera**, **T abre o time**, **E abre o set do jogador**, **V esconde/reexibe a bolsa**, câmera isométrica travada seguindo com lookahead. O cenário do PZ-01 (ambiência subaquática + recifes) é vestido em runtime por `MapDressing.apply`, e o chão chapado da cena é substituído pelo relevo do `MapTerrain` — ver "Assets 3D". O jogo abre no topo da **ilha da arena**, no meio do mapa; o resto é mar, e se atravessa nadando. A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele — puramente visual, sem colisão nem clique; corpo rigado anima `Idle`/`Walk`/`Run` pela marcha, cápsula usa o bob leve.
 
+### Graybox visual do PZ-01
+
+O primeiro passe aprovado do mapa segue a concept art de composição macro: mar raso central turquesa, bloco rochoso superior, queda para abismo no lado direito e massa glacial mais fria no setor inferior esquerdo. A leitura está implementada em `MapTerrain`/`MapDressing`, com placeholders explícitos para substituir por GLBs finais sem reconfigurar o layout.
+
 ### A marcha e o clipe
 
 Velocidade única, sem tecla de corrida: `WALK_SPEED` = 5,2 m/s. O nome é herança — **5,2 m/s é marcha de corrida**, já que um humano andando faz ~1,4 m/s — e era exatamente daí que vinha o deslize do jogador: o corpo viajava a 5,2 tocando o ciclo de `Walk`, calibrado num `WALK_SPEED` anterior de 4,0 e nunca remedido depois de ele subir 30%. Defasagem dessa ordem nenhum blend cobre.

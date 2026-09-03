@@ -472,8 +472,19 @@ func _check_faints() -> void:
 			outcome = Outcome.PLAYER_LOST
 
 
+## `is_player` compara por REFERÊNCIA (`actor == player_active()`), não por
+## código — um evento não pode ser atribuído ao lado errado numa luta onde as
+## duas criaturas são da mesma espécie (mesmo `actor.code` dos dois lados).
+## Existe para quem consome o log de fora (apresentação de golpe/status por
+## evento) resolver o corpo certo sem precisar comparar código, que é
+## exatamente o que quebraria nesse caso.
 func _log(type: String, actor: Combatant, extra: Dictionary) -> void:
-	var event := {"round": round_number, "type": type, "actor": actor.code if actor else ""}
+	var event := {
+		"round": round_number,
+		"type": type,
+		"actor": actor.code if actor else "",
+		"is_player": actor == player_active() if actor else false,
+	}
 	event.merge(extra)
 	log_events.append(event)
 

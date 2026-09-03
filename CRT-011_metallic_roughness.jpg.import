@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ce0u1jghte61l"
-path="res://.godot/imported/CRT-011_metallic_roughness.jpg-260f6117e792fd057e781bed5a377d2e.ctex"
+path.s3tc="res://.godot/imported/CRT-011_metallic_roughness.jpg-260f6117e792fd057e781bed5a377d2e.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ee99f7404ccc0414ef2266bb55e7e31a"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://CRT-011_metallic_roughness.jpg"
-dest_files=["res://.godot/imported/CRT-011_metallic_roughness.jpg-260f6117e792fd057e781bed5a377d2e.ctex"]
+dest_files=["res://.godot/imported/CRT-011_metallic_roughness.jpg-260f6117e792fd057e781bed5a377d2e.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

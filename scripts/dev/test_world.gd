@@ -172,10 +172,14 @@ func _test_scroll_zoom() -> void:
 
 ## Onde o domador nada, e onde ele anda.
 ##
-## O PZ-01 é o LEITO DE UM MAR: fora do platô da costa está tudo submerso,
-## inclusive o topo de colina que passa da cota — recife é recife, não ilhota.
-## Só a costa negocia com a linha d'água, porque é lá que a rampa atravessa a
-## superfície no meio da subida.
+## Desde 2026-09-01 o relevo é só dois níveis fixos
+## (`MapTerrain.SEA_HEIGHT`/`LAND_HEIGHT`) — decisão do usuário, trocar
+## leitura de profundidade contínua por gráfico controlado. Fora da terra
+## firme declarada (`on_coast`/`on_island`/`on_glacial`) é SEMPRE
+## `SEA_HEIGHT`, sem exceção de colina ou recife — não sobrou relevo contínuo
+## pra ter exceção. Dentro dela é SEMPRE `LAND_HEIGHT`, plano, exceto nos
+## `ACCESS_RAMPS` — os únicos lugares onde a transição vira rampa de verdade
+## em vez de parede.
 ##
 ## A cota é a MESMA que fragmenta a névoa (`MapDressing.PZ01_WATER_LINE`), e
 ## essa igualdade é o contrato: nadar numa cota e trocar a murk noutra faria a
@@ -187,13 +191,8 @@ func _test_water_line() -> void:
 	_check("a cota vem do bioma, e é a mesma da névoa",
 		terrain.water_line, MapDressing.PZ01_WATER_LINE)
 
-	# Espalhadas pelo mapa em fração do meio-lado, não em metros: a três
-	# distâncias diferentes do centro, e as três fora da costa, da ilha e do
-	# platô glacial. O terceiro ponto era (-half*0.85, half*0.85) até
-	# 2026-09-01 — caiu dentro do platô glacial quando ele virou terra firme
-	# declarada (`on_glacial`), então passou a responder seco por altura, não
-	# mais "sempre molhado". Trocado por um canto sem geografia seca nenhuma
-	# por perto (o oposto em x, mar aberto sobre o Mar Profundo).
+	# Mar aberto: sempre SEA_HEIGHT, sem exceção — não existe mais colina nem
+	# recife pra furar a regra. Longe de qualquer ponto de acesso.
 	var half := float(MapTerrain.SIZE) * 0.5
 	for spot in [
 		Vector3(half * 0.4, 0, 0),
@@ -201,73 +200,50 @@ func _test_water_line() -> void:
 		Vector3(half * 0.85, 0, half * 0.85),
 	]:
 		var at := Vector3(spot.x, terrain.height_at(spot), spot.z)
-		_check_true("submerso fora da costa em (%.0f, %.0f), chao %.2f" % [at.x, at.z, at.y],
+		_check_true("mar aberto e sempre SEA_HEIGHT em (%.0f, %.0f) (%.5f)" % [at.x, at.z, at.y],
+			absf(at.y - MapTerrain.SEA_HEIGHT) < 0.001)
+		_check_true("e submerso em (%.0f, %.0f)" % [at.x, at.z],
 			terrain.submerged(at))
-		# O canto sobre o Mar Profundo tem de ser fundo o bastante pra acionar a
-		# flutuação — sem isto, um `SHALLOW_DEPTH` alto demais deixaria o jogador
-		# cair no abismo de novo, e nenhum teste acusaria.
-		if at.z > 40.0:
-			_check_true("e fundo o bastante pra acionar a flutuacao (chao %.2f)" % at.y,
-				terrain.is_deep(at))
 
-	# A costa e a ilha são as que dependem da altura: o pé da rampa ainda está
-	# na água, o platô já não.
-	# Na LINHA DE CENTRO do lobo, não em x = 0: desde que a costa virou lobo,
-	# "quanto ela avança mar adentro" só vale no meio dela — nas laterais o
-	# platô recua, e uma sonda em x = 0 mediria um ponto 4,2 m fora do eixo.
-	# 4,5 m depois do início da rampa (dos 5 m de largura dela): a costa já
-	# está acima da linha d'água e a encosta não deve ser tratada como mar
-	# raso. Media 2,0 até 2026-08-31 — medido por sonda direta
-	# (height_at ao longo do offset), a água só cruza a rampa perto de 3,5 m,
-	# em cima do que o comentário de PZ01_WATER_LINE já previa ("a rampa
-	# atravessa a superfície no meio da subida"); 2,0 m nunca emergiu por
-	# conta própria, só passava porque o recife antigo (fora do lugar que o
-	# catálogo define hoje) alcançava até aqui por acaso e emprestava altura.
-	var ramp := Vector3(MapTerrain.COAST_CENTER_X, 0, MapTerrain.COAST_RAMP_START - 4.5)
-	ramp.y = terrain.height_at(ramp)
-	_check_true("o pe da rampa ja saiu da agua (chao %.2f)" % ramp.y, not terrain.submerged(ramp))
-	# O mesmo ponto prova o outro lado da regra de flutuação
-	# (`PlayerController._floating`/`CompanionActor._ground_y`, ambos via
-	# `MapTerrain.is_deep`): raso mesmo ainda molhado, então quem sobe a rampa
-	# nunca aciona o empuxo — sobe andando, sem degrau. É o ponto mais fundo já
-	# medido nesta rampa, então é o pior caso da folga de `SHALLOW_DEPTH`.
-	_check_true("o pe da rampa nao e fundo o bastante pra flutuacao (chao %.2f)" % ramp.y,
-		not terrain.is_deep(ramp))
-	# 3 m depois do topo da rampa: platô assentado, seco.
-	var plateau := Vector3(MapTerrain.COAST_CENTER_X, 0, MapTerrain.COAST_TOP - 3.0)
-	plateau.y = terrain.height_at(plateau)
-	_check_true("o plato da costa esta seco (chao %.2f)" % plateau.y, not terrain.submerged(plateau))
+	# A costa é rampa andável na borda INTEIRA (pedido do usuário, 2026-09-01
+	# — é o adro da vila, precisa de acesso amplo). Ilha e platô glacial
+	# continuam parede fora dos próprios `ACCESS_RAMPS`: ao norte da ilha
+	# (oposto do único ponto de acesso dela, em z=-9) não deveria haver rampa
+	# nenhuma.
+	var isle_wall_land := Vector3(0.0, 0, MapTerrain.ISLAND_TOP_RADIUS - 1.0)
+	isle_wall_land.y = terrain.height_at(isle_wall_land)
+	var isle_wall_sea := Vector3(0.0, 0, MapTerrain.ISLAND_BASE_RADIUS + 6.0)
+	isle_wall_sea.y = terrain.height_at(isle_wall_sea)
+	_check_true("ilha longe do ponto de acesso ainda e LAND_HEIGHT (%.2f)" % isle_wall_land.y,
+		absf(isle_wall_land.y - MapTerrain.LAND_HEIGHT) < 0.001)
+	_check_true("e o mar do outro lado e parede, sem rampa (%.2f)" % isle_wall_sea.y,
+		absf(isle_wall_sea.y - MapTerrain.SEA_HEIGHT) < 0.001)
 
-	# O lobo tem BORDA lateral, e é isso que o distingue de uma faixa. Sem esta
-	# asserção, voltar a costa para faixa cheia passaria despercebido — e a
-	# partição de bioma do catálogo, que a desenha como lobo, passaria a mentir
-	# sobre 47% do chão seco exatamente como acontecia antes de 2026-08-28.
-	var corner := Vector3(-float(MapTerrain.SIZE) * 0.5 + 2.0, 0.0, MapTerrain.COAST_TOP - 3.0)
-	corner.y = terrain.height_at(corner)
-	_check_true("o canto do topo e MAR, nao costa (chao %.2f)" % corner.y,
-		terrain.submerged(corner) and not terrain.on_coast(corner))
+	# Os 3 pontos de acesso (2 platô glacial, 1 ilha — a costa é rampa na
+	# borda inteira, não precisa de ponto próprio): cada um é terra seca no
+	# próprio ponto, e o vão calibrado entre `ACCESS_RAMP_INNER` e `OUTER`
+	# garante rampa andável (≤45°) — a mesma conta de sempre, 1,5·altura/vão,
+	# contra a diferença entre os dois níveis.
+	var ramp_span := MapTerrain.ACCESS_RAMP_OUTER - MapTerrain.ACCESS_RAMP_INNER
+	var ramp_height := MapTerrain.LAND_HEIGHT - MapTerrain.SEA_HEIGHT
+	var ramp_slope := rad_to_deg(atan(1.5 * ramp_height / ramp_span))
+	_check_true("a rampa de acesso e andavel (%.1f graus)" % ramp_slope, ramp_slope < 45.0)
+	for p in MapTerrain.ACCESS_RAMPS:
+		var pos := Vector3(p.x, 0, p.y)
+		pos.y = terrain.height_at(pos)
+		_check_true("ponto de acesso (%.1f, %.1f) esta seco (chao %.2f)" % [p.x, p.y, pos.y],
+			not terrain.submerged(pos))
 
-	# A ilha do miolo: topo seco, saia submersa. É a segunda exceção à regra do
-	# "fora da costa é tudo mar", e a única que fica no meio do mapa — o topo é
+	# A ilha do miolo: topo seco, LAND_HEIGHT plano. Segunda exceção à regra
+	# "fora da terra firme é tudo mar", e a única no meio do mapa — o topo é
 	# onde a arena vive e onde o domador abre o jogo, de pé.
 	var isle := Vector3(0, 0, 0)
 	isle.y = terrain.height_at(isle)
-	_check_true("o topo da ilha esta seco (chao %.2f)" % isle.y, not terrain.submerged(isle))
-	_check_true("o topo da ilha passa da cota", isle.y > MapDressing.PZ01_WATER_LINE)
-	var shore := Vector3(0, 0, MapTerrain.ISLAND_BASE_RADIUS - 0.5)
-	shore.y = terrain.height_at(shore)
-	_check_true("o pe da ilha ainda esta na agua (chao %.2f)" % shore.y, terrain.submerged(shore))
-	_check_true("o pe da ilha nao e fundo o bastante pra flutuacao (chao %.2f)" % shore.y,
-		not terrain.is_deep(shore))
-	var open_sea := Vector3(0, 0, MapTerrain.ISLAND_BASE_RADIUS + 2.0)
-	_check_true("mar aberto nao e ilha", not terrain.on_island(open_sea))
-
-	# A ilha é subida, não parede: `smoothstep` sobe no máximo 1,5·h/vão, e
-	# esse máximo tem de caber nos 45° que o `CharacterBody3D` aceita como
-	# piso. Passar disso tranca a arena no topo — o relevo vira labirinto.
-	var span := MapTerrain.ISLAND_BASE_RADIUS - MapTerrain.ISLAND_TOP_RADIUS
-	var max_slope := rad_to_deg(atan(1.5 * MapTerrain.ISLAND_HEIGHT / span))
-	_check_true("a rampa da ilha e andavel (%.1f graus)" % max_slope, max_slope < 45.0)
+	_check_true("o topo da ilha e LAND_HEIGHT (%.2f)" % isle.y,
+		absf(isle.y - MapTerrain.LAND_HEIGHT) < 0.001)
+	_check_true("o topo da ilha esta seco", not terrain.submerged(isle))
+	var isle_edge := Vector3(0, 0, MapTerrain.ISLAND_BASE_RADIUS + 2.0)
+	_check_true("mar aberto fora do raio nao e ilha", not terrain.on_island(isle_edge))
 
 	# E a arena tem de estar EM CIMA dela, no topo plano — não na encosta.
 	var arena_dist := Vector2(WorldPopulator.ARENA_SPOT.x, WorldPopulator.ARENA_SPOT.z).length()
@@ -278,32 +254,15 @@ func _test_water_line() -> void:
 		not terrain.submerged(Vector3(
 			WorldPopulator.ARENA_SPOT.x, arena_ground, WorldPopulator.ARENA_SPOT.z)))
 
-	# O platô glacial: núcleo seco, pé da rampa OESTE (rumo ao Mar Profundo)
-	# ainda molhado. É a terceira exceção à regra "fora da costa é tudo mar",
-	# declarada em 2026-09-01 (`on_glacial`) porque BIO-014 tem fauna e
-	# minério próprios — ler como leito de mar contradizia o resto do design.
-	#
-	# z=35 nas duas sondas, longe da borda SUL (perto de `GLACIAL_Z0`): ali o
-	# platô encosta no raio do recife (`REEF_CENTER`/`REEF_RADIUS`) e a borda
-	# nasce sempre alta por conta dele, o que mascararia a rampa só do
-	# glacial. Os dois pontos vêm de sonda direta (`probe_glacial_shore.gd`,
-	# descartada) em vez de calculados à mão — a mesma lição da rampa da costa.
+	# O platô glacial: núcleo seco, LAND_HEIGHT plano. Terceira exceção à
+	# regra "fora da terra firme é tudo mar" — BIO-014 tem fauna e minério
+	# próprios (ver `CLAUDE.md`, minério glacial exclusivo), então ler como
+	# leito de mar contradizia o resto do design.
 	var glacial_core := Vector3(-35.0, 0, 35.0)
 	glacial_core.y = terrain.height_at(glacial_core)
-	_check_true("o nucleo do plato glacial esta seco (chao %.2f)" % glacial_core.y,
-		not terrain.submerged(glacial_core))
-	var glacial_shore := Vector3(MapTerrain.GLACIAL_X1 - 6.0, 0, 35.0)
-	glacial_shore.y = terrain.height_at(glacial_shore)
-	_check_true("o pe da rampa do plato glacial ainda esta na agua (chao %.2f)" % glacial_shore.y,
-		terrain.submerged(glacial_shore))
-	_check_true("o pe do plato glacial nao e fundo o bastante pra flutuacao (chao %.2f)" % glacial_shore.y,
-		not terrain.is_deep(glacial_shore))
-
-	# A mesma conta de inclinação da ilha, com folga bem maior aqui: o vão
-	# (`GLACIAL_FEATHER`) é quase 3x a altura, contra quase 1:1 na ilha.
-	var glacial_max_slope := rad_to_deg(atan(1.5 * MapTerrain.GLACIAL_HEIGHT / MapTerrain.GLACIAL_FEATHER))
-	_check_true("a rampa do plato glacial e andavel (%.1f graus)" % glacial_max_slope,
-		glacial_max_slope < 45.0)
+	_check_true("o nucleo do plato glacial e LAND_HEIGHT (%.2f)" % glacial_core.y,
+		absf(glacial_core.y - MapTerrain.LAND_HEIGHT) < 0.001)
+	_check_true("o nucleo do plato glacial esta seco", not terrain.submerged(glacial_core))
 
 	# Mapa sem bioma de água: ninguém nada. É o padrão das bancadas.
 	var dry := MapTerrain.create({})

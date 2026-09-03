@@ -52,7 +52,7 @@ func _run() -> void:
 	_test_follows_the_path()
 	_test_own_facing()
 	_test_creature_swap_keeps_place()
-	_test_floats_over_deep_water()
+	_test_follows_seabed_over_open_water()
 
 	# Fora da árvore de cena: nada libera este Node por nós.
 	_db.free()
@@ -315,20 +315,21 @@ func _test_creature_swap_keeps_place() -> void:
 	_teardown(rig)
 
 
-## Até 2026-09-01 `_ground_y` seguia o relevo cru sem exceção — sem física, a
-## companheira nunca teve motivo para não fazer isso. Mas quando o jogador
-## passou a flutuar sobre água funda (`PlayerController._floating`) em vez de
-## afundar, ela continuou mergulhando de verdade atrás dele: a trilha a levava
-## pelo mesmo Mar Profundo, e o `terrain.height_at` cru ali é o leito, 15 m
-## abaixo da cota. `surface_or_ground` é a correção — mesma regra do jogador
-## (`MapTerrain.is_deep`), aplicada a um corpo que só consulta.
+## `_ground_y` segue o relevo cru (`height_at`) sem exceção — sem física, a
+## companheira nunca teve motivo para não fazer isso. Passou brevemente por um
+## desvio (`surface_or_ground`, prendendo na cota da água fora da terra firme)
+## enquanto o mar tinha profundidade de verdade e a trilha podia levá-la
+## mergulhando de vez em quando no Mar Profundo (removido). Encolher o mar até
+## não ter mais profundidade que justifique isso (`MapTerrain.SEA_HEIGHT`)
+## tornou o desvio desnecessário — ela volta a seguir o leito cru em mar
+## aberto, exatamente como em terra firme.
 ##
 ## Este teste, ao contrário dos outros da suíte, injeta um `MapTerrain` de
 ## verdade (com bioma, para ter uma cota) — os outros usam o fallback plano
 ## (`GROUND_Y`) de propósito, porque o que medem é a lei de seguimento, não o
 ## relevo.
-func _test_floats_over_deep_water() -> void:
-	print("flutuacao sobre agua funda:")
+func _test_follows_seabed_over_open_water() -> void:
+	print("segue o leito raso em mar aberto:")
 	var rig := _rig()
 	var companion := rig[1] as CompanionActor
 	var terrain := MapTerrain.create({})
@@ -336,16 +337,16 @@ func _test_floats_over_deep_water() -> void:
 	companion.terrain = terrain
 
 	# O mesmo ponto que `test_playable.gd` usa como sonda de "o mar profundo" —
-	# já verificado como interior do abismo, bem além de `SHALLOW_DEPTH`.
+	# mar aberto, longe de qualquer terra firme declarada.
 	var half := float(MapTerrain.SIZE) * 0.5
 	companion.global_position = Vector3(half * 0.5, 0.0, half * 0.67)
 	companion._process(STEP)
 
 	var ground := terrain.height_at(companion.global_position)
-	_check_true("o leito ali e fundo (alem da folga rasa)",
-		terrain.water_line - ground > MapTerrain.SHALLOW_DEPTH, "chao %.2f" % ground)
-	_check_true("a companheira flutua na cota, nao mergulha no leito",
-		absf(companion.global_position.y - terrain.water_line) < 0.01,
+	_check_true("o leito ali e SEA_HEIGHT, nao terra firme",
+		not terrain.on_dry_land(companion.global_position), "chao %.2f" % ground)
+	_check_true("a companheira segue o leito, nao prende na cota",
+		absf(companion.global_position.y - ground) < 0.01,
 		"y %.2f, cota %.2f, leito %.2f" % [companion.global_position.y, terrain.water_line, ground])
 
 	terrain.free()

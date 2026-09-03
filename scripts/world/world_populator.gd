@@ -25,6 +25,11 @@ const MERCHANT_SPOT := Vector3(4.0, 0.0, -46.0)
 ## ficam na mesma "vila" de praia.
 const RELIC_STATION_SPOT := Vector3(8.5, 0.0, -46.0)
 
+## Ponto de início do jogador em PZ-01: na costa primordial, ao lado do posto
+## do Relicário, para a partida abrir em terreno seguro e em área de serviço,
+## sem nascer em cima do morro central.
+const PLAYER_START_SPOT := RELIC_STATION_SPOT + Vector3(2.4, 0.0, 1.6)
+
 ## E a bancada, terceiro serviço da mesma vila de praia (documento
 ## `equipamentos`). Fica do outro lado do comerciante, não ao lado do posto:
 ## os dois pontos que **gastam** recurso do jogador — comprar e fabricar —

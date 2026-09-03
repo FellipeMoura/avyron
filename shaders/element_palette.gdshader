@@ -113,5 +113,15 @@ void fragment() {
 	ALBEDO = mix(src.rgb, ramped, amount);
 	ROUGHNESS = roughness_value;
 	METALLIC = 0.0;
-	ALPHA = src.a;
+	// SEM escrever em ALPHA, de propósito. O atlas destes placeholders é RGB
+	// puro (sem canal alfa — conferido nos PNGs de origem, Quaternius e
+	// Dungeon Monsters), então `src.a` sempre voltava 1.0: a linha nunca
+	// mudou a opacidade de nada. O problema é que ATRIBUIR a ALPHA, mesmo
+	// com 1.0, já empurra o material pra fila de transparência do Godot —
+	// invisível num corpo de UMA malha só (os placeholders antigos), mas
+	// visível como "translúcido, com outra silhueta vazando atrás" num corpo
+	// de VÁRIAS malhas sobrepostas como o Imp/Puglin (Body/Chains/Mace/
+	// Shorts/SpikedCollar): objetos transparentes não fazem depth-sort
+	// confiável entre si. Corpo novo com várias malhas por baixo do mesmo
+	// material é o que expôs o defeito — ele sempre esteve aqui.
 }

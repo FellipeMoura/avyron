@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ub11i6oe70jx"
-path="res://.godot/imported/CRT-010_base_color.jpg-de9bb2d131b99d2263ab7f075e718f51.ctex"
+path.s3tc="res://.godot/imported/CRT-010_base_color.jpg-de9bb2d131b99d2263ab7f075e718f51.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ebbb05eb477bfb70dabe5129048e2715"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://CRT-010_base_color.jpg"
-dest_files=["res://.godot/imported/CRT-010_base_color.jpg-de9bb2d131b99d2263ab7f075e718f51.ctex"]
+dest_files=["res://.godot/imported/CRT-010_base_color.jpg-de9bb2d131b99d2263ab7f075e718f51.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

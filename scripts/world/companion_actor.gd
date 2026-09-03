@@ -113,13 +113,12 @@ var _mesh_root: Node3D
 var _anim: AnimationPlayer
 var _base_y := 0.0
 
-## Malhas do corpo, guardadas para a aura do Despertar Ancestral poder inflar
-## uma casca irmã de cada uma. Refeitas junto com o corpo em `_build_visual`,
-## porque `set_creature` troca a criatura ativa sem destruir o ator.
+## Malhas do corpo. Refeitas junto com o corpo em `_build_visual`, porque
+## `set_creature` troca a criatura ativa sem destruir o ator.
 var _mesh_instances: Array[MeshInstance3D] = []
 
 var _awakened := false
-var _aura_shells: Array[MeshInstance3D] = []
+var _aura_vfx: Node3D
 var _aura_light: OmniLight3D
 
 ## Posições por onde o jogador passou, da mais antiga para a mais recente.
@@ -167,15 +166,16 @@ func _ready() -> void:
 	_seed_trail(behind)
 
 
-## Até 2026-09-01 isto era só `terrain.height_at` — direto no relevo cru, sem
-## física, porque a companheira nunca teve gravidade. Isso a fazia mergulhar
-## de verdade no Mar Profundo (leito 15 m abaixo da cota) sempre que a trilha
-## a levava atrás do jogador por ali, mesmo com ele já flutuando na superfície
-## (`PlayerController._floating`). `surface_or_ground` é a mesma regra dos
-## dois: segue o relevo onde ele é raso, prende na cota onde é fundo demais
-## (`MapTerrain.is_deep`) para "andar no leito" continuar parecendo natural.
+## Direto no relevo cru (`height_at`), sem física — a companheira nunca teve
+## gravidade. Passou brevemente por um desvio (`surface_or_ground`, prendendo
+## na cota da água fora da terra firme) enquanto o mar tinha profundidade de
+## verdade (Mar Profundo, 15 m abaixo da cota — a companheira mergulhava nele
+## de verdade seguindo a trilha do jogador). O mar encolheu até não ter mais
+## profundidade que justifique esse desvio (ver `MapTerrain.SEA_HEIGHT`), e a
+## regra original voltou a bastar: seguir o leito é seguir o leito, dentro ou
+## fora da terra firme.
 func _ground_y() -> float:
-	return terrain.surface_or_ground(global_position) if terrain else GROUND_Y
+	return terrain.height_at(global_position) if terrain else GROUND_Y
 
 
 ## Semeia o rastro como se o jogador já tivesse vindo em linha reta até aqui.
@@ -384,26 +384,33 @@ func staged_animating(enabled: bool) -> void:
 ##
 ## A luz entra em `_mesh_root`, não no ator: é `_mesh_root` que carrega o
 ## deslocamento de apoio (`_base_y`) e o bob, então a luz acompanha a
-## respiração do corpo em vez de ficar cravada no chão sob ele.
+## respiração do corpo em vez de ficar cravada no chão sob ele. O disco de
+## área e o burst de "cast", ao contrário, entram no ATOR — ele é quem já
+## está no chão (`self.position.y = _ground_y()`, diferente do `CreatureActor`,
+## que sobe meia cápsula — regra 5 do CLAUDE.md), então o offset de apoio
+## aqui é `0.0`, não `-height/2`.
 ##
-## Corpo de cápsula fica só com a luz — sem malha importada não há o que
-## inflar. É degradação aceitável: a luz é justamente a metade que se lê de
-## longe na câmera isométrica.
+## Corpo de cápsula não tem malha própria, mas o disco de área e a luz não
+## dependem dela — só a "casca" antiga dependia, e essa restrição some junto
+## com ela.
 func set_awakening_aura(active: bool) -> void:
 	if _awakened == active:
 		return
 	_awakened = active
 
 	if active:
-		_aura_shells = ElementPalette.attach_aura(_mesh_instances, element_code)
-		_aura_light = ElementPalette.build_aura_light(element_code, size_meters)
+		_aura_vfx = ElementPalette.attach_area_vfx(element_code, size_meters, creature_code)
+		if _aura_vfx != null:
+			add_child(_aura_vfx)
+		_aura_light = ElementPalette.build_aura_light(element_code, size_meters, creature_code)
 		if _mesh_root != null:
 			_mesh_root.add_child(_aura_light)
 		else:
 			add_child(_aura_light)
+		ElementPalette.play_awakening_cast(self, 0.0, element_code, size_meters, creature_code)
 	else:
-		ElementPalette.detach_aura(_aura_shells)
-		_aura_shells.clear()
+		ElementPalette.detach_area_vfx(_aura_vfx)
+		_aura_vfx = null
 		if _aura_light != null:
 			_aura_light.queue_free()
 			_aura_light = null
@@ -411,6 +418,14 @@ func set_awakening_aura(active: bool) -> void:
 
 func is_awakened() -> bool:
 	return _awakened
+
+
+## Efeito de golpe/status, mesmo contrato por nome de `CreatureActor`. `self`
+## já está no chão (`position.y = _ground_y()` a cada quadro — diferente do
+## `CreatureActor`, que sobe meia cápsula), então o offset de apoio é `0.0`.
+func play_battle_effect(kind: String, element_code: String, variant_seed: String, source_creature_code: String = "") -> void:
+	ElementPalette.play_battle_effect(
+		self, 0.0, size_meters, kind, element_code, variant_seed, source_creature_code)
 
 
 

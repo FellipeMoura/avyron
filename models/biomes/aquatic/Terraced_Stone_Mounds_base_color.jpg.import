@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cd08fowvxtxrm"
-path="res://.godot/imported/Terraced_Stone_Mounds_base_color.jpg-2110729851f27d9de1b6a81e6de7d30a.ctex"
+path.s3tc="res://.godot/imported/Terraced_Stone_Mounds_base_color.jpg-2110729851f27d9de1b6a81e6de7d30a.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "9ba7434819069f24ec63da2488692b6e"
@@ -14,11 +15,11 @@ generator_parameters={
 [deps]
 
 source_file="res://models/biomes/aquatic/Terraced_Stone_Mounds_base_color.jpg"
-dest_files=["res://.godot/imported/Terraced_Stone_Mounds_base_color.jpg-2110729851f27d9de1b6a81e6de7d30a.ctex"]
+dest_files=["res://.godot/imported/Terraced_Stone_Mounds_base_color.jpg-2110729851f27d9de1b6a81e6de7d30a.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

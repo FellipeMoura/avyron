@@ -19,7 +19,12 @@ const COL_MOSS  := "#7A8C6B"
 const COL_SLATE := "#6B7280"
 const COL_EMBER := "#C6552F"
 
+## Mesmo diretório espelhado que `CreatureInfoPanel` consulta — ver o
+## comentário lá para o porquê do `ResourceLoader.exists` em vez de erro.
+const CARDS_DIR := "res://cards/"
+
 var _label: RichTextLabel
+var _card: TextureRect
 var _db: BestiaryData
 var _biome_code := ""
 
@@ -42,13 +47,32 @@ func _ready() -> void:
 	style.set_corner_radius_all(4)
 	add_theme_stylebox_override("panel", style)
 
+	# Mesmo motivo do painel de identificação: PanelContainer estica todo
+	# filho direto para o retângulo inteiro, então o card e o texto só
+	# convivem lado a lado dentro de um HBox.
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 10)
+	add_child(row)
+
+	_card = TextureRect.new()
+	_card.custom_minimum_size = Vector2(48, 48)
+	_card.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# Ver o comentário em `CreatureInfoPanel`: sem isso o tamanho mínimo vira o
+	# tamanho em pixels da arte original, e o painel inflava para acomodá-la.
+	_card.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.hide()
+	row.add_child(_card)
+
 	_label = RichTextLabel.new()
 	_label.bbcode_enabled = true
 	_label.fit_content = true
 	_label.scroll_active = false
 	_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_label.add_theme_font_size_override("normal_font_size", 13)
-	add_child(_label)
+	row.add_child(_label)
 
 
 ## O bioma entra pelo setup e é trocado por `set_biome`, nunca pelo refresh:
@@ -85,9 +109,17 @@ func refresh(creature_code: String, level: int, roster_size: int, roster_capacit
 
 	var c := _db.creature(creature_code) if (_db and creature_code != "") else {}
 	if c.is_empty():
+		_card.hide()
 		lines.append("[color=%s][ nenhuma ][/color]" % COL_SLATE)
 		_label.text = "\n".join(lines)
 		return
+
+	var card_path := CARDS_DIR + creature_code + ".png"
+	if ResourceLoader.exists(card_path):
+		_card.texture = load(card_path)
+		_card.show()
+	else:
+		_card.hide()
 
 	var class_code := str(c.get("class", ""))
 	var element_code := str(c.get("element", ""))

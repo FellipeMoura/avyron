@@ -66,12 +66,12 @@ var _highlight_material: StandardMaterial3D
 var _selected := false
 var _anim: AnimationPlayer
 
-## Aura do Despertar Ancestral: cascas irmãs das malhas do corpo, mais a luz
-## que a criatura joga no chão. Vazio/`null` fora do Despertar — a aura não
-## existe como nó desligado, ela nasce e morre com a transformação. Ver
-## `set_awakening_aura`.
+## Aura do Despertar Ancestral: o efeito de área do BinbunVFX ancorado no
+## chão, mais a luz que a criatura joga em volta. `null` fora do Despertar —
+## a aura não existe como nó desligado, ela nasce e morre com a
+## transformação. Ver `set_awakening_aura`.
 var _awakened := false
-var _aura_shells: Array[MeshInstance3D] = []
+var _aura_vfx: Node3D
 var _aura_light: OmniLight3D
 
 ## Localização do modelo, em ordem de prioridade:
@@ -155,7 +155,7 @@ func _build_body() -> void:
 	position.y += height * 0.5
 
 	if not _mesh_instances.is_empty():
-		_highlight_material = _build_highlight_material(element_code)
+		_highlight_material = _build_highlight_material(element_code, creature_code)
 
 
 ## Raio do corpo, derivado do tamanho de jogo.
@@ -205,7 +205,7 @@ static func build_visual(size_meters: float, element_code: String, creature_code
 		var meshes: Array[MeshInstance3D] = model["mesh_instances"]
 		ElementPalette.apply_body(meshes, element_code, creature_code, path)
 		return model
-	return build_capsule_visual(size_meters, element_code)
+	return build_capsule_visual(size_meters, element_code, creature_code)
 
 
 ## Tenta montar o visual a partir do caminho resolvido por `model_path`.
@@ -270,8 +270,18 @@ static func _build_model_visual(path: String, size_meters: float, dims: Dictiona
 	# Os placeholders chegam rigados com o vocabulário normalizado de clipes
 	# (Idle/Walk/Run/Attack/...). O corpo já nasce em `Idle`; quem move a
 	# criatura troca de clipe via `_play_clip`. Modelo sem AnimationPlayer
-	# (os .glb legados do Meshy) fica parado, como sempre ficou.
+	# E sem Skeleton3D (os .glb legados do Meshy) fica parado, como sempre
+	# ficou.
 	var anim := _find_animation_player(instance)
+	if anim == null:
+		# O kit "Dungeon Monsters" (Quaternius) chega sem clipe nenhum — ele
+		# roda no MESMO esqueleto da Universal Animation Library que
+		# `CharacterRig` já usa para os humanos, e espera ser montado por
+		# retarget, não por clipe embutido. Mesmo mecanismo de
+		# `CharacterRig._build_library`, reusado em vez de duplicado: dá pro
+		# corpo o vocabulário INTEIRO do jogo (`Attack2`, `HitReact`, `Death`,
+		# `Swim`...) em vez do punhado que cada placeholder bakeado tinha.
+		anim = _build_retargeted_animation(instance)
 	if anim != null:
 		_prepare_animations(anim)
 		if anim.has_animation("Idle"):
@@ -295,6 +305,26 @@ static func _find_animation_player(node: Node) -> AnimationPlayer:
 		if found != null:
 			return found
 	return null
+
+
+## Constrói um `AnimationPlayer` retargeted para o `Skeleton3D` de `instance`,
+## ou `null` se ele não tiver esqueleto nenhum (corpo verdadeiramente estático).
+## `CharacterRig._build_library` já faz o trabalho pesado — funde UAL1+UAL2 e
+## reescreve as trilhas para apontar o esqueleto certo — e cacheia por STRING
+## de caminho relativo, não por instância; corpos de estrutura idêntica (Imp e
+## Puglin repetem `Armature/Skeleton3D` sob a raiz importada) dividem a mesma
+## biblioteca sem saber um do outro, do mesmo jeito que todo `CharacterRig`
+## já divide.
+static func _build_retargeted_animation(instance: Node) -> AnimationPlayer:
+	var skeleton := CharacterRig._find_skeleton(instance)
+	if skeleton == null:
+		return null
+	var anim := AnimationPlayer.new()
+	anim.name = "Anim"
+	instance.add_child(anim)
+	var skeleton_path := String(instance.get_path_to(skeleton))
+	anim.add_animation_library("", CharacterRig._build_library(skeleton_path))
+	return anim
 
 
 ## Marca loop nos clipes contínuos — ver `LOOPED_CLIPS` sobre por que não são
@@ -349,8 +379,8 @@ static func _local_aabb(root: Node3D, mesh_instances: Array[MeshInstance3D]) -> 
 ## O realce usa o HIGHLIGHT da rampa, não o meio dela: desde que o corpo passou
 ## a ser recolorido pelo próprio elemento, um realce na cor do meio seria a cor
 ## que a criatura já tem — a seleção não apareceria justamente onde deveria.
-static func _build_highlight_material(element_code: String) -> StandardMaterial3D:
-	var color := ElementPalette.highlight_color(element_code)
+static func _build_highlight_material(element_code: String, creature_code: String = "") -> StandardMaterial3D:
+	var color := ElementPalette.highlight_color(element_code, creature_code)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -365,7 +395,7 @@ static func _build_highlight_material(element_code: String) -> StandardMaterial3
 ##
 ## O material com emissão preparada (desligada) já sai daqui, então quem quiser
 ## acender o realce depois só precisa de `emission_enabled = true`.
-static func build_capsule_visual(size_meters: float, element_code: String) -> Dictionary:
+static func build_capsule_visual(size_meters: float, element_code: String, creature_code: String = "") -> Dictionary:
 	var dims := capsule_dimensions(size_meters)
 	var radius: float = dims["radius"]
 	var height: float = dims["height"]
@@ -375,9 +405,9 @@ static func build_capsule_visual(size_meters: float, element_code: String) -> Di
 	mesh.radius = radius
 
 	var material := StandardMaterial3D.new()
-	material.albedo_color = ElementPalette.mid_color(element_code)
+	material.albedo_color = ElementPalette.mid_color(element_code, creature_code)
 	material.roughness = 0.9
-	material.emission = ElementPalette.highlight_color(element_code)
+	material.emission = ElementPalette.highlight_color(element_code, creature_code)
 	material.emission_energy_multiplier = SELECT_EMISSION_ENERGY
 	material.emission_enabled = false
 	mesh.material = material
@@ -579,28 +609,38 @@ func is_selected() -> bool:
 ## mesmo motivo do contrato de encenação: assim a bancada de `Node3D` solto
 ## das suítes não é obrigada a implementar isto para ser encenada.
 ##
-## São duas coisas de uma vez, e as duas importam: a casca aditiva desenha o
-## halo colado na silhueta, e a `OmniLight3D` faz a criatura ILUMINAR o chão
-## em volta. Na câmera isométrica com névoa, é a luz que se lê de longe — o
-## halo sozinho some no meio do cenário.
+## São três coisas de uma vez, e as três importam: o disco de área do BinbunVFX
+## desenha o efeito sustentado no chão, a `OmniLight3D` faz a criatura ILUMINAR
+## o chão em volta (na câmera isométrica com névoa é a luz que se lê de
+## longe), e o burst de "cast" marca o instante exato em que liga.
 ##
-## Corpo de cápsula (criatura sem `.glb`) não tem malha para inflar, e cai na
-## emissão do próprio material, que é o mesmo canal do realce de seleção. Por
-## isso o estado dos dois passa por `_update_capsule_emission` em vez de cada
-## um escrever direto: quem desliga a seleção não pode apagar um Despertar
-## que continua ativo.
+## `self` é o centro vertical da cápsula (`_build_body` soma meia altura à
+## posição), não o chão — por isso o disco de área e o burst recebem o offset
+## negativo explícito. `CompanionActor` tem a convenção oposta (regra 5 do
+## CLAUDE.md) e por isso usa `0.0` na chamada equivalente.
+##
+## Corpo de cápsula (criatura sem `.glb`) não tem malha própria, mas o disco de
+## área e o burst não dependem de malha — só a emissão extra da cápsula cai no
+## mesmo canal do realce de seleção, e por isso o estado dos dois passa por
+## `_update_capsule_emission` em vez de cada um escrever direto: quem desliga a
+## seleção não pode apagar um Despertar que continua ativo.
 func set_awakening_aura(active: bool) -> void:
 	if _awakened == active:
 		return
 	_awakened = active
 
 	if active:
-		_aura_shells = ElementPalette.attach_aura(_mesh_instances, element_code)
-		_aura_light = ElementPalette.build_aura_light(element_code, size_meters)
+		var ground_offset := -float(capsule_dimensions(size_meters)["height"]) * 0.5
+		_aura_vfx = ElementPalette.attach_area_vfx(element_code, size_meters, creature_code)
+		if _aura_vfx != null:
+			add_child(_aura_vfx)
+			_aura_vfx.position.y = ground_offset
+		_aura_light = ElementPalette.build_aura_light(element_code, size_meters, creature_code)
 		add_child(_aura_light)
+		ElementPalette.play_awakening_cast(self, ground_offset, element_code, size_meters, creature_code)
 	else:
-		ElementPalette.detach_aura(_aura_shells)
-		_aura_shells.clear()
+		ElementPalette.detach_area_vfx(_aura_vfx)
+		_aura_vfx = null
 		if _aura_light != null:
 			_aura_light.queue_free()
 			_aura_light = null
@@ -610,6 +650,17 @@ func set_awakening_aura(active: bool) -> void:
 
 func is_awakened() -> bool:
 	return _awakened
+
+
+## Efeito de golpe/status, chamado por NOME pelo `EncounterDirector` a cada
+## evento novo do log da batalha — mesmo contrato de `set_awakening_aura` e
+## `staged_gait`: a bancada de `Node3D` solto das suítes não precisa
+## implementar isto para ser encenada. Mesmo offset de chão que a aura usa
+## (`self` é o centro vertical da cápsula, não o chão).
+func play_battle_effect(kind: String, element_code: String, variant_seed: String, source_creature_code: String = "") -> void:
+	var ground_offset := -float(capsule_dimensions(size_meters)["height"]) * 0.5
+	ElementPalette.play_battle_effect(
+		self, ground_offset, size_meters, kind, element_code, variant_seed, source_creature_code)
 
 
 func _update_capsule_emission() -> void:
