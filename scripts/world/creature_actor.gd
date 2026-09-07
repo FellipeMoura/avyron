@@ -80,7 +80,7 @@ var _aura_light: OmniLight3D
 ##
 ## 1. O `modelUrl` do bundle (`/models/...`), espelhado pelo `pnpm game:export`
 ##    em `res://models/...` — o corpo Meshy DEFINITIVO da criatura (piloto:
-##    CRT-010, ver `../avyron-bestiary/scripts/convert-meshy.mjs`), quando ela
+##    CRT-002, ver `../avyron-bestiary/scripts/convert-meshy.mjs`), quando ela
 ##    tem um.
 ## 2. `PLACEHOLDER_PATH`: o único corpo genérico que sobrevive à limpeza de
 ##    2026-09 (antes eram ~30, um por família de elemento — ver o comentário
@@ -253,7 +253,8 @@ static func _build_model_visual(path: String, size_meters: float, dims: Dictiona
 	var center := aabb.get_center()
 	var height: float = dims["height"]
 
-	# Os `.glb` de CRT-006 e CRT-010 saem da exportação com a cabeça em +Z, não
+	# Os `.glb` de CRT-006 e CRT-010 (códigos da época — o elenco foi renumerado
+	# em 2026-09, ver CLAUDE.md do bestiário) saem da exportação com a cabeça em +Z, não
 	# -Z — confirmado visualmente com marcadores em `shot_model_swap.gd` (a
 	# cauda ficava no lado marcado como frente pela convenção do código). Sem
 	# este giro, `_face()` viraria a criatura para o rumo do movimento e ela
@@ -380,7 +381,7 @@ static func _local_aabb(root: Node3D, mesh_instances: Array[MeshInstance3D]) -> 
 		# Compor a transformação de um ancestral acima do esqueleto (como o
 		# "Armature" que o Mixamo/Blender deixa com escala 0,01 de correção
 		# cm→m) conta essa escala DUAS vezes: uma já embutida nos ossos, outra
-		# aqui. Confirmado visualmente com CRT-010 (piloto Meshy AI): a malha
+		# aqui. Confirmado visualmente com o piloto Meshy AI (hoje CRT-002): a malha
 		# saía ~100x maior que o alvo até este ramo existir. Malha sem skin
 		# (`.glb` estático legado do Meshy, placeholders sem retarget) não tem
 		# esse embutimento — para ela a composição é a medida certa.

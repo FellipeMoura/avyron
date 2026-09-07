@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://byajkp3q5mde8"
-path="res://.godot/imported/CRT-008.png-32f31a4a40011b600fe49fde3aa3ccd0.ctex"
+uid="uid://n5msatksrrox"
+path="res://.godot/imported/CRT-008_texture_0.png-db4cc2a309cbe763e726219a86fca9be.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "389ff00b30f98967844c4cba45220bbb"
 }
 
 [deps]
 
-source_file="res://cards/CRT-008.png"
-dest_files=["res://.godot/imported/CRT-008.png-32f31a4a40011b600fe49fde3aa3ccd0.ctex"]
+source_file="res://models/CRT-008_texture_0.png"
+dest_files=["res://.godot/imported/CRT-008_texture_0.png-db4cc2a309cbe763e726219a86fca9be.ctex"]
 
 [params]
 
@@ -23,7 +26,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

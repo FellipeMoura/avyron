@@ -95,10 +95,10 @@ func _test_real_bundle_fallback() -> void:
 		db.free()
 		return
 
-	# CRT-008 perdeu o vínculo com dungeon/Puglin na mesma limpeza (o pack
+	# CRT-068 (Arthropleura, CRT-008 até a renumeração de 2026-09) perdeu o vínculo com dungeon/Puglin na mesma limpeza (o pack
 	# inteiro saiu, não só o Imp sobrevive) — hoje é um exemplo real de
 	# "sem modelo definitivo", o mesmo caso da maioria do elenco.
-	var code := "CRT-008"
+	var code := "CRT-068"
 	var data := db.creature(code)
 	_check_true("%s: existe no bundle" % code, not data.is_empty())
 	if data.is_empty():

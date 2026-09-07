@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.519",
-  "generatedAt": "2026-09-07T16:31:16.006Z",
+  "dataVersion": "0.542",
+  "generatedAt": "2026-09-07T18:25:02.831Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -845,9 +845,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-001.glb",
       "cardPalette": {
-        "shadow": "#2a4745",
-        "mid": "#3e6660",
-        "highlight": "#6b9279"
+        "shadow": "#446871",
+        "mid": "#54b1c9",
+        "highlight": "#bab499"
       },
       "stats": {
         "hp": 50,
@@ -916,9 +916,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-002.glb",
       "cardPalette": {
-        "shadow": "#463a34",
-        "mid": "#7f5246",
-        "highlight": "#6b826f"
+        "shadow": "#3f656d",
+        "mid": "#42abcb",
+        "highlight": "#c1c2a0"
       },
       "stats": {
         "hp": 65,
@@ -987,9 +987,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-003.glb",
       "cardPalette": {
-        "shadow": "#4a5359",
-        "mid": "#71827d",
-        "highlight": "#9eaa9c"
+        "shadow": "#556869",
+        "mid": "#6297c6",
+        "highlight": "#bbbfc2"
       },
       "stats": {
         "hp": 50,
@@ -1058,9 +1058,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-004.glb",
       "cardPalette": {
-        "shadow": "#404e5a",
-        "mid": "#627279",
-        "highlight": "#8b9897"
+        "shadow": "#5b504e",
+        "mid": "#578a99",
+        "highlight": "#b4bda4"
       },
       "stats": {
         "hp": 60,
@@ -1129,9 +1129,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-005.glb",
       "cardPalette": {
-        "shadow": "#696f71",
-        "mid": "#bd8978",
-        "highlight": "#bdb8a6"
+        "shadow": "#4e727c",
+        "mid": "#6ab4dc",
+        "highlight": "#d6ba6e"
       },
       "stats": {
         "hp": 45,
@@ -1190,6 +1190,77 @@
       }
     },
     {
+      "code": "CRT-006",
+      "name": "Odaraia",
+      "baseSpecies": "Odaraia",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "spawnWeight": 1,
+      "silhouetteNote": null,
+      "modelUrl": "/models/CRT-006.glb",
+      "cardPalette": {
+        "shadow": "#50626c",
+        "mid": "#62a8c6",
+        "highlight": "#ceb992"
+      },
+      "stats": {
+        "hp": 45,
+        "attack": 50,
+        "defense": 35,
+        "speed": 75,
+        "charge": 55,
+        "growthRate": 0.031,
+        "xpYield": 52,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 150,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-027",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": {
+        "code": "DSP-006",
+        "name": "Odaraia Phantom",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
       "code": "CRT-007",
       "name": "Omnidens",
       "baseSpecies": "Omnidens",
@@ -1200,9 +1271,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-007.glb",
       "cardPalette": {
-        "shadow": "#413549",
-        "mid": "#605b70",
-        "highlight": "#8f8892"
+        "shadow": "#5b6252",
+        "mid": "#509ea1",
+        "highlight": "#b9bb97"
       },
       "stats": {
         "hp": 75,
@@ -1262,105 +1333,38 @@
     },
     {
       "code": "CRT-008",
-      "name": "Arthropleura",
-      "baseSpecies": "Arthropleura",
-      "class": "CLS-001",
-      "element": "ELE-004",
-      "map": "PZ-03",
+      "name": "Marrella",
+      "baseSpecies": "Marrella",
+      "class": "CLS-003",
+      "element": "ELE-002",
+      "map": "PZ-01",
       "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": null,
+      "modelUrl": "/models/CRT-008.glb",
       "cardPalette": {
-        "shadow": "#53402e",
-        "mid": "#6e5238",
-        "highlight": "#8e6a48"
+        "shadow": "#59595c",
+        "mid": "#3297c2",
+        "highlight": "#bbbb9b"
       },
       "stats": {
-        "hp": 85,
-        "attack": 60,
-        "defense": 70,
-        "speed": 30,
-        "charge": 40,
-        "growthRate": 0.033,
-        "xpYield": 57,
+        "hp": 35,
+        "attack": 35,
+        "defense": 30,
+        "speed": 70,
+        "charge": 55,
+        "growthRate": 0.03,
+        "xpYield": 45,
         "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
       "capture": {
-        "catchRate": 80,
+        "catchRate": 200,
         "awakenedMultiplier": 0.5
       },
       "abilities": [
         {
-          "code": "HAB-007",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-008",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-009",
-          "learnLevel": 28
-        },
-        {
-          "code": "HAB-028",
-          "learnLevel": 1
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-019",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": {
-        "code": "DSP-008",
-        "name": "Arthropleura Titan",
-        "type": "reinforcement",
-        "referenceSpecies": null
-      }
-    },
-    {
-      "code": "CRT-009",
-      "name": "Meganeura",
-      "baseSpecies": "Meganeura",
-      "class": "CLS-003",
-      "element": "ELE-005",
-      "map": "PZ-03",
-      "spawnWeight": 1,
-      "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
-      "modelUrl": null,
-      "cardPalette": null,
-      "stats": {
-        "hp": 45,
-        "attack": 55,
-        "defense": 30,
-        "speed": 85,
-        "charge": 55,
-        "growthRate": 0.032,
-        "xpYield": 54,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.7,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 120,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-007",
+          "code": "HAB-004",
           "learnLevel": 1
         },
         {
@@ -1368,7 +1372,7 @@
           "learnLevel": 8
         },
         {
-          "code": "HAB-008",
+          "code": "HAB-005",
           "learnLevel": 12
         },
         {
@@ -1376,12 +1380,8 @@
           "learnLevel": 20
         },
         {
-          "code": "HAB-009",
+          "code": "HAB-006",
           "learnLevel": 28
-        },
-        {
-          "code": "HAB-028",
-          "learnLevel": 1
         }
       ],
       "drops": [
@@ -1391,99 +1391,31 @@
           "condition": "Derrota em combate"
         }
       ],
-      "awakening": {
-        "code": "DSP-009",
-        "name": "Meganeuropsis",
-        "type": "swap",
-        "referenceSpecies": "Meganeuropsis"
-      }
+      "awakening": null
     },
     {
-      "code": "CRT-010",
-      "name": "Pulmonoscorpius",
-      "baseSpecies": "Pulmonoscorpius",
+      "code": "CRT-009",
+      "name": "Leanchoilia",
+      "baseSpecies": "Leanchoilia",
       "class": "CLS-003",
-      "element": "ELE-001",
-      "map": "PZ-03",
+      "element": "ELE-002",
+      "map": "PZ-01",
       "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": null,
-      "cardPalette": null,
-      "stats": {
-        "hp": 60,
-        "attack": 65,
-        "defense": 50,
-        "speed": 50,
-        "charge": 50,
-        "growthRate": 0.033,
-        "xpYield": 55,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.7,
-        "awakeningDurationTurns": 3
+      "modelUrl": "/models/CRT-009.glb",
+      "cardPalette": {
+        "shadow": "#4e656c",
+        "mid": "#6ba5b0",
+        "highlight": "#c9ba99"
       },
-      "capture": {
-        "catchRate": 110,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-001",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-020",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-002",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-003",
-          "learnLevel": 28
-        },
-        {
-          "code": "HAB-026",
-          "learnLevel": 1
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-021",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": {
-        "code": "DSP-010",
-        "name": "Brontoscorpio",
-        "type": "swap",
-        "referenceSpecies": "Brontoscorpio"
-      }
-    },
-    {
-      "code": "CRT-011",
-      "name": "Rhyniognatha",
-      "baseSpecies": "Rhyniognatha",
-      "class": "CLS-004",
-      "element": "ELE-003",
-      "map": "PZ-02",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": null,
-      "cardPalette": null,
       "stats": {
         "hp": 40,
         "attack": 45,
         "defense": 35,
-        "speed": 70,
-        "charge": 65,
+        "speed": 65,
+        "charge": 55,
         "growthRate": 0.03,
-        "xpYield": 51,
+        "xpYield": 48,
         "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
@@ -1494,7 +1426,7 @@
       },
       "abilities": [
         {
-          "code": "HAB-007",
+          "code": "HAB-004",
           "learnLevel": 1
         },
         {
@@ -1502,7 +1434,7 @@
           "learnLevel": 8
         },
         {
-          "code": "HAB-008",
+          "code": "HAB-005",
           "learnLevel": 12
         },
         {
@@ -1510,12 +1442,70 @@
           "learnLevel": 20
         },
         {
-          "code": "HAB-009",
+          "code": "HAB-006",
           "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-010",
+      "name": "Arandaspis",
+      "baseSpecies": "Arandaspis",
+      "class": "CLS-004",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "spawnWeight": 1,
+      "silhouetteNote": null,
+      "modelUrl": "/models/CRT-010.glb",
+      "cardPalette": {
+        "shadow": "#5b7171",
+        "mid": "#3eb1d7",
+        "highlight": "#c9b99d"
+      },
+      "stats": {
+        "hp": 45,
+        "attack": 35,
+        "defense": 40,
+        "speed": 55,
+        "charge": 55,
+        "growthRate": 0.03,
+        "xpYield": 46,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 195,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
         },
         {
-          "code": "HAB-028",
-          "learnLevel": 1
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
         }
       ],
       "drops": [
@@ -1525,12 +1515,193 @@
           "condition": "Derrota em combate"
         }
       ],
-      "awakening": {
-        "code": "DSP-011",
-        "name": "Rhyniognatha Monarch",
-        "type": "reinforcement",
-        "referenceSpecies": null
-      }
+      "awakening": null
+    },
+    {
+      "code": "CRT-011",
+      "name": "Endoceras",
+      "baseSpecies": "Endoceras",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "spawnWeight": 1,
+      "silhouetteNote": null,
+      "modelUrl": "/models/CRT-011.glb",
+      "cardPalette": {
+        "shadow": "#4e585e",
+        "mid": "#579fb3",
+        "highlight": "#c6bd9e"
+      },
+      "stats": {
+        "hp": 95,
+        "attack": 60,
+        "defense": 65,
+        "speed": 35,
+        "charge": 45,
+        "growthRate": 0.035,
+        "xpYield": 60,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 75,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-012",
+      "name": "Echinosphaerites",
+      "baseSpecies": "Echinosphaerites",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "spawnWeight": 1,
+      "silhouetteNote": null,
+      "modelUrl": "/models/CRT-012.glb",
+      "cardPalette": {
+        "shadow": "#5e746e",
+        "mid": "#43b6d4",
+        "highlight": "#bcc2a6"
+      },
+      "stats": {
+        "hp": 60,
+        "attack": 25,
+        "defense": 60,
+        "speed": 20,
+        "charge": 45,
+        "growthRate": 0.03,
+        "xpYield": 42,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 200,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
+    },
+    {
+      "code": "CRT-013",
+      "name": "Megalograptus",
+      "baseSpecies": "Megalograptus",
+      "class": "CLS-005",
+      "element": "ELE-002",
+      "map": "PZ-01",
+      "spawnWeight": 1,
+      "silhouetteNote": null,
+      "modelUrl": "/models/CRT-013.glb",
+      "cardPalette": {
+        "shadow": "#586855",
+        "mid": "#53b4c7",
+        "highlight": "#c4ba95"
+      },
+      "stats": {
+        "hp": 70,
+        "attack": 60,
+        "defense": 55,
+        "speed": 45,
+        "charge": 45,
+        "growthRate": 0.033,
+        "xpYield": 55,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 120,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-004",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-005",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-006",
+          "learnLevel": 28
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-023",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": null
     },
     {
       "code": "CRT-014",
@@ -1543,9 +1714,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-014.glb",
       "cardPalette": {
-        "shadow": "#1d4066",
-        "mid": "#336c92",
-        "highlight": "#589bb0"
+        "shadow": "#545154",
+        "mid": "#4394b9",
+        "highlight": "#b6b5a6"
       },
       "stats": {
         "hp": 60,
@@ -1599,77 +1770,6 @@
       "awakening": {
         "code": "DSP-014",
         "name": "Hurdia Magnus",
-        "type": "reinforcement",
-        "referenceSpecies": null
-      }
-    },
-    {
-      "code": "CRT-015",
-      "name": "Odaraia",
-      "baseSpecies": "Odaraia",
-      "class": "CLS-004",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": "/models/CRT-015.glb",
-      "cardPalette": {
-        "shadow": "#4e4348",
-        "mid": "#8e7c74",
-        "highlight": "#bfad8b"
-      },
-      "stats": {
-        "hp": 45,
-        "attack": 50,
-        "defense": 35,
-        "speed": 75,
-        "charge": 55,
-        "growthRate": 0.031,
-        "xpYield": 52,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 150,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-024",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        },
-        {
-          "code": "HAB-027",
-          "learnLevel": 1
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-022",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": {
-        "code": "DSP-015",
-        "name": "Odaraia Phantom",
         "type": "reinforcement",
         "referenceSpecies": null
       }
@@ -2544,750 +2644,6 @@
         "type": "reinforcement",
         "referenceSpecies": null
       }
-    },
-    {
-      "code": "CRT-033",
-      "name": "Isotelus",
-      "baseSpecies": "Isotelus",
-      "class": "CLS-001",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": null,
-      "cardPalette": {
-        "shadow": "#60556d",
-        "mid": "#9d908f",
-        "highlight": "#d5c8b1"
-      },
-      "stats": {
-        "hp": 65,
-        "attack": 45,
-        "defense": 70,
-        "speed": 30,
-        "charge": 45,
-        "growthRate": 0.031,
-        "xpYield": 51,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 155,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-019",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-034",
-      "name": "Marrella",
-      "baseSpecies": "Marrella",
-      "class": "CLS-003",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": "/models/CRT-034.glb",
-      "cardPalette": {
-        "shadow": "#654133",
-        "mid": "#6e5780",
-        "highlight": "#a68e5c"
-      },
-      "stats": {
-        "hp": 35,
-        "attack": 35,
-        "defense": 30,
-        "speed": 70,
-        "charge": 55,
-        "growthRate": 0.03,
-        "xpYield": 45,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 200,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-024",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-021",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-035",
-      "name": "Leanchoilia",
-      "baseSpecies": "Leanchoilia",
-      "class": "CLS-003",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": "/models/CRT-035.glb",
-      "cardPalette": {
-        "shadow": "#634e4d",
-        "mid": "#c77c63",
-        "highlight": "#86928c"
-      },
-      "stats": {
-        "hp": 40,
-        "attack": 45,
-        "defense": 35,
-        "speed": 65,
-        "charge": 55,
-        "growthRate": 0.03,
-        "xpYield": 48,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 180,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-024",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-021",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-036",
-      "name": "Orthoceras",
-      "baseSpecies": "Orthoceras",
-      "class": "CLS-004",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": null,
-      "cardPalette": {
-        "shadow": "#255c77",
-        "mid": "#588b9a",
-        "highlight": "#c1d0c3"
-      },
-      "stats": {
-        "hp": 55,
-        "attack": 50,
-        "defense": 50,
-        "speed": 55,
-        "charge": 55,
-        "growthRate": 0.032,
-        "xpYield": 53,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 135,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-024",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-022",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-037",
-      "name": "Cameroceras",
-      "baseSpecies": "Cameroceras",
-      "class": "CLS-004",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": null,
-      "cardPalette": {
-        "shadow": "#2e2825",
-        "mid": "#67565b",
-        "highlight": "#a0979a"
-      },
-      "stats": {
-        "hp": 80,
-        "attack": 70,
-        "defense": 60,
-        "speed": 45,
-        "charge": 55,
-        "growthRate": 0.037,
-        "xpYield": 62,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 60,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-020",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-022",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-038",
-      "name": "Arandaspis",
-      "baseSpecies": "Arandaspis",
-      "class": "CLS-004",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": "/models/CRT-038.glb",
-      "cardPalette": {
-        "shadow": "#1b2f37",
-        "mid": "#314f57",
-        "highlight": "#62878b"
-      },
-      "stats": {
-        "hp": 45,
-        "attack": 35,
-        "defense": 40,
-        "speed": 55,
-        "charge": 55,
-        "growthRate": 0.03,
-        "xpYield": 46,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 195,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-024",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-022",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-039",
-      "name": "Sacabambaspis",
-      "baseSpecies": "Sacabambaspis",
-      "class": "CLS-004",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": null,
-      "cardPalette": {
-        "shadow": "#365166",
-        "mid": "#759daa",
-        "highlight": "#a9d2d6"
-      },
-      "stats": {
-        "hp": 50,
-        "attack": 35,
-        "defense": 50,
-        "speed": 45,
-        "charge": 55,
-        "growthRate": 0.03,
-        "xpYield": 47,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 190,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-022",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-040",
-      "name": "Cothurnocystis",
-      "baseSpecies": "Cothurnocystis",
-      "class": "CLS-004",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": null,
-      "cardPalette": {
-        "shadow": "#373877",
-        "mid": "#6c6aa9",
-        "highlight": "#a79ad5"
-      },
-      "stats": {
-        "hp": 45,
-        "attack": 30,
-        "defense": 45,
-        "speed": 40,
-        "charge": 60,
-        "growthRate": 0.03,
-        "xpYield": 44,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 200,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-022",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-041",
-      "name": "Aegirocassis",
-      "baseSpecies": "Aegirocassis",
-      "class": "CLS-004",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": null,
-      "cardPalette": {
-        "shadow": "#5a6266",
-        "mid": "#969289",
-        "highlight": "#cecab8"
-      },
-      "stats": {
-        "hp": 85,
-        "attack": 40,
-        "defense": 60,
-        "speed": 45,
-        "charge": 60,
-        "growthRate": 0.034,
-        "xpYield": 58,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 95,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-022",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-042",
-      "name": "Endoceras",
-      "baseSpecies": "Endoceras",
-      "class": "CLS-005",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": "/models/CRT-042.glb",
-      "cardPalette": {
-        "shadow": "#5f4145",
-        "mid": "#96726a",
-        "highlight": "#ccbca5"
-      },
-      "stats": {
-        "hp": 95,
-        "attack": 60,
-        "defense": 65,
-        "speed": 35,
-        "charge": 45,
-        "growthRate": 0.035,
-        "xpYield": 60,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 75,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-023",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-043",
-      "name": "Echinosphaerites",
-      "baseSpecies": "Echinosphaerites",
-      "class": "CLS-005",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": "/models/CRT-043.glb",
-      "cardPalette": {
-        "shadow": "#3f515a",
-        "mid": "#79837d",
-        "highlight": "#b4b0a9"
-      },
-      "stats": {
-        "hp": 60,
-        "attack": 25,
-        "defense": 60,
-        "speed": 20,
-        "charge": 45,
-        "growthRate": 0.03,
-        "xpYield": 42,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 200,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-019",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-023",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
-    },
-    {
-      "code": "CRT-044",
-      "name": "Megalograptus",
-      "baseSpecies": "Megalograptus",
-      "class": "CLS-005",
-      "element": "ELE-002",
-      "map": "PZ-01",
-      "spawnWeight": 1,
-      "silhouetteNote": null,
-      "modelUrl": "/models/CRT-044.glb",
-      "cardPalette": {
-        "shadow": "#423b42",
-        "mid": "#6c584f",
-        "highlight": "#758887"
-      },
-      "stats": {
-        "hp": 70,
-        "attack": 60,
-        "defense": 55,
-        "speed": 45,
-        "charge": 45,
-        "growthRate": 0.033,
-        "xpYield": 55,
-        "sizeMeters": 1.4,
-        "awakeningMultiplier": 1.5,
-        "awakeningDurationTurns": 3
-      },
-      "capture": {
-        "catchRate": 120,
-        "awakenedMultiplier": 0.5
-      },
-      "abilities": [
-        {
-          "code": "HAB-004",
-          "learnLevel": 1
-        },
-        {
-          "code": "HAB-020",
-          "learnLevel": 8
-        },
-        {
-          "code": "HAB-005",
-          "learnLevel": 12
-        },
-        {
-          "code": "HAB-025",
-          "learnLevel": 20
-        },
-        {
-          "code": "HAB-006",
-          "learnLevel": 28
-        }
-      ],
-      "drops": [
-        {
-          "itemCode": "ITM-023",
-          "chance": 0.85,
-          "condition": "Derrota em combate"
-        }
-      ],
-      "awakening": null
     },
     {
       "code": "CRT-045",
@@ -4622,6 +3978,274 @@
         }
       ],
       "awakening": null
+    },
+    {
+      "code": "CRT-068",
+      "name": "Arthropleura",
+      "baseSpecies": "Arthropleura",
+      "class": "CLS-001",
+      "element": "ELE-004",
+      "map": "PZ-03",
+      "spawnWeight": 1,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "cardPalette": null,
+      "stats": {
+        "hp": 85,
+        "attack": 60,
+        "defense": 70,
+        "speed": 30,
+        "charge": 40,
+        "growthRate": 0.033,
+        "xpYield": 57,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 80,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-019",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-019",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": {
+        "code": "DSP-068",
+        "name": "Arthropleura Titan",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
+    },
+    {
+      "code": "CRT-069",
+      "name": "Meganeura",
+      "baseSpecies": "Meganeura",
+      "class": "CLS-003",
+      "element": "ELE-005",
+      "map": "PZ-03",
+      "spawnWeight": 1,
+      "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
+      "modelUrl": null,
+      "cardPalette": null,
+      "stats": {
+        "hp": 45,
+        "attack": 55,
+        "defense": 30,
+        "speed": 85,
+        "charge": 55,
+        "growthRate": 0.032,
+        "xpYield": 54,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 120,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": {
+        "code": "DSP-069",
+        "name": "Meganeuropsis",
+        "type": "swap",
+        "referenceSpecies": "Meganeuropsis"
+      }
+    },
+    {
+      "code": "CRT-070",
+      "name": "Pulmonoscorpius",
+      "baseSpecies": "Pulmonoscorpius",
+      "class": "CLS-003",
+      "element": "ELE-001",
+      "map": "PZ-03",
+      "spawnWeight": 1,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "cardPalette": null,
+      "stats": {
+        "hp": 60,
+        "attack": 65,
+        "defense": 50,
+        "speed": 50,
+        "charge": 50,
+        "growthRate": 0.033,
+        "xpYield": 55,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.7,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 110,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-001",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-020",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-002",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-003",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-026",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-021",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": {
+        "code": "DSP-070",
+        "name": "Brontoscorpio",
+        "type": "swap",
+        "referenceSpecies": "Brontoscorpio"
+      }
+    },
+    {
+      "code": "CRT-071",
+      "name": "Rhyniognatha",
+      "baseSpecies": "Rhyniognatha",
+      "class": "CLS-004",
+      "element": "ELE-003",
+      "map": "PZ-02",
+      "spawnWeight": 1,
+      "silhouetteNote": null,
+      "modelUrl": null,
+      "cardPalette": null,
+      "stats": {
+        "hp": 40,
+        "attack": 45,
+        "defense": 35,
+        "speed": 70,
+        "charge": 65,
+        "growthRate": 0.03,
+        "xpYield": 51,
+        "sizeMeters": 1.4,
+        "awakeningMultiplier": 1.5,
+        "awakeningDurationTurns": 3
+      },
+      "capture": {
+        "catchRate": 180,
+        "awakenedMultiplier": 0.5
+      },
+      "abilities": [
+        {
+          "code": "HAB-007",
+          "learnLevel": 1
+        },
+        {
+          "code": "HAB-024",
+          "learnLevel": 8
+        },
+        {
+          "code": "HAB-008",
+          "learnLevel": 12
+        },
+        {
+          "code": "HAB-025",
+          "learnLevel": 20
+        },
+        {
+          "code": "HAB-009",
+          "learnLevel": 28
+        },
+        {
+          "code": "HAB-028",
+          "learnLevel": 1
+        }
+      ],
+      "drops": [
+        {
+          "itemCode": "ITM-022",
+          "chance": 0.85,
+          "condition": "Derrota em combate"
+        }
+      ],
+      "awakening": {
+        "code": "DSP-071",
+        "name": "Rhyniognatha Monarch",
+        "type": "reinforcement",
+        "referenceSpecies": null
+      }
     }
   ],
   "items": [

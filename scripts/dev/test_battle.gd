@@ -130,7 +130,7 @@ func _test_turn_order() -> void:
 	# nível 8. Hylonomus nível 8 contra Meganeura nível 40 dá a diferença de
 	# velocidade necessária com o golpe do lado certo.
 	var slow := Combatant.from_bestiary(_db, "CRT-024", 8)
-	var fast := Combatant.from_bestiary(_db, "CRT-009", 40)
+	var fast := Combatant.from_bestiary(_db, "CRT-069", 40)
 	var b2 := Battle.new(_db, [slow], fast)
 	b2.rng.seed = 5150
 
@@ -214,7 +214,7 @@ func _test_awakening_cycle() -> void:
 func _test_switching() -> void:
 	print("troca de criatura:")
 	var a := Combatant.from_bestiary(_db, "CRT-021", 20)
-	var reserve := Combatant.from_bestiary(_db, "CRT-009", 20)
+	var reserve := Combatant.from_bestiary(_db, "CRT-069", 20)
 	var foe := Combatant.from_bestiary(_db, "CRT-023", 20)
 	var b := Battle.new(_db, [a, reserve], foe)
 	b.rng.seed = 99
@@ -224,7 +224,7 @@ func _test_switching() -> void:
 	_check_true("desperto antes da troca", a.is_awakened)
 
 	b.resolve_round(BattleAction.switch_to(1), BattleAction.use_ability("HAB-010"))
-	_check("ativo mudou", b.player_active().code, "CRT-009")
+	_check("ativo mudou", b.player_active().code, "CRT-069")
 	_check_true("sair de campo reverte o Despertar", not a.is_awakened)
 
 	# Trocar para a criatura que já está em campo é ignorado.
