@@ -426,6 +426,10 @@ func _test_world_wiring() -> void:
 	r.set_hp_at(0, 0)
 	_check("nenhuma de pe", r.alive_count(), 0)
 	var spawner: CreatureSpawner = _world.get_node_or_null("CreatureSpawner")
+	# Mundo abre sem fauna (ver `test_staging.gd`): força um corpo, porque o
+	# assunto aqui é o gate de time caído, não como a criatura chegou ao mapa.
+	if spawner and spawner.actors().is_empty():
+		spawner.call("_spawn_one")
 	var target: CreatureActor = spawner.actors()[0] if spawner and not spawner.actors().is_empty() else null
 	if target:
 		_world.handle_click_on(target)

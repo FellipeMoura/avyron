@@ -348,6 +348,18 @@ func _clip_for_speed(speed: float) -> String:
 	return "Walk"
 
 
+## Toca um clipe de combate por NOME (`Attack`/`HitReact`/`Death`) — mesmo
+## contrato por nome de `CreatureActor.play_battle_clip`, chamado pelo
+## `EncounterDirector` durante o turno. Fora da escada de `_update_clip`
+## porque esses três não têm velocidade associada nenhuma; silencioso se o
+## corpo não tiver o clipe.
+func play_battle_clip(clip: String) -> void:
+	if _anim == null:
+		return
+	if _anim.has_animation(clip) and _anim.current_animation != clip:
+		_anim.play(clip, 0.2)
+
+
 # ---------------------------------------------------------------------------
 # contrato de encenação (BattleStaging)
 # ---------------------------------------------------------------------------
@@ -399,15 +411,15 @@ func set_awakening_aura(active: bool) -> void:
 	_awakened = active
 
 	if active:
-		_aura_vfx = ElementPalette.attach_area_vfx(element_code, size_meters, creature_code)
+		_aura_vfx = ElementPalette.attach_area_vfx(size_meters)
 		if _aura_vfx != null:
 			add_child(_aura_vfx)
-		_aura_light = ElementPalette.build_aura_light(element_code, size_meters, creature_code)
+		_aura_light = ElementPalette.build_aura_light(size_meters)
 		if _mesh_root != null:
 			_mesh_root.add_child(_aura_light)
 		else:
 			add_child(_aura_light)
-		ElementPalette.play_awakening_cast(self, 0.0, element_code, size_meters, creature_code)
+		ElementPalette.play_awakening_cast(self, 0.0, size_meters)
 	else:
 		ElementPalette.detach_area_vfx(_aura_vfx)
 		_aura_vfx = null
@@ -423,9 +435,8 @@ func is_awakened() -> bool:
 ## Efeito de golpe/status, mesmo contrato por nome de `CreatureActor`. `self`
 ## já está no chão (`position.y = _ground_y()` a cada quadro — diferente do
 ## `CreatureActor`, que sobe meia cápsula), então o offset de apoio é `0.0`.
-func play_battle_effect(kind: String, element_code: String, variant_seed: String, source_creature_code: String = "") -> void:
-	ElementPalette.play_battle_effect(
-		self, 0.0, size_meters, kind, element_code, variant_seed, source_creature_code)
+func play_battle_effect(kind: String, _element_code: String, variant_seed: String, _source_creature_code: String = "") -> void:
+	ElementPalette.play_battle_effect(self, 0.0, size_meters, kind, variant_seed)
 
 
 

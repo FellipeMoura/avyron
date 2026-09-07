@@ -11,11 +11,13 @@ extends CharacterBody3D
 ## removidos porque o disparo por clique já bastava, e reagir à aproximação
 ## além disso só competia com a decisão do jogador de quando entrar em luta.
 ##
-## O corpo usa `.glb` quando `res://<código>.glb` existe (`CRT-006`, `CRT-010`
-## hoje) e cai para a cápsula escalada pelo tamanho de jogo e colorida pelo
-## elemento quando não. O que é definitivo independe de qual dos dois: escala
-## real em unidades Godot, máquina de estados de navegação, colisão — só a
-## malha visual muda de fonte.
+## O corpo vem do `modelUrl` do bundle quando a criatura tem um definitivo
+## (Meshy AI animado, ver `model_path`), do placeholder único
+## (`PLACEHOLDER_PATH`) quando não, e só cai pra cápsula escalada pelo tamanho
+## de jogo se nem esse arquivo carregar. Sem cor por elemento em nenhum dos
+## três — ver o comentário de topo de `element_palette.gd`. O que é definitivo
+## independe de qual dos três: escala real em unidades Godot, máquina de
+## estados de navegação, colisão — só a malha visual muda de fonte.
 ##
 ## Especificação: `movimento-e-controles`, seção "IA no mapa".
 
@@ -39,7 +41,7 @@ const PATROL_RADIUS := 6.0
 const HOME_LEASH := 8.0
 
 ## Multiplicador de energia da emissão quando a criatura está selecionada.
-## Um valor baixo evita "queimar" a cor do elemento — o realce tem de ser lido
+## Um valor baixo evita "queimar" a cor do corpo — o realce tem de ser lido
 ## como "esta é a selecionada", não como um efeito de luz forte.
 const SELECT_EMISSION_ENERGY := 0.55
 
@@ -77,35 +79,47 @@ var _aura_light: OmniLight3D
 ## Localização do modelo, em ordem de prioridade:
 ##
 ## 1. O `modelUrl` do bundle (`/models/...`), espelhado pelo `pnpm game:export`
-##    em `res://models/...`. É assim que os placeholders compartilhados chegam:
-##    várias criaturas podem apontar o mesmo `.glb`, e é o bestiário — não uma
-##    convenção de nome — que decide qual corpo cada uma usa.
-## 2. Legado: `CRT-XXX.glb` na raiz do projeto (os modelos do Meshy, sem
-##    animação). Só vale quando a criatura não tem `modelUrl` resolvível.
+##    em `res://models/...` — o corpo Meshy DEFINITIVO da criatura (piloto:
+##    CRT-010, ver `../avyron-bestiary/scripts/convert-meshy.mjs`), quando ela
+##    tem um.
+## 2. `PLACEHOLDER_PATH`: o único corpo genérico que sobrevive à limpeza de
+##    2026-09 (antes eram ~30, um por família de elemento — ver o comentário
+##    de topo de `element_palette.gd`). Toda criatura sem corpo definitivo cai
+##    aqui, sem distinção nenhuma entre elas.
 ##
-## Sem arquivo em nenhum dos dois, `build_visual` cai para a cápsula.
-const MODEL_PATH_FORMAT := "res://%s.glb"
+## Só cai pra cápsula se nem o placeholder único carregar — praticamente nunca,
+## já que ele é commitado e sempre deve existir.
 const MODEL_URL_PREFIX := "/models/"
 const MODEL_DIR := "res://models/"
+
+## Corpo genérico único de toda criatura sem `modelUrl` resolvível. É o
+## "Bestiary - Dungeon Monsters" (Quaternius, CC0) — escolhido entre os
+## packs que existiam porque roda por RETARGET no mesmo esqueleto (UAL) do
+## `CharacterRig`, o que dá de graça o vocabulário INTEIRO de clipes do jogo
+## (`Attack2`, `HitReact`, `Death`, `Swim`...), e o PZ-01 é 87,3% submerso —
+## um corpo sem `Swim` ficaria parado boa parte do tempo.
+const PLACEHOLDER_PATH := "res://models/placeholders/dungeon/Imp.glb"
 
 ## Clipes que devem rodar em loop. O importador de glTF não marca loop em
 ## nada, então um `Idle` tocado cru congela no último quadro; e marcar TODOS
 ## seria pior — `Death` em loop é uma criatura morrendo para sempre. A lista
 ## segue o vocabulário normalizado dos placeholders (ver
-## `convert-placeholders.mjs` no bestiário).
-const LOOPED_CLIPS := ["Idle", "Idle2", "IdleLow", "Walk", "Run", "Eating", "Jump_Idle"]
+## `convert-placeholders.mjs`/`convert-meshy.mjs` no bestiário). `Swim_Idle` é
+## o nadar parado — mesmo nome do vocabulário UAL (`GaitRig.LOOPED_CLIPS`),
+## contínuo como `Idle`, nunca um golpe. `Attack3`/`Dodge` NÃO entram aqui —
+## um golpe ou uma esquiva em loop repetiria pra sempre, mesma razão de
+## `Attack`/`Attack2` ficarem de fora.
+const LOOPED_CLIPS := ["Idle", "Idle2", "IdleLow", "Walk", "Run", "Eating", "Jump_Idle", "Swim_Idle"]
 
 
 ## Resolve o caminho do `.glb` de uma criatura, ou "" quando não há arquivo.
-static func model_path(creature_code_value: String, model_url_value: String) -> String:
+static func model_path(_creature_code_value: String, model_url_value: String) -> String:
 	if model_url_value.begins_with(MODEL_URL_PREFIX):
 		var bundled := MODEL_DIR + model_url_value.trim_prefix(MODEL_URL_PREFIX)
 		if ResourceLoader.exists(bundled):
 			return bundled
-	if creature_code_value != "":
-		var legacy := MODEL_PATH_FORMAT % creature_code_value
-		if ResourceLoader.exists(legacy):
-			return legacy
+	if ResourceLoader.exists(PLACEHOLDER_PATH):
+		return PLACEHOLDER_PATH
 	return ""
 
 
@@ -182,10 +196,11 @@ static func capsule_dimensions(size_meters: float) -> Dictionary:
 	return {"height": height, "radius": radius}
 
 
-## Constrói o visual de uma criatura: `.glb` em `res://<código>.glb` quando
-## existe, cápsula colorida pelo elemento quando não. Devolve um dicionário
-## com os nós e as medidas — o CompanionActor consome o mesmo layout, pra
-## manter a leitura consistente entre selvagem e domesticada.
+## Constrói o visual de uma criatura: `.glb` definitivo ou placeholder único
+## quando `model_path` resolve algum, cápsula cinza quando nem isso carrega.
+## Devolve um dicionário com os nós e as medidas — o CompanionActor consome o
+## mesmo layout, pra manter a leitura consistente entre selvagem e
+## domesticada.
 ##
 ## O nó em `"mesh"` sempre representa, na própria origem local, o CENTRO
 ## vertical da cápsula de colisão — é o que permite `CompanionActor` posicionar
@@ -196,14 +211,9 @@ static func build_visual(size_meters: float, element_code: String, creature_code
 	var path := model_path(creature_code, model_url_value)
 	var model := _build_model_visual(path, size_meters, dims)
 	if not model.is_empty():
-		# A recoloração entra AQUI, e não dentro de `_build_model_visual`,
-		# porque ela é decisão de ELEMENTO e não de arquivo: esta função monta
-		# tanto o corpo da selvagem quanto o da companheira, e as duas têm de
-		# sair da mesma cor. `ElementPalette` decide sozinha quando recusar —
-		# corpo fora dos placeholders, elemento sem paleta — e nesse caso o
-		# `.glb` fica exatamente como veio.
-		var meshes: Array[MeshInstance3D] = model["mesh_instances"]
-		ElementPalette.apply_body(meshes, element_code, creature_code, path)
+		# Sem recoloração por elemento desde 2026-09 (ver o comentário de topo
+		# de `element_palette.gd`): todo corpo — placeholder único ou Meshy
+		# definitivo — mostra a própria arte, sem remapeamento de atlas.
 		return model
 	return build_capsule_visual(size_meters, element_code, creature_code)
 
@@ -316,7 +326,7 @@ static func _find_animation_player(node: Node) -> AnimationPlayer:
 ## biblioteca sem saber um do outro, do mesmo jeito que todo `CharacterRig`
 ## já divide.
 static func _build_retargeted_animation(instance: Node) -> AnimationPlayer:
-	var skeleton := CharacterRig._find_skeleton(instance)
+	var skeleton := GaitRig.find_skeleton(instance)
 	if skeleton == null:
 		return null
 	var anim := AnimationPlayer.new()
@@ -363,7 +373,22 @@ static func _local_aabb(root: Node3D, mesh_instances: Array[MeshInstance3D]) -> 
 	var result := AABB()
 	var found := false
 	for mi in mesh_instances:
-		var world: AABB = _transform_relative_to(mi, root) * mi.get_aabb()
+		# Malha com skin (esqueleto): `get_aabb()` já sai correta sozinha. O
+		# import bakeia a escala real do arquivo nas poses dos ossos
+		# (`apply_root_scale`, ligado por padrão), e o Godot posiciona a malha
+		# skinada pelas poses do `Skeleton3D` — não pela cadeia de nós comuns.
+		# Compor a transformação de um ancestral acima do esqueleto (como o
+		# "Armature" que o Mixamo/Blender deixa com escala 0,01 de correção
+		# cm→m) conta essa escala DUAS vezes: uma já embutida nos ossos, outra
+		# aqui. Confirmado visualmente com CRT-010 (piloto Meshy AI): a malha
+		# saía ~100x maior que o alvo até este ramo existir. Malha sem skin
+		# (`.glb` estático legado do Meshy, placeholders sem retarget) não tem
+		# esse embutimento — para ela a composição é a medida certa.
+		var world: AABB
+		if mi.skeleton != NodePath():
+			world = mi.get_aabb()
+		else:
+			world = _transform_relative_to(mi, root) * mi.get_aabb()
 		if not found:
 			result = world
 			found = true
@@ -376,11 +401,11 @@ static func _local_aabb(root: Node3D, mesh_instances: Array[MeshInstance3D]) -> 
 ## quando selecionadas. A cápsula acende emissão no próprio material; um
 ## modelo importado tem materiais e texturas que não devem ser mexidos, então
 ## o realce aqui é uma camada extra por cima, não uma troca de propriedade.
-## O realce usa o HIGHLIGHT da rampa, não o meio dela: desde que o corpo passou
-## a ser recolorido pelo próprio elemento, um realce na cor do meio seria a cor
-## que a criatura já tem — a seleção não apareceria justamente onde deveria.
-static func _build_highlight_material(element_code: String, creature_code: String = "") -> StandardMaterial3D:
-	var color := ElementPalette.highlight_color(element_code, creature_code)
+## Cor fixa (`ElementPalette.highlight_color`, sem elemento nem carta desde
+## 2026-09) — nenhum corpo é recolorido pelo próprio elemento hoje, então não
+## há risco de o realce cair na mesma cor que a criatura já tem.
+static func _build_highlight_material(_element_code: String, _creature_code: String = "") -> StandardMaterial3D:
+	var color := ElementPalette.highlight_color()
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -391,11 +416,13 @@ static func _build_highlight_material(element_code: String, creature_code: Strin
 	return material
 
 
-## Constrói o visual placeholder: cápsula colorida pelo elemento.
+## Constrói o visual de ÚLTIMO recurso: uma cápsula cinza. Só é alcançado se
+## nem `PLACEHOLDER_PATH` (o corpo genérico único) carregar — na prática,
+## nunca, já que esse arquivo é commitado e sempre deve existir.
 ##
 ## O material com emissão preparada (desligada) já sai daqui, então quem quiser
 ## acender o realce depois só precisa de `emission_enabled = true`.
-static func build_capsule_visual(size_meters: float, element_code: String, creature_code: String = "") -> Dictionary:
+static func build_capsule_visual(size_meters: float, _element_code: String = "", _creature_code: String = "") -> Dictionary:
 	var dims := capsule_dimensions(size_meters)
 	var radius: float = dims["radius"]
 	var height: float = dims["height"]
@@ -405,9 +432,9 @@ static func build_capsule_visual(size_meters: float, element_code: String, creat
 	mesh.radius = radius
 
 	var material := StandardMaterial3D.new()
-	material.albedo_color = ElementPalette.mid_color(element_code, creature_code)
+	material.albedo_color = ElementPalette.mid_color()
 	material.roughness = 0.9
-	material.emission = ElementPalette.highlight_color(element_code, creature_code)
+	material.emission = ElementPalette.highlight_color()
 	material.emission_energy_multiplier = SELECT_EMISSION_ENERGY
 	material.emission_enabled = false
 	mesh.material = material
@@ -527,6 +554,14 @@ func _play_clip(clip: String) -> void:
 		_anim.play(clip, 0.2)
 
 
+## Toca um clipe de combate por NOME (`Attack`/`HitReact`/`Death`) — chamado
+## pelo `EncounterDirector` durante o turno, fora da escada de marcha (esses
+## três não têm velocidade associada). Mesmo contrato por nome do resto da
+## encenação; silencioso se o corpo não tiver o clipe.
+func play_battle_clip(clip: String) -> void:
+	_play_clip(clip)
+
+
 # ---------------------------------------------------------------------------
 # contrato de encenação (BattleStaging)
 # ---------------------------------------------------------------------------
@@ -631,13 +666,13 @@ func set_awakening_aura(active: bool) -> void:
 
 	if active:
 		var ground_offset := -float(capsule_dimensions(size_meters)["height"]) * 0.5
-		_aura_vfx = ElementPalette.attach_area_vfx(element_code, size_meters, creature_code)
+		_aura_vfx = ElementPalette.attach_area_vfx(size_meters)
 		if _aura_vfx != null:
 			add_child(_aura_vfx)
 			_aura_vfx.position.y = ground_offset
-		_aura_light = ElementPalette.build_aura_light(element_code, size_meters, creature_code)
+		_aura_light = ElementPalette.build_aura_light(size_meters)
 		add_child(_aura_light)
-		ElementPalette.play_awakening_cast(self, ground_offset, element_code, size_meters, creature_code)
+		ElementPalette.play_awakening_cast(self, ground_offset, size_meters)
 	else:
 		ElementPalette.detach_area_vfx(_aura_vfx)
 		_aura_vfx = null
@@ -657,10 +692,9 @@ func is_awakened() -> bool:
 ## `staged_gait`: a bancada de `Node3D` solto das suítes não precisa
 ## implementar isto para ser encenada. Mesmo offset de chão que a aura usa
 ## (`self` é o centro vertical da cápsula, não o chão).
-func play_battle_effect(kind: String, element_code: String, variant_seed: String, source_creature_code: String = "") -> void:
+func play_battle_effect(kind: String, _element_code: String, variant_seed: String, _source_creature_code: String = "") -> void:
 	var ground_offset := -float(capsule_dimensions(size_meters)["height"]) * 0.5
-	ElementPalette.play_battle_effect(
-		self, ground_offset, size_meters, kind, element_code, variant_seed, source_creature_code)
+	ElementPalette.play_battle_effect(self, ground_offset, size_meters, kind, variant_seed)
 
 
 func _update_capsule_emission() -> void:

@@ -12,8 +12,13 @@ extends RefCounted
 ## Layout é posição de cena, não de bestiário — mesmo raciocínio de
 ## `MERCHANT_SPOT`: o catálogo diz que o PZ-01 é o Mundo dos Mares; ONDE cada
 ## recife fica é decisão do mundo. Os landmarks são fixos à mão; a vegetação
-## miúda é espalhada com semente fixa (mesmo motivo do `spawn_seed` do
-## `CreatureSpawner`: mapa que muda a cada play atrapalha comparar execuções).
+## miúda é espalhada com semente FIXA, para o cenário sair igual em toda
+## execução — é o que deixa duas capturas de tela do mesmo bioma comparáveis.
+##
+## O `CreatureSpawner` já teve uma semente fixa pelo mesmo motivo e a perdeu em
+## 2026-09-06: o povoamento virou função do caminho que o jogador andou, e não
+## existe mais "a mesma abertura" para comparar. A do cenário continua válida
+## justamente porque cenário não depende de para onde ninguém andou.
 
 const AQUA_KIT := "res://models/biomes/aquatic/"
 
@@ -118,6 +123,15 @@ const PZ01_GROUND := {
 ## foi de 11–15 m para 22–30 m, que é o raio que a região RGN-002 do catálogo
 ## descreve em coordenada normalizada (`r 0.5`) — e é por isso que aquela
 ## linha do catálogo não precisou ser reautorada.
+## Fator que leva as posições de MAR do tamanho em que foram autoradas (o mapa
+## de 120 m) para o tamanho corrente. Escrito assim — e não com os metros já
+## multiplicados — para o número autorado continuar legível ao lado da peça:
+## quem for remexer o layout mexe em `Vector3(14, 0, -26)`, não em
+## `Vector3(40.8, 0, -75.8)`. As DUAS peças da ilha, no fim do array, não
+## recebem o fator: a ilha não escala, e uma pedra de silhueta que saísse de
+## cima dela deixaria de ser silhueta de coisa nenhuma.
+const _SEA_SCALE := float(MapTerrain.SIZE) / 120.0
+
 const PZ01_LANDMARKS: Array = [
 	# Placeholders explícitos para a próxima iteração de GLBs do conceito.
 	# Todos eles são resolvidos para um asset de teste equivalente sem mexer na
@@ -125,22 +139,22 @@ const PZ01_LANDMARKS: Array = [
 	# escala 8.0) saiu em 2026-09-01 junto com `pz01_reef_hero_01.tscn` — a
 	# peça nunca renderizou nem uma vez (arquivo quebrado desde que foi
 	# criado), então remover a linha não muda nada do que já estava em jogo.
-	[PZ01_PLACEHOLDER_ROCK_HERO_01, Vector3(14, 0, -26), 2.4, 6.0, 1.4],
-	[PZ01_PLACEHOLDER_GLAZE_01, Vector3(-26, 0, 22), 4.1, 5.0, 1.2],
-	["Coralstone_Arch", Vector3(6, 0, -30), 0.4, 9.0, 0.0],
-	["Coralstone_Arch", Vector3(-36, 0, 28), 2.0, 7.0, 0.0],
-	["Turquoise_Reef_Stone", Vector3(-26, 0, -18), 1.2, 5.0, 2.2],
-	["Turquoise_Reef_Stone", Vector3(32, 0, 24), 0.3, 4.0, 1.8],
-	["Jade_Reef_Garden", Vector3(28, 0, -8), 2.6, 4.0, 1.8],
-	["Jade_Reef_Garden", Vector3(-40, 0, -4), 5.0, 3.2, 1.5],
-	["Terraced_Stone_Mounds", Vector3(-12, 0, 24), 5.2, 3.8, 1.6],
-	["Terraced_Stone_Mounds", Vector3(24, 0, -28), 1.0, 3.0, 1.3],
-	["Aqua_Bloom_Grove", Vector3(22, 0, 10), 4.0, 3.5, 1.5],
-	["Pastel_Tidepool_Treas", Vector3(-24, 0, 12), 3.1, 3.0, 1.3],
-	["Aqua_Coral_Garden", Vector3(6, 0, 24), 0.9, 3.2, 0.0],
-	["Aqua_Sponge_Cluster", Vector3(18, 0, 20), 1.7, 2.6, 0.0],
-	["Seafoam_Pipe_Coral", Vector3(20, 0, -16), 0.0, 2.8, 0.0],
-	["Reef_Cluster", Vector3(-22, 0, -8), 0.6, 2.4, 0.0],
+	[PZ01_PLACEHOLDER_ROCK_HERO_01, Vector3(14, 0, -26) * _SEA_SCALE, 2.4, 6.0, 1.4],
+	[PZ01_PLACEHOLDER_GLAZE_01, Vector3(-26, 0, 22) * _SEA_SCALE, 4.1, 5.0, 1.2],
+	["Coralstone_Arch", Vector3(6, 0, -30) * _SEA_SCALE, 0.4, 9.0, 0.0],
+	["Coralstone_Arch", Vector3(-36, 0, 28) * _SEA_SCALE, 2.0, 7.0, 0.0],
+	["Turquoise_Reef_Stone", Vector3(-26, 0, -18) * _SEA_SCALE, 1.2, 5.0, 2.2],
+	["Turquoise_Reef_Stone", Vector3(32, 0, 24) * _SEA_SCALE, 0.3, 4.0, 1.8],
+	["Jade_Reef_Garden", Vector3(28, 0, -8) * _SEA_SCALE, 2.6, 4.0, 1.8],
+	["Jade_Reef_Garden", Vector3(-40, 0, -4) * _SEA_SCALE, 5.0, 3.2, 1.5],
+	["Terraced_Stone_Mounds", Vector3(-12, 0, 24) * _SEA_SCALE, 5.2, 3.8, 1.6],
+	["Terraced_Stone_Mounds", Vector3(24, 0, -28) * _SEA_SCALE, 1.0, 3.0, 1.3],
+	["Aqua_Bloom_Grove", Vector3(22, 0, 10) * _SEA_SCALE, 4.0, 3.5, 1.5],
+	["Pastel_Tidepool_Treas", Vector3(-24, 0, 12) * _SEA_SCALE, 3.1, 3.0, 1.3],
+	["Aqua_Coral_Garden", Vector3(6, 0, 24) * _SEA_SCALE, 0.9, 3.2, 0.0],
+	["Aqua_Sponge_Cluster", Vector3(18, 0, 20) * _SEA_SCALE, 1.7, 2.6, 0.0],
+	["Seafoam_Pipe_Coral", Vector3(20, 0, -16) * _SEA_SCALE, 0.0, 2.8, 0.0],
+	["Reef_Cluster", Vector3(-22, 0, -8) * _SEA_SCALE, 0.6, 2.4, 0.0],
 	# Na ilha: duas pedras miúdas no topo, uma de cada lado da arena. São
 	# silhueta — sem elas o platô lê como bolha de terreno em vez de rochedo,
 	# e é a silhueta que a câmera ortográfica dá ao jogador de longe. Porte
@@ -166,14 +180,23 @@ const PZ01_SCATTER_POOL: Array = [
 	["Terraced_Stone_Mounds", 1.3, 2.5],
 ]
 
-## Contagem e raios cresceram na proporção da ÁREA do anel de espalhamento
-## no resize de 2026-08-28 (28 props num anel de 4–27 m; 116 num de 8–55 m),
-## para a densidade visual do mapa não cair junto com o crescimento. É a
-## medida que decide se um mapa maior lê como "maior" ou como "vazio".
-const PZ01_SCATTER_COUNT := 116
+## Os RAIOS acompanham o mapa (é geografia: o anel tem de cobrir o mar que
+## existe), mas a CONTAGEM deixou de acompanhar no resize de 350 m
+## (2026-09-06) — e essa separação é deliberada, não descuido.
+##
+## Até os 120 m a regra era densidade constante: contagem pela ÁREA do anel
+## (28 props num anel de 4–27 m; 116 num de 8–55 m). Mantida a 350 m, a mesma
+## conta pediria ~990 aqui e ~1.190 no recife — mais de 2.100 nós de `.glb`
+## soltos, cada um um nó da árvore. O ROADMAP já lista `MultiMesh` como o
+## pré-requisito exatamente disso, e ele NÃO entra nesta rodada (decisão do
+## usuário): então a contagem sobe ~3x em vez de ~8,5x, e o mapa assume que
+## vai ler mais esparso que o de 120 m até o `MultiMesh` chegar.
+##
+## Quando ele chegar, o número certo a restaurar é o da área — não este.
+const PZ01_SCATTER_COUNT := 350
 const PZ01_SCATTER_SEED := 20260824
-const SCATTER_RADIUS_MIN := 8.0
-const SCATTER_RADIUS_MAX := 55.0
+const SCATTER_RADIUS_MIN := 0.133333 * float(MapTerrain.SIZE) * 0.5
+const SCATTER_RADIUS_MAX := 0.916667 * float(MapTerrain.SIZE) * 0.5
 
 ## Preenchimento denso do recife (BIO-003), pedido do usuário em 2026-09-02:
 ## o kit aquático inteiro é temático de mar raso/recife (nenhuma peça é
@@ -191,7 +214,11 @@ const PZ01_REEF_SCATTER_POOL: Array = [
 	["Pastel_Tidepool_Treas", 0.7, 1.3],
 	["Terraced_Stone_Mounds", 0.65, 1.25],
 ]
-const PZ01_REEF_SCATTER_COUNT := 140
+## Mesma sub-escalada da contagem geral acima (~3x em vez da área), pelo mesmo
+## motivo: sem `MultiMesh`, densidade de recife a 350 m viraria mais de mil nós
+## sozinha. O recife continua sendo o trecho MAIS cheio do mapa — só que a
+## régua do "cheio" desceu junto com a do resto.
+const PZ01_REEF_SCATTER_COUNT := 420
 const PZ01_REEF_SCATTER_SEED := 20260902
 ## Bem mais apertado que `CLEAR_RADIUS` (3,5 m) de propósito — é o que faz o
 ## recife ler denso em vez de espalhado; peça pela metade do porte cabe em

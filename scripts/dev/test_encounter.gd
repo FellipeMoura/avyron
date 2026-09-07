@@ -13,16 +13,18 @@ var _spawner: CreatureSpawner
 var _player: CharacterBody3D
 var _target: CreatureActor
 var _frames := 0
-var _phase := "spawn"
+var _phase := "walk"
+## Quantos "passos" de deslocamento já demos para povoar o mapa. O mundo abre
+## VAZIO de fauna desde 2026-09-06 — quem povoa é o jogador andando —, então a
+## suíte precisa andar antes de ter o que clicar.
+var _walk_steps := 0
 var _failures := 0
 var _checks := 0
 var _size_min := 99.0
 var _size_max := 0.0
-var _actors_before_close := 0
 var _post_close_wait := 0
 var _target2: CreatureActor
 var _target2_code := ""
-var _actors_before_capture := 0
 var _post_capture_wait := 0
 
 
@@ -48,6 +50,8 @@ func _process(_delta: float) -> bool:
 			return true
 
 	match _phase:
+		"walk":
+			_drive_population()
 		"spawn":
 			_check_spawn()
 			_phase = "first_click"
@@ -95,10 +99,49 @@ func _process(_delta: float) -> bool:
 	return false
 
 
+## Anda com o jogador até o mapa ter fauna. O spawner rola uma chance a cada
+## `SPAWN_CHECK_INTERVAL_METERS` percorridos, e a chance vem do bioma — então
+## povoar aqui é literalmente deslocar o corpo, não chamar uma função de
+## povoamento que não existe mais.
+##
+## Os saltos são grandes e em direções alternadas de propósito: o spawner
+## consome TODOS os intervalos vencidos por quadro, então um salto de ~60 m já
+## vale uma dúzia de rolagens, e alternar direção evita sair do mapa.
+##
+## A semente do RNG do spawner é fixada por reflexão (mesmo acesso a "privado"
+## que a suíte já usa em `_world.get("_duel")`) porque produção perdeu o
+## `spawn_seed` público nesta mesma mudança — e um teste que depende de sorteio
+## sem semente falha um dia em cada tantos, no CI de outra pessoa.
+func _drive_population() -> void:
+	if _walk_steps == 0:
+		var rng := _spawner.get("_rng") as RandomNumberGenerator
+		if rng:
+			rng.seed = 20260906
+		# Vai para o MAR RASO (BIO-001) antes de começar, e o ponto é escolhido,
+		# não qualquer um: TRÊS dos cinco biomas do PZ-01 têm `spawnChance` 0
+		# de propósito — a costa (adro de NPC) e o par de vazio glacial/mar
+		# profundo, que o catálogo declara sem vida. Rolar a vida toda dentro
+		# de um deles deixaria o mapa vazio e reprovaria um spawner correto;
+		# foi assim que esta suíte falhou na primeira versão, parada na costa.
+		_player.global_position = Vector3(20.0, 4.0, 60.0)
+
+	_walk_steps += 1
+	# Vaivém curto que não sai do mar raso: a perna é para +x/-x, longe da
+	# costa (-Z), da ilha (centro) e do platô glacial (que começa em x −52,5).
+	# O spawner consome todos os intervalos vencidos por quadro, então cada
+	# perna de 40 m já vale várias rolagens.
+	var leg := 40.0 * (1 if _walk_steps % 2 == 0 else -1)
+	_player.global_position += Vector3(leg, 0.0, leg * 0.3)
+
+	if _spawner.actors().size() >= 6 or _walk_steps >= 40:
+		_phase = "spawn"
+
+
 func _check_spawn() -> void:
 	print("povoamento:")
 	var actors := _spawner.actors()
-	_check_true("nasceram criaturas", actors.size() > 0, "%d no mapa" % actors.size())
+	_check_true("andar povoou o mapa", actors.size() > 0,
+		"%d no mapa apos %d passos" % [actors.size(), _walk_steps])
 
 	var codes := {}
 	for a in actors:
@@ -107,17 +150,39 @@ func _check_spawn() -> void:
 		_size_max = maxf(_size_max, a.size_meters)
 		_check_true_quiet("%s tem tamanho valido" % a.creature_code,
 			a.size_meters >= 0.9 and a.size_meters <= 4.5)
-	_check_true("as escalas variam", _size_max > _size_min,
+	# Era "as escalas variam", de quando o tamanho saía de uma curva de
+	# compressão logarítmica sobre o porte paleontológico real. A curva caiu
+	# por decisão de produto (2026-09) e hoje TODA criatura mede o mesmo — a
+	# asserção antiga cobrava justamente o que foi removido, e reprovava um
+	# bundle correto. O que ainda vale cobrar é a uniformidade: um elenco onde
+	# uma espécie destoa é bundle com dado errado, não variedade de propósito.
+	# O número em si não entra aqui (Regra 1) — vem do bundle, e o teste só
+	# exige que seja o MESMO para todo mundo.
+	_check_true("toda criatura tem o mesmo tamanho padronizado",
+		absf(_size_max - _size_min) < 0.001,
 		"de %.2f m a %.2f m" % [_size_min, _size_max])
 	_check_true("ha mais de uma especie", codes.size() > 1, "%d especies" % codes.size())
 
-	# Nenhuma pode nascer em cima do jogador — no modelo antigo isso abria o
+	# Nenhuma pode NASCER em cima do jogador — no modelo antigo isso abria o
 	# jogo em combate; agora não abre mais, mas segue sendo um cheiro ruim.
-	var too_close := 0
-	for a in actors:
-		if a.global_position.distance_to(_player.global_position) < 5.0:
-			too_close += 1
-	_check("nenhuma nasce em cima do jogador", too_close, 0)
+	#
+	# A prova é um spawn CONTROLADO, e não a distância dos corpos que já estão
+	# no mapa: a fase de caminhada teleporta o jogador em pernas de 40 m, então
+	# ele termina parado ao lado de quem nasceu enquanto ele estava longe. Medir
+	# assim reprovava um spawner correto por medir a coisa errada — o contrato
+	# é sobre o instante do NASCIMENTO, e é ele que este bloco recria.
+	var before := _spawner.actors().size()
+	_spawner.call("_spawn_one")
+	var born_ok := _spawner.actors().size() > before
+	if born_ok:
+		var born: CreatureActor = _spawner.actors()[_spawner.actors().size() - 1]
+		var d := born.global_position.distance_to(_player.global_position)
+		_check_true("nasce longe do jogador", d >= CreatureSpawner.MIN_SPAWN_DISTANCE,
+			"%.1f m (minimo %.1f)" % [d, CreatureSpawner.MIN_SPAWN_DISTANCE])
+		var cam := _world.get_node_or_null("IsoCamera") as Camera3D
+		if cam:
+			_check_true("nasce fora do campo de visao",
+				not cam.is_position_in_frustum(born.global_position))
 
 	# Nem em terra seca. Os dois trechos emersos do PZ-01 — a costa e a ilha
 	# da arena — são adro de NPC, e criatura marinha de pé neles contradiz o
@@ -129,6 +194,24 @@ func _check_spawn() -> void:
 			if terrain.on_coast(a.global_position) or terrain.on_island(a.global_position):
 				on_dry += 1
 		_check("nenhuma nasce na costa nem na ilha", on_dry, 0)
+
+	# Nem em bioma que o catálogo declara SEM FAUNA. É um contrato diferente do
+	# de cima: aquele é geografia (não ficar de pé em terra seca), este é
+	# DADO — o platô glacial e o mar profundo estão em `spawnChance` 0,00
+	# porque a nota do BIO-014 diz "nenhuma criatura nasce nem patrulha aqui".
+	# A chance da rolagem é lida onde o JOGADOR está, e o corpo nasce num raio
+	# que cruza fronteira, então sem o keep-out do spawner um jogador na beira
+	# do mar raso semearia criaturas dentro do vazio.
+	var biomes := _world.get("_map_biomes") as MapBiomes
+	var db := root.get_node_or_null("Bestiary") as BestiaryData
+	if biomes and db:
+		var in_barren: Array[String] = []
+		for a in actors:
+			var code := biomes.biome_at(a.global_position)
+			if db.biome_spawn_chance(code) <= 0.0:
+				in_barren.append("%s em %s" % [a.creature_code, code])
+		_check_true("nenhuma nasce em bioma sem fauna", in_barren.is_empty(),
+			", ".join(in_barren))
 
 	# Escolhe a mais próxima como alvo do teste, e LEVA O JOGADOR ATÉ ELA.
 	var best := 1e9
@@ -209,23 +292,31 @@ func _check_battle() -> void:
 	# Força vitória do jogador antes de fechar — o outcome real deste teste é
 	# indeterminado (nenhum turno foi jogado), e o fluxo que queremos exercer
 	# é a remoção da criatura do mapa pós-vitória.
-	_actors_before_close = _spawner.actors().size()
 	duel.battle.outcome = Battle.Outcome.PLAYER_WON
 	duel.closed.emit(duel.battle.outcome)
 	_phase = "post_close"
 
 
-## Após vitória do jogador, a criatura sai do mapa e um slot de respawn entra
-## na fila. Sem isso, ganhar batalha deixava o mesmo bicho parado no mesmo
-## lugar — o playtest ficava estranho porque a mesma vitória "não valia".
+## Após vitória do jogador, a criatura sai do mapa. Sem isso, ganhar batalha
+## deixava o mesmo bicho parado no mesmo lugar — o playtest ficava estranho
+## porque a mesma vitória "não valia".
+##
+## Não há mais o que afirmar sobre reposição: até 2026-09-06 cada morte
+## agendava um timer individual, e este teste cobrava `pending_respawns() == 1`.
+## O modelo de população local ao jogador não tem timer nenhum — quem repõe é o
+## deslocamento —, então a asserção antiga não descreve mais nada que exista.
+## A asserção é de IDENTIDADE, não de contagem, e a diferença passou a
+## importar: com o povoamento dirigido por deslocamento, o próprio
+## `_approach()` desta suíte anda com o jogador e dispara rolagens. Um
+## "população caiu de 7 para 6" corre contra um nascimento no mesmo quadro e
+## falha sozinho — foi o que aconteceu na primeira versão. Se ESTA criatura
+## saiu da lista é o contrato de verdade; quantas outras nasceram enquanto
+## isso é assunto do spawner, não desta prova.
 func _check_removal() -> void:
 	print("pos-vitoria:")
 	_check_true("a criatura derrotada saiu do mapa",
-		_spawner.actors().size() == _actors_before_close - 1,
-		"%d → %d" % [_actors_before_close, _spawner.actors().size()])
-	_check_true("o slot dela virou respawn pendente",
-		_spawner.pending_respawns() == 1,
-		"%d pendentes" % _spawner.pending_respawns())
+		not _spawner.actors().has(_target),
+		"%d no mapa" % _spawner.actors().size())
 
 
 ## Segundo alvo: a criatura mais próxima do jogador que ainda está no mapa
@@ -266,7 +357,6 @@ func _do_capture_second_click() -> void:
 func _check_capture_battle() -> void:
 	var duel: DuelScreen = _world.get("_duel")
 	_check_true("mundo congelou para captura", root.get_tree().paused)
-	_actors_before_capture = _spawner.actors().size()
 	# Salva o código antes de emitir closed — depois de queue_free o actor
 	# não pode mais ser acessado com segurança.
 	_target2_code = _target2.creature_code
@@ -277,14 +367,13 @@ func _check_capture_battle() -> void:
 
 func _check_capture_result() -> void:
 	print("pos-captura:")
+	# Identidade, não contagem — mesma razão de `_check_removal`.
 	_check_true("criatura capturada saiu do mapa",
-		_spawner.actors().size() == _actors_before_capture - 1,
-		"%d → %d" % [_actors_before_capture, _spawner.actors().size()])
-	# Captura não agenda respawn — a criatura foi ao time, não voltou ao bioma.
-	# Ainda há 1 pendente da vitória anterior, mas nenhum novo foi adicionado.
-	_check_true("captura nao agendou respawn",
-		_spawner.pending_respawns() == 1,
-		"%d pendentes" % _spawner.pending_respawns())
+		not _spawner.actors().has(_target2),
+		"%d no mapa" % _spawner.actors().size())
+	# Vitória e captura são a mesma operação para o spawner desde 2026-09-06 —
+	# o corpo sai, e ninguém agenda nada. O que separa as duas é o time crescer,
+	# que é exatamente o que as asserções abaixo cobram.
 	# A capturada entra como **reserva**: quem estava à frente continua à
 	# frente. Trocar a ativa é decisão do jogador, não efeito colateral da
 	# captura — senão uma criatura recém-pega, sem contexto nenhum, assumiria

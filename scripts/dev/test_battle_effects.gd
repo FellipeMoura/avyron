@@ -9,10 +9,14 @@ extends SceneTree
 ##    evento ao lado errado.
 ## 2. `ElementPalette.play_battle_effect` instancia a forma certa por
 ##    categoria (golpe: swing/claw por sorteio estável; status: shield;
-##    carga: charge) e recolore pelas cores certas.
-## 3. `EncounterDirector._play_one_battle_effect` despacha pro corpo certo —
-##    dano no ALVO, status em quem usou, debuff no oponente — e nunca
-##    reprocessa um evento já visto.
+##    carga: charge) e recolore pela rampa neutra fixa (sem elemento nem
+##    carta desde 2026-09 — ver o comentário de topo de `element_palette.gd`).
+## 3. `EncounterDirector._animate_one_event`/`_animate_round_events` despacha
+##    pro corpo certo — dano no ALVO, status em quem usou, debuff no
+##    oponente — e agora também toca o CLIPE do corpo (`Attack`/`HitReact`),
+##    não só o VFX. `_animate_round_events` é uma corrotina (`await` por
+##    evento, o compasso que `DuelScreen` acaba herdando); por isso esta
+##    suíte também precisa esperar, não só chamar.
 ##
 ##     godot --headless --script res://scripts/dev/test_battle_effects.gd
 
@@ -38,13 +42,23 @@ func _initialize() -> void:
 ## atores, um nó criado dentro de `_initialize()` não conta como "na árvore"
 ## até o primeiro `_process` (mesma pegadinha do `CLAUDE.md`). Por isso as
 ## partes 2 e 3 esperam 2 quadros.
+var _dispatch_done := false
+
+
 func _process(_delta: float) -> bool:
 	_frames += 1
 	if _frames < 2:
 		return false
-
-	_test_play_battle_effect_shapes()
-	_test_director_dispatch()
+	if _frames == 2:
+		_test_play_battle_effect_shapes()
+		# `_animate_round_events` é corrotina — `_process` não pode conter
+		# `await` direto (o motor chama de novo no quadro seguinte antes de
+		# terminar), então dispara e espera o sinal via `_dispatch_done` em
+		# vez de `await` aqui.
+		_run_dispatch_test()
+		return false
+	if not _dispatch_done:
+		return false
 
 	_db.free()
 	print("")
@@ -55,6 +69,11 @@ func _process(_delta: float) -> bool:
 		printerr("%d de %d verificacoes FALHARAM" % [_failures, _checks])
 		quit(1)
 	return true
+
+
+func _run_dispatch_test() -> void:
+	await _test_director_dispatch()
+	_dispatch_done = true
 
 
 # ---------------------------------------------------------------------------
@@ -105,8 +124,8 @@ func _test_play_battle_effect_shapes() -> void:
 	_check_true("golpe instanciou swing/claw (VFXBattleSwingBB)", attack_children.size() == 1)
 	if not attack_children.is_empty():
 		var vfx := attack_children[0] as VFXBattleSwingBB
-		_check("cor primaria = highlight do elemento",
-			vfx.primary_color, ElementPalette.highlight_color("ELE-001"))
+		_check("cor primaria = rampa neutra fixa (sem elemento desde 2026-09)",
+			vfx.primary_color, ElementPalette.highlight_color())
 		# Duelo pausa a árvore inteira; sem isto o golpe nasce e trava no
 		# quadro zero — invisível, porque a forma inteira depende da
 		# animação abrir. Foi exatamente o bug relatado: "status anima,
@@ -146,7 +165,7 @@ func _test_play_battle_effect_shapes() -> void:
 # ---------------------------------------------------------------------------
 
 func _test_director_dispatch() -> void:
-	print("\n-- EncounterDirector despacha pro corpo certo")
+	print("\n-- EncounterDirector despacha pro corpo certo (VFX e clipe)")
 
 	var hero := Combatant.from_bestiary(_db, "CRT-021", 20)
 	var foe := Combatant.from_bestiary(_db, "CRT-023", 20)
@@ -164,39 +183,78 @@ func _test_director_dispatch() -> void:
 	root.add_child(fake_player)
 	var companion := CompanionActor.create(_db, "CRT-021", fake_player)
 	root.add_child(companion)
+	# Em jogo, a árvore fica pausada durante o duelo — o `_process` de
+	# exploração da companheira (que escolhe o próprio clipe pela velocidade
+	# de seguir o jogador) nem roda. Sem essa pausa aqui, ele brigaria com
+	# `play_battle_clip` do mesmo jeito que o `BattleStaging` brigaria sem a
+	# trava — mesma classe de problema, fonte diferente. `set_process(false)`
+	# reproduz a pausa só pro que este teste precisa.
+	companion.set_process(false)
 	var enemy_actor := CreatureActor.create(_db.creature("CRT-023"), Vector3(3, 0, 0), 1)
 	root.add_child(enemy_actor)
+	enemy_actor.set_process(false)
+	enemy_actor.set_physics_process(false)
 
 	var director := EncounterDirector.new()
 	director.set("_duel", duel)
 	director.set("_companion", companion)
 	director.set("_engaged_actor", enemy_actor)
-	director.set("_battle_events_seen", 0)
+	# `_staging` fica null de propósito — sem encenação, `_lock_gait` não faz
+	# nada (guarda `_staging != null`), e a sequência ainda tem de tocar
+	# certo. O contrato COM encenação (a trava de verdade) é assunto de
+	# `test_staging.gd`, não daqui.
 
 	# HAB-001 (Brasa, dano) do jogador contra HAB-010 (dano) do inimigo — os
 	# DOIS lados atacam na mesma rodada, e dano aparece no ALVO de cada um:
 	# o golpe do jogador acerta o inimigo, o contra-ataque do inimigo acerta a
 	# própria companheira. Exatamente 1 de cada, nunca os dois no mesmo corpo.
+	# A presença do VFX em si já está coberta em `_test_play_battle_effect_shapes`
+	# (checada ANTES do compasso). Aqui o `await` cobre a rodada INTEIRA — o
+	# VFX e o `_wait()` usam de propósito a MESMA duração (terminam juntos),
+	# então checar "o VFX ainda está lá" depois do `await` é medir bem depois
+	# dele já ter se apagado sozinho. O que é NOVO aqui, e o que este teste
+	# prova, é o CLIPE do corpo — que sobrevive ao `await` porque nada mais o
+	# reseta (sem `BattleStaging` nesta bancada).
+	var before := battle.log_events.size()
 	battle.resolve_round(BattleAction.use_ability("HAB-001"), BattleAction.use_ability("HAB-010"))
-	director.call("_play_battle_effects")
+	await director._animate_round_events(battle.log_events.slice(before))
 
-	_check("golpe do jogador acertou o inimigo (alvo)",
-		enemy_actor.find_children("*", "VFXBattleSwingBB", true, false).size(), 1)
-	_check("contra-ataque do inimigo acertou a propria companheira (alvo)",
-		companion.find_children("*", "VFXBattleSwingBB", true, false).size(), 1)
+	# NÃO dá pra checar `current_animation` aqui: `HitReact` dura 0,6s e o
+	# compasso (`BATTLE_ATTACK_LIFETIME`) é 0,8s — o clipe termina sozinho
+	# ANTES do fim do `await`, e um `AnimationPlayer` não-looping que chega
+	# ao fim limpa `current_animation` pra "" (sem voltar a pose de bind —
+	# só para de escrever, o último quadro fica). `Attack` (0,867s) quase
+	# sempre sobrevive ao mesmo compasso por pura coincidência de duração;
+	# testar por aí seria prender o teste a um acidente de tempo, não ao
+	# contrato. O contrato — `_play_body_clip` escolhe o corpo certo — é
+	# testado direto, síncrono, abaixo.
+	var companion_clip := str((companion.get("_anim") as AnimationPlayer).current_animation)
 
-	# Reprocessar sem rodada nova não deve duplicar.
-	var swing_count_before := enemy_actor.find_children("*", "VFXBattleSwingBB", true, false).size()
-	director.call("_play_battle_effects")
-	_check("chamada repetida sem evento novo nao duplica efeito",
-		enemy_actor.find_children("*", "VFXBattleSwingBB", true, false).size(), swing_count_before)
+	director.call("_play_body_clip", true, "Attack")
+	_check("_play_body_clip(true, Attack) toca na companheira",
+		str((companion.get("_anim") as AnimationPlayer).current_animation), "Attack")
+	director.call("_play_body_clip", false, "HitReact")
+	_check("_play_body_clip(false, HitReact) toca no inimigo",
+		str((enemy_actor.get("_anim") as AnimationPlayer).current_animation), "HitReact")
 
-	# HAB-020 (buff_attack, em si mesmo) do jogador — tem de aparecer na
-	# PRÓPRIA companheira, nunca no inimigo.
-	battle.resolve_round(BattleAction.use_ability("HAB-020"), BattleAction.use_ability("HAB-010"))
-	director.call("_play_battle_effects")
-	_check_true("buff do jogador apareceu na propria companheira",
-		not companion.find_children("*", "VFXBattleShieldBB", true, false).is_empty())
+	# `Idle` é contínuo (`LOOPED_CLIPS`) — ao contrário de `Attack`/`HitReact`,
+	# não termina sozinho no meio do compasso seguinte, então serve de linha
+	# de base estável pra provar "nada mexeu" através de um `await`.
+	director.call("_play_body_clip", true, "Idle")
+	companion_clip = str((companion.get("_anim") as AnimationPlayer).current_animation)
+
+	# HAB-020 (buff_attack, em si mesmo) dos DOIS lados — status não mexe no
+	# CLIPE do corpo, só na partícula (ver o comentário de `_animate_one_event`
+	# sobre por quê). O clipe tem de continuar exatamente o mesmo de antes.
+	# O inimigo PRECISA usar algo sem dano aqui: HAB-010 (a mesma habilidade
+	# de dano da primeira rodada) geraria um evento "damage" contra a
+	# companheira e tocaria HitReact de verdade — não seria bug nenhum, mas
+	# quebraria a isolação que este teste quer provar.
+	before = battle.log_events.size()
+	battle.resolve_round(BattleAction.use_ability("HAB-020"), BattleAction.use_ability("HAB-020"))
+	await director._animate_round_events(battle.log_events.slice(before))
+	_check("buff nao mexeu no clipe do corpo da companheira",
+		str((companion.get("_anim") as AnimationPlayer).current_animation), companion_clip)
 
 	companion.free()
 	enemy_actor.free()

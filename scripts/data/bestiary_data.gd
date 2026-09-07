@@ -497,6 +497,28 @@ func creatures_in_map(map_code: String) -> Array:
 	return out
 
 
+## Peso RELATIVO desta espécie no sorteio de spawn selvagem — não é
+## probabilidade: quem normaliza é quem sorteia (`CreatureSpawner`), contra o
+## pool do mapa. Um 2.0 vale o dobro de um 1.0 do mesmo pool, e os pesos não
+## precisam somar nada.
+##
+## O padrão é 0.0, não 1.0, e isso é deliberado: o export ABORTA se uma
+## criatura com mapa não tiver peso, então zero aqui só acontece com criatura
+## sem mapa (que nunca entra num pool) ou com bundle velho. Um padrão 1.0
+## faria um bundle defeituoso sortear normalmente e esconder o problema —
+## e seria um número de tuning escrito em GDScript, contra a Regra 1.
+func creature_spawn_weight(code: String) -> float:
+	return float(creature(code).get("spawnWeight", 0.0))
+
+
+## Chance (0..1) de uma rolagem de spawn dar certo neste bioma. Zero é resposta
+## LEGÍTIMA, não falha: a costa do PZ-01 é adro de NPC e não tem fauna
+## selvagem nenhuma por design. Zero também é o que responde para bioma que
+## não existe no bundle — nos dois casos o efeito é o certo (não nasce nada).
+func biome_spawn_chance(biome_code: String) -> float:
+	return float(biome(biome_code).get("spawnChance", 0.0))
+
+
 ## Golpes que a criatura já conhece no nível dado, em ordem de apresentação.
 ##
 ## A assinatura do Despertar aparece aqui desde o nível 1 porque ela é travada

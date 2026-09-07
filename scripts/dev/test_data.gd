@@ -372,6 +372,20 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 
 	_check("criaturas sem stats", no_stats.size(), 0)
 	_check("criaturas sem regra de captura", no_capture.size(), 0)
+
+	# Espelha o que o `game:export` ABORTA do outro lado: criatura que está num
+	# mapa entra no pool de spawn selvagem, e sem peso o sorteio ponderado não
+	# teria número para usar. Os dois guardas precisam concordar sobre o que é
+	# erro — divergirem é como um bundle saiu uma vez com golpe inalcançável,
+	# com o export calado e o teste reprovando outra coisa.
+	var no_spawn_weight: Array = []
+	for code in db.creature_codes():
+		var c := db.creature(str(code))
+		if str(c.get("map", "")) == "":
+			continue
+		if db.creature_spawn_weight(str(code)) <= 0.0:
+			no_spawn_weight.append(code)
+	_check("criaturas de mapa sem peso de spawn", no_spawn_weight.size(), 0)
 	_check("criaturas sem golpes", no_abilities.size(), 0)
 	_check("criaturas com elemento invalido", bad_element.size(), 0)
 	_check("criaturas com bloco de drops invalido", bad_drops, 0)

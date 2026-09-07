@@ -236,8 +236,7 @@ func _test_world_wiring() -> void:
 
 	# Minerar durante a negociacao seria comer o bolo e ter o bolo.
 	var items_before := inv.total_items()
-	_world._mine_cooldown = 0.0
-	_world.trigger_mine()
+	_world.start_mining()
 	_check("nao minera com a loja aberta", inv.total_items(), items_before)
 
 	var layer := _world.get_node_or_null("ShopLayer")
@@ -301,8 +300,7 @@ func _test_modal_guard() -> void:
 
 	var inv := _world.inventory()
 	var items_before := inv.total_items()
-	_world._mine_cooldown = 0.0
-	_world.trigger_mine()
+	_world.start_mining()
 	_check("nao minera com o posto aberto", inv.total_items(), items_before)
 
 	_world.toggle_roster_window()

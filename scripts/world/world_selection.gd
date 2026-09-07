@@ -22,8 +22,15 @@ extends RefCounted
 ## não ser mais o assunto imediato.
 const DESELECT_DISTANCE := 15.0
 
-## Alcance máximo do raycast do clique. 60 m cobre folgadamente qualquer
-## coisa visível dentro do enquadramento ortográfico de 12 unidades.
+## Alcance máximo do raycast do clique — medida CÂMERA→CHÃO, não câmera→borda
+## do mapa. A câmera fica sempre a `IsoCamera.RIG_DISTANCE` (20 m) do jogador,
+## qualquer que seja o tamanho do mundo, então 60 m cobrem folgadamente o que
+## cabe no enquadramento ortográfico (17,15 de `base_size`, até 3x em zoom).
+##
+## **Não escala com o mapa**, apesar de ter coincidido exatamente com o
+## meio-lado enquanto o PZ-01 tinha 120 m. A coincidência foi conferida e
+## descartada no resize de 350 m (2026-09-06); crescer este número junto com
+## `MapTerrain.SIZE` só alongaria um raio que já sobra.
 const CLICK_RAY_LENGTH := 60.0
 
 var _parent: Node3D

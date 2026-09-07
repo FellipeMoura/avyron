@@ -65,12 +65,14 @@ var _engaged_arena: ArenaActor
 var _staging: BattleStaging
 var _active_relic: PlayerRelic
 
-## Quantos eventos de `battle.log_events` já viraram efeito visual. `rendered`
-## dispara toda vez que o estado muda mas não carrega os eventos da rodada —
-## por isso o corte é pela CONTAGEM, não por um payload que o sinal não tem.
-## Zerado em `_set_duel`, que roda tanto ao abrir (duelo novo, log vazio)
-## quanto ao fechar (null) — os dois são "sem rodada ainda processada".
-var _battle_events_seen := 0
+## Compasso de cada categoria de evento animado — quanto tempo `_animate_round_events`
+## espera antes do próximo, e por extensão quanto o turno inteiro atrasa o
+## texto/HP (decisão do usuário: esperar a animação, não texto instantâneo em
+## paralelo). Reusa os MESMOS números do VFX (`ElementPalette.BATTLE_*_LIFETIME`)
+## pra golpe/status — corpo e partícula terminam juntos, de propósito. Só
+## `DEATH_BEAT` é novo: não existe VFX de desmaio, então não há lifetime
+## nenhum pra herdar.
+const DEATH_BEAT := 0.9
 
 
 func setup(
@@ -121,7 +123,6 @@ func staging() -> BattleStaging:
 
 func _set_duel(duel: DuelScreen) -> void:
 	_duel = duel
-	_battle_events_seen = 0
 	_on_duel_changed.call(duel)
 
 
@@ -162,7 +163,11 @@ func engage_wild(actor: CreatureActor, relic: PlayerRelic, encounter_level: int)
 	duel.duel_level = encounter_level
 	duel.closed.connect(_on_duel_closed)
 	duel.rendered.connect(_sync_awakening_auras)
-	duel.rendered.connect(_play_battle_effects)
+	# `_play_battle_effects` reativo (ligado a `rendered`) foi substituído por
+	# isto: `DuelScreen` agora ESPERA a animação antes de renderizar (decisão
+	# do usuário — texto/HP só depois do golpe tocar), então quem decide a
+	# ordem é ela, chamando isto com `await` ANTES do `_render()`, não depois.
+	duel.animate_round = Callable(self, "_animate_round_events")
 	_set_duel(duel)
 
 	# CanvasLayer para o overlay ficar acima do 3D sem herdar a pausa do
@@ -216,7 +221,11 @@ func engage_arena(actor: ArenaActor, relic: PlayerRelic) -> void:
 	duel.is_wild = false
 	duel.closed.connect(_on_duel_closed)
 	duel.rendered.connect(_sync_awakening_auras)
-	duel.rendered.connect(_play_battle_effects)
+	# `_play_battle_effects` reativo (ligado a `rendered`) foi substituído por
+	# isto: `DuelScreen` agora ESPERA a animação antes de renderizar (decisão
+	# do usuário — texto/HP só depois do golpe tocar), então quem decide a
+	# ordem é ela, chamando isto com `await` ANTES do `_render()`, não depois.
+	duel.animate_round = Callable(self, "_animate_round_events")
 	_set_duel(duel)
 
 	var layer := CanvasLayer.new()
@@ -315,25 +324,50 @@ func _set_body_aura(body: Node, active: bool) -> void:
 		body.call("set_awakening_aura", active)
 
 
-## Um efeito visual por evento NOVO do log — a contraparte de
-## `_sync_awakening_auras` para golpe/status: aquele reespelha ESTADO
-## (idempotente de propósito), este reage a EVENTO (cada `"damage"`/`"buff"`/
-## `"debuff"`/`"heal"`/`"charge"` dispara exatamente uma vez, nunca de novo).
-## Eventos sem efeito (`"miss"`, `"invalid"`, `"switch"`, `"faint"`...) caem no
-## `_:` do `match` em `_play_one_battle_effect` e não fazem nada — omissão
-## deliberada, não lacuna: a v1 é golpe e status, não toda categoria de evento.
-func _play_battle_effects() -> void:
+## Toca a sequência ANIMADA de uma rodada — chamada por `DuelScreen` (com
+## `await`) DEPOIS de `battle.resolve_round` e ANTES do próprio `_render()`,
+## porque o usuário escolheu esperar a animação: texto e HP só aparecem
+## quando o golpe já tocou, não em paralelo com ele.
+##
+## Tranca a marcha dos dois lados no `BattleStaging` (se houver — arena não
+## tem encenação do lado inimigo) ANTES do primeiro evento e destranca DEPOIS
+## do último, sempre no início/fim da RODADA e nunca por evento: destrancar
+## entre "HitReact" e "Death" do mesmo corpo deixaria a encenação puxar um
+## quadro de `Idle` por cima bem no meio da sequência. Quem desmaiou fica
+## trancado — ver `_release_gait`.
+func _animate_round_events(events: Array) -> void:
 	if _duel == null or _duel.battle == null:
 		return
-	var battle := _duel.battle
-	var events: Array = battle.log_events
-	if _battle_events_seen >= events.size():
+	_lock_gait(_companion, true)
+	_lock_gait(_engaged_actor, true)
+	for event in events:
+		await _animate_one_event(_duel.battle, event as Dictionary)
+	_release_gait_if_alive(true, _duel.battle)
+	_release_gait_if_alive(false, _duel.battle)
+
+
+func _lock_gait(body: Node3D, locked: bool) -> void:
+	if _staging != null and is_instance_valid(_staging) and body != null and is_instance_valid(body):
+		_staging.lock_gait(body, locked)
+
+
+## Destranca só quem SEGUE vivo — o lado que desmaiou fica preso na pose de
+## `Death` até o duelo fechar (a encenação inteira morre junto, então nunca
+## sobra destrancado no mapa). `is_player` aqui identifica o LADO do jogador,
+## não o evento — por isso o parâmetro chama diferente do resto do arquivo.
+func _release_gait_if_alive(is_player_side: bool, battle: Battle) -> void:
+	var combatant: Combatant = battle.player_active() if is_player_side else battle.enemy
+	if combatant != null and combatant.is_fainted():
 		return
-	for i in range(_battle_events_seen, events.size()):
-		_play_one_battle_effect(battle, events[i] as Dictionary)
-	_battle_events_seen = events.size()
+	_lock_gait(_companion if is_player_side else _engaged_actor, false)
 
 
+## Um evento: efeito visual (`_dispatch_battle_effect`, já existia) MAIS
+## clipe de corpo — a peça que faltava pra alguma coisa acontecer com a
+## criatura em si, não só com a partícula do lado dela. `await` no fim é o
+## compasso: cada evento tem seu tempo antes do próximo, e é essa espera que
+## o `await` de `DuelScreen` acaba herdando por inteiro.
+##
 ## `is_player` no evento (não `actor.code`) decide o lado — ver o comentário
 ## de `Battle._log` sobre por que código não basta (duelo espécie-contra-a-
 ## mesma-espécie tem o mesmo código dos dois lados).
@@ -344,12 +378,11 @@ func _play_battle_effects() -> void:
 ## (buff/debuff/heal/charge) não tem elemento próprio no catálogo — usa
 ## sempre o de quem usou, mesmo quando aplicado no oponente (debuff).
 ##
-## `actor.code` viaja como quinto argumento pra `ElementPalette` poder trocar
-## pelo `cardPalette` da CRIATURA quando ela tiver um — mas só pra status:
-## dano ignora esse código de propósito (`ElementPalette.play_battle_effect`
-## decide isso sozinha), porque a cor do golpe é da habilidade, nunca de quem
-## apanha.
-func _play_one_battle_effect(battle: Battle, event: Dictionary) -> void:
+## Só dano/miss mexem no CORPO (`Attack`/`HitReact`/`Death`) — status
+## (buff/debuff/heal/charge) continua só efeito visual, sem clipe: não existe
+## gesto de "usar golpe de suporte" no vocabulário das criaturas, e forçar
+## `Attack2` pra isso seria custom por categoria, não sistemático.
+func _animate_one_event(battle: Battle, event: Dictionary) -> void:
 	var is_player := bool(event.get("is_player", false))
 	var type := str(event.get("type", ""))
 	var actor: Combatant = battle.player_active() if is_player else battle.enemy
@@ -364,10 +397,33 @@ func _play_one_battle_effect(battle: Battle, event: Dictionary) -> void:
 				element_code = actor.element
 			# Dano acontece no ALVO — o lado oposto de quem agiu.
 			_dispatch_battle_effect(not is_player, "damage", element_code, ability_code, actor_code)
+			_play_body_clip(is_player, "Attack")
+			_play_body_clip(not is_player, "HitReact")
+			await _wait(ElementPalette.BATTLE_ATTACK_LIFETIME)
+		"miss":
+			# Golpe saiu, ninguém reage — só quem atacou anima.
+			_play_body_clip(is_player, "Attack")
+			await _wait(ElementPalette.BATTLE_ATTACK_LIFETIME)
 		"buff", "heal", "charge":
 			_dispatch_battle_effect(is_player, type, actor.element if actor != null else "", "", actor_code)
+			await _wait(ElementPalette.BATTLE_CHARGE_LIFETIME if type == "charge" else ElementPalette.BATTLE_STATUS_LIFETIME)
 		"debuff":
 			_dispatch_battle_effect(not is_player, type, actor.element if actor != null else "", "", actor_code)
+			await _wait(ElementPalette.BATTLE_STATUS_LIFETIME)
+		"faint":
+			# `is_player` aqui já é o lado de QUEM DESMAIOU — `Battle._log`
+			# grava o evento com `actor` = o próprio combatente caído.
+			_play_body_clip(is_player, "Death")
+			await _wait(DEATH_BEAT)
+
+
+## `Engine.get_main_loop()`, não `_parent.get_tree()`: uma bancada de teste
+## pode montar o `EncounterDirector` sem `setup()` nenhum (só os campos que o
+## próprio teste precisa, via reflexão), e `_parent` ficaria null nesse caso.
+func _wait(seconds: float) -> void:
+	var loop := Engine.get_main_loop()
+	if loop is SceneTree:
+		await (loop as SceneTree).create_timer(seconds).timeout
 
 
 ## `player_side` true = companheira, false = criatura selvagem/duelista —
@@ -382,6 +438,18 @@ func _dispatch_battle_effect(
 		return
 	if body.has_method("play_battle_effect"):
 		body.call("play_battle_effect", kind, element_code, variant_seed, source_creature_code)
+
+
+## Mesmo mapeamento de `_dispatch_battle_effect`, só que pro clipe do CORPO
+## em vez do VFX. `player_side` aqui é sempre "de quem é o corpo que deve
+## animar" — quem chama já decidiu isso (`is_player` pra quem golpeou, `not
+## is_player` pra quem apanhou).
+func _play_body_clip(player_side: bool, clip: String) -> void:
+	var body: Node = _companion if player_side else _engaged_actor
+	if body == null or not is_instance_valid(body):
+		return
+	if body.has_method("play_battle_clip"):
+		body.call("play_battle_clip", clip)
 
 
 func _on_duel_closed(outcome: int) -> void:
@@ -415,8 +483,11 @@ func _on_duel_closed(outcome: int) -> void:
 		layer.queue_free()
 	_set_duel(null)
 
-	# Vitória → sai do mapa com respawn agendado.
-	# Captura → sai do mapa SEM respawn; código entra no time do jogador.
+	# Vitória e captura → o corpo sai do mapa. Desde que o povoamento virou
+	# local ao jogador (2026-09-06) as duas são a MESMA operação para o
+	# spawner: não há mais respawn agendado por morte, quem repõe é o
+	# deslocamento do jogador. O que ainda as separa é o que acontece do lado
+	# de cá — a captura entra no time, a vitória distribui XP e drop.
 	# Derrota/fuga → criatura permanece no mapa para poder ser reengajada.
 	if _engaged_actor and is_instance_valid(_engaged_actor):
 		if outcome == Battle.Outcome.PLAYER_WON:
@@ -440,7 +511,7 @@ func _on_duel_closed(outcome: int) -> void:
 			# silêncio seria perder o bicho e a batalha juntos.
 			var captured_level := fought.enemy.level if fought else -1
 			if _roster.add(_engaged_actor.creature_code, captured_hp, captured_level):
-				_spawner.remove_actor(_engaged_actor, false)
+				_spawner.remove_actor(_engaged_actor)
 				_grant_capture_xp()
 			else:
 				_engaged_actor.reset_engagement()

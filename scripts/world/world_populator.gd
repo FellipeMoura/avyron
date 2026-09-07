@@ -12,29 +12,48 @@ extends RefCounted
 ## `WorldRoot` (ou `EncounterDirector`) — este arquivo só cria e devolve; a
 ## conexão do sinal `engaged` é passada de fora via `Callable`.
 
-## Onde o comerciante fica: na COSTA — o platô da borda -Z que o `MapTerrain`
-## reserva para NPCs e portais, sem bioma natural e sem spawn de criatura.
-## Posição de cena, não de bestiário: o catálogo diz quem existe e em que
-## mapa, o layout do mundo diz onde. O `y` das consts é 0 de propósito: quem
-## resolve a altura é o terreno, na hora de spawnar.
-const MERCHANT_SPOT := Vector3(4.0, 0.0, -46.0)
+## ## A vila da costa: uma âncora que escala, prédios que não
+##
+## Os três serviços do mapa (comerciante, posto do Relicário, bancada) formam
+## uma vila na COSTA — o platô da borda -Z que o `MapTerrain` reserva para NPCs
+## e portais, sem bioma natural e sem spawn de criatura. Posição de cena, não
+## de bestiário: o catálogo diz quem existe e em que mapa, o layout do mundo
+## diz onde. O `y` das consts é 0 de propósito: quem resolve a altura é o
+## terreno, na hora de spawnar.
+##
+## A separação abaixo existe por causa do resize de 350 m (2026-09-06), que
+## mostrou os dois grupos discordando: a costa é fração do mapa e andou ~88 m
+## mar adentro, deixando os três pontos — escritos em metros absolutos — no
+## meio do mar aberto. Mas escalar as posições em bloco teria espalhado a vila
+## de 9 m de largura para 26 m, afastando prédio de prédio porque o oceano
+## cresceu. Então: a ÂNCORA é fração do meio-lado (acompanha a costa), e o
+## espaçamento entre os serviços é metro fixo (prédio tem tamanho próprio).
+const _VILLAGE_ANCHOR := Vector3(
+	0.066667 * float(MapTerrain.SIZE) * 0.5,
+	0.0,
+	-0.766667 * float(MapTerrain.SIZE) * 0.5)
 
-## Idem, pro posto do Relicário — depositar/retirar do storage e trocar de
-## modelo só funcionam perto daqui (documento `relicario`: "exige estar em
-## um ponto fixo"). Vizinho do comerciante na costa: os serviços do mapa
-## ficam na mesma "vila" de praia.
-const RELIC_STATION_SPOT := Vector3(8.5, 0.0, -46.0)
+## Distância entre um serviço e o vizinho, em metros — NÃO escala.
+const _VILLAGE_SPACING := 4.5
+
+const MERCHANT_SPOT := _VILLAGE_ANCHOR
+
+## O posto do Relicário — depositar/retirar do storage e trocar de modelo só
+## funcionam perto daqui (documento `relicario`: "exige estar em um ponto
+## fixo"). Vizinho do comerciante na costa.
+const RELIC_STATION_SPOT := _VILLAGE_ANCHOR + Vector3(_VILLAGE_SPACING, 0.0, 0.0)
 
 ## Ponto de início do jogador em PZ-01: na costa primordial, ao lado do posto
 ## do Relicário, para a partida abrir em terreno seguro e em área de serviço,
-## sem nascer em cima do morro central.
+## sem nascer em cima do morro central. O offset é "ao lado do posto", medida
+## de corpo — não escala com o mapa, pelo mesmo motivo do espaçamento.
 const PLAYER_START_SPOT := RELIC_STATION_SPOT + Vector3(2.4, 0.0, 1.6)
 
 ## E a bancada, terceiro serviço da mesma vila de praia (documento
 ## `equipamentos`). Fica do outro lado do comerciante, não ao lado do posto:
 ## os dois pontos que **gastam** recurso do jogador — comprar e fabricar —
 ## ficam vizinhos, e o posto, que não cobra nada, na ponta.
-const CRAFTING_BENCH_SPOT := Vector3(-0.5, 0.0, -46.0)
+const CRAFTING_BENCH_SPOT := _VILLAGE_ANCHOR - Vector3(_VILLAGE_SPACING, 0.0, 0.0)
 
 ## Idem, pra arena e pro guardião do portal (documento `glifos-e-portais`).
 ## Guardião fica mais longe dos outros pontos de interação — ele marca a
@@ -45,8 +64,18 @@ const CRAFTING_BENCH_SPOT := Vector3(-0.5, 0.0, -46.0)
 ## imagem que "arena" pede e que a costa — adro de loja e portal — não dava.
 ## O `x`/`z` tem de caber no topo plano (raio 4 m); o `y` continua 0 porque
 ## quem resolve altura é o terreno, na hora de spawnar.
+## A arena está na ILHA, que não escala com o mapa (ver `MapTerrain`) — este
+## ponto é dos poucos do arquivo que sobrevive a um resize sem tocar.
 const ARENA_SPOT := Vector3(0.0, 0.0, -2.8)
-const PORTAL_SPOT := Vector3(-12.0, 0.0, -28.0)
+## O guardião marca a borda do mapa, então acompanha o mapa: fração do
+## meio-lado, como a âncora da vila. Hoje o PZ-01 não instancia guardião
+## nenhum (nenhuma travessia dele exige Glifo), então isto é posição em
+## espera — mas em metro absoluto ela apodreceria em silêncio até o dia em
+## que uma travessia exigente aparecesse.
+const PORTAL_SPOT := Vector3(
+	-0.2 * float(MapTerrain.SIZE) * 0.5,
+	0.0,
+	-0.466667 * float(MapTerrain.SIZE) * 0.5)
 
 ## O conteúdo da arena — oponente, nível e Glifo concedido — **saiu daqui**
 ## em 2026-08 e vive em `npc_duelists` no bestiário, chegando em

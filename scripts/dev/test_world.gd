@@ -258,7 +258,15 @@ func _test_water_line() -> void:
 	# regra "fora da terra firme é tudo mar" — BIO-014 tem fauna e minério
 	# próprios (ver `CLAUDE.md`, minério glacial exclusivo), então ler como
 	# leito de mar contradizia o resto do design.
-	var glacial_core := Vector3(-35.0, 0, 35.0)
+	# Derivado do retângulo, não escrito em metros: era `(-35, 35)` — o centro
+	# do platô a 120 m —, e o resize de 350 m (2026-09-06) deixou esse ponto
+	# em mar aberto, reprovando um relevo que estava certo. Coordenada de
+	# teste presa ao tamanho do mapa é a mesma armadilha que o resize tirou da
+	# produção; o meio do retângulo continua sendo o meio em qualquer tamanho.
+	var glacial_core := Vector3(
+		(MapTerrain.GLACIAL_X0 + MapTerrain.GLACIAL_X1) * 0.5,
+		0,
+		(MapTerrain.GLACIAL_Z0 + MapTerrain.GLACIAL_Z1) * 0.5)
 	glacial_core.y = terrain.height_at(glacial_core)
 	_check_true("o nucleo do plato glacial e LAND_HEIGHT (%.2f)" % glacial_core.y,
 		absf(glacial_core.y - MapTerrain.LAND_HEIGHT) < 0.001)

@@ -61,22 +61,34 @@ extends StaticBody3D
 
 ## ## O tamanho do mapa, e o que escala junto com ele
 ##
-## `SIZE` saiu de 60 para 120 m em 2026-08-28, e a conta que decidiu o alvo
-## está no ROADMAP: **30 s de travessia por bioma** a 5,2 m/s dão 156 m por
-## bioma, que com cinco biomas pedem um mapa de 350 m. Os 120 m são a etapa
-## intermediária — a maior que o acervo de props atual consegue vestir sem o
-## mapa ler como deserto. O alvo continua sendo 350.
+## `SIZE` saiu de 60 para 120 m em 2026-08-28 e de 120 para 350 m em
+## 2026-09-06, fechando o alvo que o ROADMAP calculava: **30 s de travessia
+## por bioma** a 5,2 m/s dão 156 m por bioma, que com cinco biomas pedem um
+## mapa de 350 m.
 ##
-## Desde o corte pra dois níveis (2026-09-01), a regra de "o que escala com o
-## mapa" ficou mais simples: as FORMAS em planta (`COAST_*`, `ISLAND_*`,
-## `GLACIAL_*`) continuam proporção do lado, exatamente como antes — são
-## bioma, e bioma que não cresce com o mapa encolhe até sumir. Altura não
-## escala mais com nada, porque só existem duas (`SEA_HEIGHT`/`LAND_HEIGHT`) e
-## as duas são constante fixa, não fração de área.
+## **As formas em planta são frações de `_HALF`, não metros literais.** Até o
+## resize de 350 elas eram números absolutos recalibrados à mão a cada
+## mudança de tamanho — e eram, sem exceção, o valor normalizado do CATÁLOGO
+## multiplicado pelo meio-lado da vez (`COAST_LOBE_R` 27,6 = 0,46 × 60;
+## `GLACIAL_Z1` 60 = 1,0 × 60, a borda). Escrever a fração explícita fez duas
+## coisas: o próximo resize passa a ser uma linha só, e o relevo deixa de
+## poder divergir em silêncio da partição de bioma (que já é normalizada ±1 e
+## já escalava sozinha) — que é exatamente o buraco descrito no comentário da
+## costa, logo abaixo.
+##
+## O que NÃO escala, e por quê: a ILHA (é do tamanho de caber uma arena e um
+## duelista — o mar em volta crescer não muda isso), as duas cotas
+## (`SEA_HEIGHT`/`LAND_HEIGHT`, constantes fixas desde 2026-09-01), as larguras
+## de rampa (`COAST_RAMP_WIDTH`, `ACCESS_RAMP_*` — conta de inclinação, não de
+## área), `GLACIAL_FEATHER` (suavização visual) e `BOUNDS_MARGIN` (raio de
+## cápsula). Trocar uma constante de grupo por engano é o que quebra o mapa.
 ##
 ## Lado do mapa em metros (grade de 1 m — célula igual à do HeightMapShape3D,
-## que fixa o espaçamento em 1 unidade; a 120 m são 14.641 vértices).
-const SIZE := 120
+## que fixa o espaçamento em 1 unidade; a 350 m são 123.201 vértices).
+const SIZE := 350
+## Meio-lado, em metros. As formas em planta abaixo são FRAÇÕES deste número,
+## nunca metros escritos à mão — ver "O tamanho do mapa" no cabeçalho.
+const _HALF := float(SIZE) * 0.5
 ## Altura extra do rim de borda, somada por cima do nível base — paredão
 ## visual na borda do mapa, independente de terra ou mar.
 const RIM_HEIGHT := 3.5
@@ -103,16 +115,16 @@ const RIM_HEIGHT := 3.5
 ##
 ## O centro do lobo fica na BORDA -Z, fora do mapa: é o que faz um círculo
 ## produzir margem de praia em vez de ilha redonda.
-const COAST_CENTER_X := -4.2
-const COAST_LOBE_R := 27.6
+const COAST_CENTER_X := -0.07 * _HALF
+const COAST_LOBE_R := 0.46 * _HALF
 ## Centro e meia-largura do retângulo, em metros — independentes do centro
 ## do círculo acima. Até 2026-08-31 os dois usavam a MESMA constante porque
 ## os dados do catálogo coincidiam por acaso (retângulo simétrico ao redor
 ## do mesmo x do círculo); a reautoria de `RGN-001` (só o lado +X) quebrou
 ## essa coincidência, e o retângulo passou a precisar do próprio centro.
-const COAST_RECT_CENTER_X := 1.5
-const COAST_RECT_HALF_W := 49.5
-const COAST_RECT_Z := -43.2
+const COAST_RECT_CENTER_X := 0.025 * _HALF
+const COAST_RECT_HALF_W := 0.825 * _HALF
+const COAST_RECT_Z := -0.72 * _HALF
 
 ## Largura do esmaecimento da forma da costa — ao contrário da ilha e do
 ## platô glacial, a COSTA é rampa andável na borda INTEIRA com o mar, não só
@@ -133,7 +145,7 @@ const COAST_RAMP_WIDTH := 6.0
 ## linha de centro dele. Continua existindo porque o shader, os testes e as
 ## notas do catálogo precisam de um número único para conferir contra; deixou
 ## é de ser a fronteira em toda largura, porque agora só vale no meio.
-const COAST_RAMP_START := -60.0 + COAST_LOBE_R
+const COAST_RAMP_START := -_HALF + COAST_LOBE_R
 const COAST_TOP := COAST_RAMP_START - COAST_RAMP_WIDTH
 
 ## A ilha: o único chão seco fora da costa e do platô glacial — um platô
@@ -153,18 +165,19 @@ const ISLAND_BASE_RADIUS := 9.0
 
 ## O platô glacial (`RGN-004`, BIO-014) — terceira geografia declarada seca.
 ## Retângulo com cantos suavizados, batendo com a forma `rect` do catálogo.
-## `GLACIAL_X0`/`GLACIAL_Z1` caem exatamente na borda do mapa (±60).
-const GLACIAL_X0 := -60.0
-const GLACIAL_X1 := -18.0
-const GLACIAL_Z0 := 13.2
-const GLACIAL_Z1 := 60.0
+## `GLACIAL_X0`/`GLACIAL_Z1` caem exatamente na borda do mapa (±`_HALF`) — é
+## por isso que são a fração 1,0 cheia, não um número medido.
+const GLACIAL_X0 := -_HALF
+const GLACIAL_X1 := -0.3 * _HALF
+const GLACIAL_Z0 := 0.22 * _HALF
+const GLACIAL_Z1 := _HALF
 const GLACIAL_FEATHER := 10.0
 
 ## Margem entre a borda do terreno e o limite em que um corpo ainda pode ser
-## posto. Além dos ±30 m da malha não há chão nenhum — nem visual, nem colisão,
-## nem resposta de `height_at` que signifique alguma coisa —, e um corpo posto
-## lá simplesmente cai. Dois metros cobrem o maior raio de cápsula do elenco
-## (1,2 m) com folga.
+## posto. Além dos ±`_HALF` da malha não há chão nenhum — nem visual, nem
+## colisão, nem resposta de `height_at` que signifique alguma coisa —, e um
+## corpo posto lá simplesmente cai. Dois metros cobrem o maior raio de cápsula
+## do elenco (1,2 m) com folga, e por isso não escalam com o mapa.
 const BOUNDS_MARGIN := 2.0
 
 ## Os dois níveis. `LAND_HEIGHT` mantém o valor que `COAST_HEIGHT` já usava —
@@ -192,10 +205,18 @@ const LAND_HEIGHT := 1.6
 ## na ilha da arena (voltado pra costa — de onde o jogador nada de verdade
 ## pra chegar lá). Coordenadas medidas por sonda direta contra
 ## `_land_profile` (descartada), não calculadas à mão.
+##
+## **Este array mistura os dois grupos de escala, e é a armadilha do arquivo.**
+## Os dois primeiros pontos ficam na borda do PLATÔ GLACIAL, que é fração do
+## mapa — escalam junto. O terceiro fica na borda da ILHA, que não escala: o
+## `-9.0` dele é literalmente `ISLAND_BASE_RADIUS`, e não por coincidência.
+## Escalar os três em bloco (o que uma regra de três aplicada ao array inteiro
+## faria) jogaria a rampa da ilha a 26 m de uma ilha de 9 m de raio, deixando
+## a arena — onde o jogo ABRE — sem acesso andável nenhum.
 const ACCESS_RAMPS: Array[Vector2] = [
-	Vector2(-22.0, 35.0),
-	Vector2(-40.0, 16.0),
-	Vector2(0.0, -9.0),
+	Vector2(-0.366667 * _HALF, 0.583333 * _HALF),
+	Vector2(-0.666667 * _HALF, 0.266667 * _HALF),
+	Vector2(0.0, -ISLAND_BASE_RADIUS),
 ]
 ## Vão da rampa: raio "totalmente terra" (`INNER`) e raio "de volta ao mar
 ## aberto" (`OUTER`) — NÃO é o esmaecimento da forma da ilha/glacial
@@ -450,13 +471,22 @@ func on_island(world_pos: Vector3, margin: float = 0.0) -> bool:
 ## sobre um leito que `submerged()` continuava tratando como sempre molhado
 ## (a mesma regra "recife não é ilhota"); a partir de agora o platô negocia
 ## com a cota como a costa e a ilha — pedido do usuário, porque um bioma com
-## fauna e minério próprios (ver `CLAUDE.md`, minério glacial exclusivo) lendo
-## como fundo de mar contradizia o resto do design.
+## minério próprio (ver `CLAUDE.md`, minério glacial exclusivo) lendo como
+## fundo de mar contradizia o resto do design.
 ##
-## Sem `margin`: ao contrário de `on_coast`/`on_island`, ainda não existe
-## consumidor pedindo keep-out mar adentro aqui — spawner e `MapDressing`
-## continuam livres para usar o platô (é bioma de fauna, não adro de NPC).
-## Adicionar o parâmetro sem chamador é complexidade especulativa.
+## **O platô NÃO tem fauna** (corrigido em 2026-09-07). Este comentário dizia o
+## contrário — "é bioma de fauna, não adro de NPC" — e contradizia a nota do
+## próprio BIO-014 no catálogo, que declara em letras maiúsculas "SEM FAUNA:
+## nenhuma criatura nasce nem patrulha aqui" e chama o BIO-004 (Mar Profundo)
+## de par de vazio. A contradição só apareceu quando `biomes.spawnChance`
+## passou a existir e alguém teve de escrever um número: o catálogo venceu, os
+## dois estão em 0,00, e é o CATÁLOGO que manda nessa pergunta.
+##
+## Sem `margin` mesmo assim: o keep-out de spawn não é mais geografia escrita
+## aqui — `CreatureSpawner` rejeita qualquer ponto cujo BIOMA tenha chance
+## zero, o que cobre o platô, o mar profundo e qualquer bioma sem fauna que
+## venha depois, sem um predicado novo por bioma. É a saída que o `CLAUDE.md`
+## já apontava como a boa entre as duas possíveis.
 func on_glacial(world_pos: Vector3) -> bool:
 	return _glacial_profile(world_pos.x, world_pos.z) > 0.0
 

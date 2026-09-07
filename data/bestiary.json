@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.457",
-  "generatedAt": "2026-09-03T02:25:11.664Z",
+  "dataVersion": "0.519",
+  "generatedAt": "2026-09-07T16:31:16.006Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -334,72 +334,86 @@
     {
       "code": "BIO-001",
       "name": "Mar raso",
-      "predominantElements": "Agua"
+      "predominantElements": "Agua",
+      "spawnChance": 0.18
     },
     {
       "code": "BIO-002",
       "name": "Costa Primordial",
-      "predominantElements": "Agua + Terra"
+      "predominantElements": "Agua + Terra",
+      "spawnChance": 0
     },
     {
       "code": "BIO-003",
       "name": "Jardins Recifais",
-      "predominantElements": "Agua + Natureza"
+      "predominantElements": "Agua + Natureza",
+      "spawnChance": 0.4
     },
     {
       "code": "BIO-004",
       "name": "Mar Profundo",
-      "predominantElements": "Agua"
+      "predominantElements": "Agua",
+      "spawnChance": 0
     },
     {
       "code": "BIO-005",
       "name": "Estuário",
-      "predominantElements": "Agua + Terra"
+      "predominantElements": "Agua + Terra",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-006",
       "name": "Pântano Primitivo",
-      "predominantElements": "Agua + Natureza"
+      "predominantElements": "Agua + Natureza",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-007",
       "name": "Floresta Ribeirinha",
-      "predominantElements": "Natureza + Terra"
+      "predominantElements": "Natureza + Terra",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-008",
       "name": "Planalto Rochoso",
-      "predominantElements": "Terra + Natureza"
+      "predominantElements": "Terra + Natureza",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-009",
       "name": "Floresta Carbonífera",
-      "predominantElements": "Natureza + Agua"
+      "predominantElements": "Natureza + Agua",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-010",
       "name": "Pântano de Carvão",
-      "predominantElements": "Natureza + Terra"
+      "predominantElements": "Natureza + Terra",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-011",
       "name": "Bosque Seco Permiano",
-      "predominantElements": "Natureza + Terra"
+      "predominantElements": "Natureza + Terra",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-012",
       "name": "Ermos Permianos",
-      "predominantElements": "Terra + Fogo"
+      "predominantElements": "Terra + Fogo",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-013",
       "name": "Campos Basálticos",
-      "predominantElements": "Fogo + Terra"
+      "predominantElements": "Fogo + Terra",
+      "spawnChance": 0.15
     },
     {
       "code": "BIO-014",
       "name": "Plataforma Glacial",
-      "predominantElements": "Agua + Terra"
+      "predominantElements": "Agua + Terra",
+      "spawnChance": 0
     }
   ],
   "glyphs": [
@@ -827,8 +841,9 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "modelUrl": "/models/CRT-001.glb",
       "cardPalette": {
         "shadow": "#2a4745",
         "mid": "#3e6660",
@@ -842,7 +857,7 @@
         "charge": 45,
         "growthRate": 0.03,
         "xpYield": 42,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -897,8 +912,9 @@
       "class": "CLS-002",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/easyanimated/Snake.glb",
+      "modelUrl": "/models/CRT-002.glb",
       "cardPalette": {
         "shadow": "#463a34",
         "mid": "#7f5246",
@@ -912,7 +928,7 @@
         "charge": 50,
         "growthRate": 0.034,
         "xpYield": 57,
-        "sizeMeters": 2.18,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -967,8 +983,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": "/models/CRT-003.glb",
       "cardPalette": {
         "shadow": "#4a5359",
         "mid": "#71827d",
@@ -982,7 +999,7 @@
         "charge": 60,
         "growthRate": 0.031,
         "xpYield": 51,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1037,8 +1054,9 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "modelUrl": "/models/CRT-004.glb",
       "cardPalette": {
         "shadow": "#404e5a",
         "mid": "#627279",
@@ -1052,7 +1070,7 @@
         "charge": 40,
         "growthRate": 0.029,
         "xpYield": 45,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1107,8 +1125,9 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "modelUrl": "/models/CRT-005.glb",
       "cardPalette": {
         "shadow": "#696f71",
         "mid": "#bd8978",
@@ -1122,7 +1141,7 @@
         "charge": 55,
         "growthRate": 0.03,
         "xpYield": 47,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1177,8 +1196,9 @@
       "class": "CLS-002",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Squidle.glb",
+      "modelUrl": "/models/CRT-007.glb",
       "cardPalette": {
         "shadow": "#413549",
         "mid": "#605b70",
@@ -1192,7 +1212,7 @@
         "charge": 45,
         "growthRate": 0.036,
         "xpYield": 62,
-        "sizeMeters": 2.69,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1247,8 +1267,9 @@
       "class": "CLS-001",
       "element": "ELE-004",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/dungeon/Puglin.glb",
+      "modelUrl": null,
       "cardPalette": {
         "shadow": "#53402e",
         "mid": "#6e5238",
@@ -1262,7 +1283,7 @@
         "charge": 40,
         "growthRate": 0.033,
         "xpYield": 57,
-        "sizeMeters": 2.69,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1317,8 +1338,9 @@
       "class": "CLS-003",
       "element": "ELE-005",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Silhueta em cruz: dois pares de asas horizontais (~70 cm de envergadura) dominam a vista superior; corpo tipo agulha alongado (torax compacto, abdomen segmentado); cabeca pequena com olhos compostos desproporcionalmente grandes; sem cauda pontuda.",
-      "modelUrl": "/models/placeholders/easyanimated/Wasp.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 45,
@@ -1328,7 +1350,7 @@
         "charge": 55,
         "growthRate": 0.032,
         "xpYield": 54,
-        "sizeMeters": 1.98,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -1383,8 +1405,9 @@
       "class": "CLS-003",
       "element": "ELE-001",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/dungeon/Imp.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 60,
@@ -1394,7 +1417,7 @@
         "charge": 50,
         "growthRate": 0.033,
         "xpYield": 55,
-        "sizeMeters": 1.98,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -1449,8 +1472,9 @@
       "class": "CLS-004",
       "element": "ELE-003",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Ghost_Skull.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 40,
@@ -1460,7 +1484,7 @@
         "charge": 65,
         "growthRate": 0.03,
         "xpYield": 51,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1515,8 +1539,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": "/models/CRT-014.glb",
       "cardPalette": {
         "shadow": "#1d4066",
         "mid": "#336c92",
@@ -1530,7 +1555,7 @@
         "charge": 45,
         "growthRate": 0.031,
         "xpYield": 52,
-        "sizeMeters": 1.79,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1585,8 +1610,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": "/models/CRT-015.glb",
       "cardPalette": {
         "shadow": "#4e4348",
         "mid": "#8e7c74",
@@ -1600,7 +1626,7 @@
         "charge": 55,
         "growthRate": 0.031,
         "xpYield": 52,
-        "sizeMeters": 1,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1655,8 +1681,9 @@
       "class": "CLS-002",
       "element": "ELE-001",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Vela dorsal alta e triangular sustentada por espinhos ósseos alongados; corpo quadrupede robusto, cauda longa afinada; cabeça alongada com dentes carniceiros diferenciados. Silhueta dominada pela vela — sinapsídeo comumente confundido com dinossauro.",
-      "modelUrl": "/models/placeholders/big/MushroomKing.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 75,
@@ -1666,7 +1693,7 @@
         "charge": 55,
         "growthRate": 0.036,
         "xpYield": 62,
-        "sizeMeters": 2.87,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1721,8 +1748,9 @@
       "class": "CLS-005",
       "element": "ELE-003",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Vela dorsal com travessas ósseas transversais formando padrão de grade sobre os espinhos; corpo quadrupede baixo e denso, cauda curta; cabeça pequena de herbívoro. Contraponto visual ao Dimetrodon — mesma vela, padrão diferente, papel oposto.",
-      "modelUrl": "/models/placeholders/big/Bunny.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 80,
@@ -1732,7 +1760,7 @@
         "charge": 45,
         "growthRate": 0.031,
         "xpYield": 53,
-        "sizeMeters": 2.87,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1787,8 +1815,9 @@
       "class": "CLS-005",
       "element": "ELE-004",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Cabeça bulbosa com crânio espesso arredondado adaptado a combate de topada; corpo curvado com dorso arqueado tipo urso-tatu, membros curtos; cauda curta. Silhueta corcunda dominante.",
-      "modelUrl": "/models/placeholders/big/Cactoro.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 85,
@@ -1798,7 +1827,7 @@
         "charge": 40,
         "growthRate": 0.032,
         "xpYield": 54,
-        "sizeMeters": 2.73,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1853,8 +1882,9 @@
       "class": "CLS-002",
       "element": "ELE-001",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Corpo esguio quadrupede tipo grande felino; cabeça alongada com par de caninos superiores enormes que ultrapassam a mandíbula fechada; cauda longa. Silhueta de predador-lâmina — contraste direto com Moschops.",
-      "modelUrl": "/models/placeholders/big/Monkroose.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 70,
@@ -1864,7 +1894,7 @@
         "charge": 50,
         "growthRate": 0.037,
         "xpYield": 63,
-        "sizeMeters": 2.87,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1919,8 +1949,9 @@
       "class": "CLS-005",
       "element": "ELE-004",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Corpo cilíndrico desproporcionalmente gigantesco em barril; cabeça minúscula em relação ao corpo; membros curtos afastados; cauda curta. Silhueta cômica: pequena cabeça sobre corpo bola — bom mini-boss territorial.",
-      "modelUrl": "/models/placeholders/big/Orc.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 100,
@@ -1930,7 +1961,7 @@
         "charge": 45,
         "growthRate": 0.034,
         "xpYield": 59,
-        "sizeMeters": 3.17,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -1985,8 +2016,9 @@
       "class": "CLS-001",
       "element": "ELE-004",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Corpo quadrupede blindado com fileiras de placas ósseas ao longo do dorso e flancos; cabeça larga com espinhos e verrugas ósseas laterais; membros grossos; cauda curta. Silhueta quadrada e couraçada — tanque de área.",
-      "modelUrl": "/models/placeholders/big/Alien.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 95,
@@ -1996,7 +2028,7 @@
         "charge": 40,
         "growthRate": 0.035,
         "xpYield": 60,
-        "sizeMeters": 2.79,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2051,8 +2083,9 @@
       "class": "CLS-003",
       "element": "ELE-003",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Pequeno lagartiforme quadrupede (~20 cm de comprimento total), corpo delgado, cauda longa afinada; cabeça triangular pequena. Silhueta neutra de réptil basal — criatura comum/inicial de mapa.",
-      "modelUrl": "/models/placeholders/easyanimated/Snake.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 40,
@@ -2062,7 +2095,7 @@
         "charge": 60,
         "growthRate": 0.029,
         "xpYield": 48,
-        "sizeMeters": 1.28,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -2117,8 +2150,9 @@
       "class": "CLS-003",
       "element": "ELE-004",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Diapsídeo esguio quadrupede com pernas longas relativas ao corpo (adaptação corredora); cauda longa como contrapeso; cabeça pequena com fenestras cranianas visíveis. Silhueta atlética.",
-      "modelUrl": "/models/placeholders/big/Frog.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 45,
@@ -2128,7 +2162,7 @@
         "charge": 60,
         "growthRate": 0.03,
         "xpYield": 52,
-        "sizeMeters": 1.67,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.7,
         "awakeningDurationTurns": 3
       },
@@ -2183,8 +2217,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Corpo alongado hidrodinâmico, cauda achatada em remo lateral; membros modificados em nadadeiras; focinho fino e alongado com dentes agulha finos e numerosos. Silhueta aquática — cobre nicho anfíbio.",
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 55,
@@ -2194,7 +2229,7 @@
         "charge": 50,
         "growthRate": 0.031,
         "xpYield": 53,
-        "sizeMeters": 2.18,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2249,8 +2284,9 @@
       "class": "CLS-003",
       "element": "ELE-005",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Pequeno reptil quadrupede com membranas de planeio sustentadas por costelas alongadas nas laterais do tronco; cabeca pequena com crista ossea baixa; cauda longa fina. Silhueta alada quando em glide, contraste aereo aos repteis terrestres do elenco.",
-      "modelUrl": "/models/placeholders/big/Birb.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 40,
@@ -2260,7 +2296,7 @@
         "charge": 60,
         "growthRate": 0.03,
         "xpYield": 54,
-        "sizeMeters": 1.1,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2315,8 +2351,9 @@
       "class": "CLS-003",
       "element": "ELE-005",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Diapsideo esguio de pescoco alongado e cabeca pequena triangular; corpo quadrupede moderado, cauda longa afilada. Silhueta de pescoco como traco distintivo, generalista de porte medio do Permiano.",
-      "modelUrl": "/models/placeholders/big/Demon.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 60,
@@ -2326,7 +2363,7 @@
         "charge": 50,
         "growthRate": 0.031,
         "xpYield": 53,
-        "sizeMeters": 2,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2381,8 +2418,9 @@
       "class": "CLS-002",
       "element": "ELE-003",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Corpo quadrupede alongado tipo crocodiliano primitivo; focinho comprido e estreito com dentes conicos numerosos; membros curtos afastados do corpo; cauda longa. Silhueta rasteira de emboscada, predador de Terra em contraponto agil ao Scutosaurus blindado.",
-      "modelUrl": "/models/placeholders/big/Dino.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 70,
@@ -2392,7 +2430,7 @@
         "charge": 45,
         "growthRate": 0.034,
         "xpYield": 56,
-        "sizeMeters": 2.6,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2447,8 +2485,9 @@
       "class": "CLS-002",
       "element": "ELE-005",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": "Vela dorsal baixa e rudimentar, menos proeminente que a do Dimetrodon; corpo quadrupede esguio de sinapsideo carnivoro; cauda longa afinada; cabeca alongada com dentes diferenciados. Silhueta-irma do Dimetrodon, mesma familia, porte menor.",
-      "modelUrl": "/models/placeholders/big/Fish.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 60,
@@ -2458,7 +2497,7 @@
         "charge": 50,
         "growthRate": 0.033,
         "xpYield": 56,
-        "sizeMeters": 2.4,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2513,8 +2552,9 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Glub.glb",
+      "modelUrl": null,
       "cardPalette": {
         "shadow": "#60556d",
         "mid": "#9d908f",
@@ -2528,7 +2568,7 @@
         "charge": 45,
         "growthRate": 0.031,
         "xpYield": 51,
-        "sizeMeters": 1.98,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2574,8 +2614,9 @@
       "class": "CLS-003",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "modelUrl": "/models/CRT-034.glb",
       "cardPalette": {
         "shadow": "#654133",
         "mid": "#6e5780",
@@ -2589,7 +2630,7 @@
         "charge": 55,
         "growthRate": 0.03,
         "xpYield": 45,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2635,8 +2676,9 @@
       "class": "CLS-003",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "modelUrl": "/models/CRT-035.glb",
       "cardPalette": {
         "shadow": "#634e4d",
         "mid": "#c77c63",
@@ -2650,7 +2692,7 @@
         "charge": 55,
         "growthRate": 0.03,
         "xpYield": 48,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2696,8 +2738,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": {
         "shadow": "#255c77",
         "mid": "#588b9a",
@@ -2711,7 +2754,7 @@
         "charge": 55,
         "growthRate": 0.032,
         "xpYield": 53,
-        "sizeMeters": 2.18,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2757,8 +2800,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": {
         "shadow": "#2e2825",
         "mid": "#67565b",
@@ -2772,7 +2816,7 @@
         "charge": 55,
         "growthRate": 0.037,
         "xpYield": 62,
-        "sizeMeters": 3.17,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2818,8 +2862,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": "/models/CRT-038.glb",
       "cardPalette": {
         "shadow": "#1b2f37",
         "mid": "#314f57",
@@ -2833,7 +2878,7 @@
         "charge": 55,
         "growthRate": 0.03,
         "xpYield": 46,
-        "sizeMeters": 1.12,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2879,8 +2924,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": {
         "shadow": "#365166",
         "mid": "#759daa",
@@ -2894,7 +2940,7 @@
         "charge": 55,
         "growthRate": 0.03,
         "xpYield": 47,
-        "sizeMeters": 1.41,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -2940,8 +2986,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": {
         "shadow": "#373877",
         "mid": "#6c6aa9",
@@ -2955,7 +3002,7 @@
         "charge": 60,
         "growthRate": 0.03,
         "xpYield": 44,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3001,8 +3048,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": {
         "shadow": "#5a6266",
         "mid": "#969289",
@@ -3016,7 +3064,7 @@
         "charge": 60,
         "growthRate": 0.034,
         "xpYield": 58,
-        "sizeMeters": 2.56,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3062,8 +3110,9 @@
       "class": "CLS-005",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "modelUrl": "/models/CRT-042.glb",
       "cardPalette": {
         "shadow": "#5f4145",
         "mid": "#96726a",
@@ -3077,7 +3126,7 @@
         "charge": 45,
         "growthRate": 0.035,
         "xpYield": 60,
-        "sizeMeters": 3.12,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3123,8 +3172,9 @@
       "class": "CLS-005",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "modelUrl": "/models/CRT-043.glb",
       "cardPalette": {
         "shadow": "#3f515a",
         "mid": "#79837d",
@@ -3138,7 +3188,7 @@
         "charge": 45,
         "growthRate": 0.03,
         "xpYield": 42,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3184,8 +3234,9 @@
       "class": "CLS-005",
       "element": "ELE-002",
       "map": "PZ-01",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Hywirl.glb",
+      "modelUrl": "/models/CRT-044.glb",
       "cardPalette": {
         "shadow": "#423b42",
         "mid": "#6c584f",
@@ -3199,7 +3250,7 @@
         "charge": 45,
         "growthRate": 0.033,
         "xpYield": 55,
-        "sizeMeters": 2.05,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3245,6 +3296,7 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3256,7 +3308,7 @@
         "charge": 45,
         "growthRate": 0.03,
         "xpYield": 45,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3302,6 +3354,7 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3313,7 +3366,7 @@
         "charge": 45,
         "growthRate": 0.03,
         "xpYield": 49,
-        "sizeMeters": 1.51,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3359,6 +3412,7 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3370,7 +3424,7 @@
         "charge": 45,
         "growthRate": 0.03,
         "xpYield": 48,
-        "sizeMeters": 1.51,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3416,6 +3470,7 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3427,7 +3482,7 @@
         "charge": 50,
         "growthRate": 0.03,
         "xpYield": 50,
-        "sizeMeters": 1.41,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3473,6 +3528,7 @@
       "class": "CLS-001",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3484,7 +3540,7 @@
         "charge": 45,
         "growthRate": 0.03,
         "xpYield": 48,
-        "sizeMeters": 1.23,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3530,6 +3586,7 @@
       "class": "CLS-001",
       "element": "ELE-004",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3541,7 +3598,7 @@
         "charge": 50,
         "growthRate": 0.03,
         "xpYield": 45,
-        "sizeMeters": 0.9,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3587,6 +3644,7 @@
       "class": "CLS-002",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3598,7 +3656,7 @@
         "charge": 45,
         "growthRate": 0.037,
         "xpYield": 63,
-        "sizeMeters": 3.17,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3644,6 +3702,7 @@
       "class": "CLS-002",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3655,7 +3714,7 @@
         "charge": 45,
         "growthRate": 0.035,
         "xpYield": 60,
-        "sizeMeters": 2.79,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3701,6 +3760,7 @@
       "class": "CLS-002",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3712,7 +3772,7 @@
         "charge": 45,
         "growthRate": 0.035,
         "xpYield": 59,
-        "sizeMeters": 2.47,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3758,8 +3818,9 @@
       "class": "CLS-003",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 55,
@@ -3769,7 +3830,7 @@
         "charge": 50,
         "growthRate": 0.034,
         "xpYield": 58,
-        "sizeMeters": 2.5,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3815,8 +3876,9 @@
       "class": "CLS-003",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Dragon.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 50,
@@ -3826,7 +3888,7 @@
         "charge": 50,
         "growthRate": 0.032,
         "xpYield": 54,
-        "sizeMeters": 2.12,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3872,8 +3934,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 70,
@@ -3883,7 +3946,7 @@
         "charge": 60,
         "growthRate": 0.034,
         "xpYield": 58,
-        "sizeMeters": 2.69,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3929,8 +3992,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 55,
@@ -3940,7 +4004,7 @@
         "charge": 60,
         "growthRate": 0.031,
         "xpYield": 52,
-        "sizeMeters": 1.89,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -3986,6 +4050,7 @@
       "class": "CLS-005",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -3997,7 +4062,7 @@
         "charge": 45,
         "growthRate": 0.037,
         "xpYield": 63,
-        "sizeMeters": 2.69,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4043,6 +4108,7 @@
       "class": "CLS-005",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -4054,7 +4120,7 @@
         "charge": 45,
         "growthRate": 0.035,
         "xpYield": 59,
-        "sizeMeters": 3.07,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4100,8 +4166,9 @@
       "class": "CLS-005",
       "element": "ELE-004",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/easyanimated/Frog.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 80,
@@ -4111,7 +4178,7 @@
         "charge": 45,
         "growthRate": 0.033,
         "xpYield": 55,
-        "sizeMeters": 2.4,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4157,6 +4224,7 @@
       "class": "CLS-005",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -4168,7 +4236,7 @@
         "charge": 45,
         "growthRate": 0.032,
         "xpYield": 54,
-        "sizeMeters": 2.5,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4214,8 +4282,9 @@
       "class": "CLS-005",
       "element": "ELE-004",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/easyanimated/Spider.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 75,
@@ -4225,7 +4294,7 @@
         "charge": 45,
         "growthRate": 0.034,
         "xpYield": 57,
-        "sizeMeters": 2.18,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4271,6 +4340,7 @@
       "class": "CLS-005",
       "element": "ELE-002",
       "map": "PZ-02",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -4282,7 +4352,7 @@
         "charge": 45,
         "growthRate": 0.03,
         "xpYield": 47,
-        "sizeMeters": 1.12,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4328,6 +4398,7 @@
       "class": "CLS-001",
       "element": "ELE-003",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -4339,7 +4410,7 @@
         "charge": 45,
         "growthRate": 0.03,
         "xpYield": 50,
-        "sizeMeters": 1.51,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4385,6 +4456,7 @@
       "class": "CLS-002",
       "element": "ELE-004",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -4396,7 +4468,7 @@
         "charge": 45,
         "growthRate": 0.037,
         "xpYield": 62,
-        "sizeMeters": 3.07,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4442,6 +4514,7 @@
       "class": "CLS-002",
       "element": "ELE-005",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": null,
       "modelUrl": null,
       "cardPalette": null,
@@ -4453,7 +4526,7 @@
         "charge": 50,
         "growthRate": 0.033,
         "xpYield": 56,
-        "sizeMeters": 2.28,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },
@@ -4499,8 +4572,9 @@
       "class": "CLS-004",
       "element": "ELE-002",
       "map": "PZ-03",
+      "spawnWeight": 1,
       "silhouetteNote": null,
-      "modelUrl": "/models/placeholders/flying/Alpaking.glb",
+      "modelUrl": null,
       "cardPalette": null,
       "stats": {
         "hp": 65,
@@ -4510,7 +4584,7 @@
         "charge": 60,
         "growthRate": 0.032,
         "xpYield": 54,
-        "sizeMeters": 2.18,
+        "sizeMeters": 1.4,
         "awakeningMultiplier": 1.5,
         "awakeningDurationTurns": 3
       },

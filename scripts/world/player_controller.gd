@@ -7,8 +7,8 @@ extends CharacterBody3D
 ## humano andando faz ~1,4 m/s. Era daí que vinha o deslize: o corpo viajava a
 ## 5,2 tocando o ciclo de `Walk`, que fora calibrado num `WALK_SPEED` anterior
 ## de 4,0 e nunca remedido depois de ele subir 30%. A correção foi dar o clipe
-## certo à marcha, não mexer na velocidade — `CharacterRig.update_motion`
-## escolhe `Run` acima de `RUN_THRESHOLD`, e o jogador está sempre acima dele.
+## certo à marcha, não mexer na velocidade — `GaitRig.update_motion` escolhe
+## `Run` acima de `RUN_THRESHOLD`, e o jogador está sempre acima dele.
 ## Se ainda restar deslize, o ajuste seguinte é a CADÊNCIA (`speed_scale` do
 ## AnimationPlayer), não o clipe nem a velocidade.
 ##
@@ -30,19 +30,14 @@ const BRAKE_TIME := 0.10
 ## corpo segue a colisão o tempo todo agora, dentro ou fora da terra firme,
 ## sem exceção — gravidade normal, sem ramo especial.
 
-## A aparência do domador na v1 — sem tela de criação, uma receita fixa do
-## kit de personagens (mesmo sistema dos NPCs, ver CharacterRig). Quando a
-## criação de personagem entrar, esta constante vira o valor inicial do que
-## o jogador escolher e o escolhido persiste no save — nunca no bestiário,
-## que só conhece NPC.
-const DEFAULT_RECIPE := {
-	"gender": "male",
-	"hair": "Hair_SimpleParted",
-	"body": "Male_Ranger_Body",
-	"arms": "Male_Ranger_Arms",
-	"legs": "Male_Ranger_Legs",
-	"feet": "Male_Ranger_Feet_Boots",
-}
+## Até 2026-09-07 havia aqui uma `DEFAULT_RECIPE`: o domador era montado pelo
+## kit de personagens, como os NPCs, a partir de uma lista fixa de peças
+## (`Male_Ranger_*`) que viraria o valor inicial de uma tela de criação. O
+## jogador ganhou corpo PRÓPRIO (`PlayerRig`, `models/player.glb`) e o kit
+## passou a ser o sistema dos NPCs e só deles — não há mais receita de jogador
+## para guardar. Se a criação de personagem voltar à mesa, ela escolhe entre
+## corpos do jogador, não entre peças do kit de NPC, e o escolhido persiste no
+## save — nunca no bestiário, que só conhece NPC.
 
 ## Quão rápido o corpo gira para encarar a direção do movimento.
 @export var turn_speed: float = 12.0
@@ -54,12 +49,16 @@ const DEFAULT_RECIPE := {
 var terrain: MapTerrain
 
 var _speed_target := 0.0
-var _rig: CharacterRig
+var _rig: PlayerRig
+## Pose de mineração, ligada/desligada por `WorldRoot`: o controller não
+## decide POR QUE está minerando, só repassa o estado para a máquina de
+## marcha a cada frame físico.
+var _mining := false
 
 
 
 func _ready() -> void:
-	_rig = CharacterRig.create(DEFAULT_RECIPE)
+	_rig = PlayerRig.create()
 	if _rig == null:
 		return
 	# Pés na base da cápsula de colisão (origem do corpo é o centro dela).
@@ -97,7 +96,20 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 	if _rig != null:
-		_rig.update_motion(ground_speed(), submerged())
+		_rig.update_motion(ground_speed(), submerged(), _mining)
+
+
+## Liga/desliga a pose de mineração no rig. Chamado por `WorldRoot` ao
+## iniciar/parar uma sessão de mineração.
+func set_mining_pose(enabled: bool) -> void:
+	_mining = enabled
+
+
+## O corpo está parado, pelo mesmo limiar que a máquina de marcha usa para
+## cair em `Idle`. É o que o botão de minerar da HUD consulta para
+## aparecer/sumir, e o que `WorldRoot` usa para cancelar uma sessão em curso.
+func is_moving() -> bool:
+	return ground_speed() >= GaitRig.IDLE_THRESHOLD
 
 
 ## O domador está debaixo d'água?

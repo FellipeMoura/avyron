@@ -1,15 +1,19 @@
 class_name CharacterRig
-extends Node3D
+extends GaitRig
 
-## Corpo humano montado em runtime a partir de uma receita de aparência.
+## Corpo humano de NPC, montado em runtime a partir de uma receita de aparência.
 ##
-## Player e NPCs são o MESMO sistema visual: o kit de personagens
-## (`models/characters/`, espelhado pelo bestiário) traz corpos, cabelos e
-## peças de outfit todos rigados no mesmo esqueleto de 65 ossos. Uma receita
-## é um dicionário de nomes de peça — a do NPC vem do bundle
-## (`appearance` em merchants/duelists), a do jogador é hardcoded hoje e
-## virá de tela de criação amanhã. Montar é: instanciar o corpo, pendurar as
-## malhas das peças no esqueleto dele, e dar um AnimationPlayer com as
+## Até 2026-09-07 este era o corpo de TODO humano do jogo, jogador incluído. O
+## jogador saiu para um `.glb` próprio (`PlayerRig`) e o kit ficou sendo o que
+## sempre foi bom em ser: um gerador de gente variada a partir de peças. O que
+## os dois ainda dividem é a máquina de marcha, que subiu para `GaitRig` quando
+## deixou de ter um corpo só.
+##
+## O kit de personagens (`models/characters/`, espelhado pelo bestiário) traz
+## corpos, cabelos e peças de outfit todos rigados no mesmo esqueleto de 65
+## ossos. Uma receita é um dicionário de nomes de peça, vinda do bundle
+## (`appearance` em merchants/duelists). Montar é: instanciar o corpo, pendurar
+## as malhas das peças no esqueleto dele, e dar um AnimationPlayer com as
 ## bibliotecas UAL re-endereçadas para esse esqueleto.
 ##
 ## Duas decisões herdadas do pack, documentadas no conversor do bestiário
@@ -28,38 +32,22 @@ extends Node3D
 ## O rig nasce com os pés em y=0 local; quem o adiciona à cena decide o
 ## offset (atores de cápsula colocam em `-altura/2`, ver MerchantActor).
 
-## Mesmo contrato de loop do CreatureActor: só clipes contínuos, nunca
-## `Death`/`Attack`/`Throw` — o importador de glTF não marca loop em nada.
-const LOOPED_CLIPS := [
-	"Idle", "Walk", "Run", "Sprint", "Talk", "Sit", "Sit_Talk",
-	"Crouch", "Crouch_Walk", "Swim", "Swim_Idle", "Jump_Idle",
-	"Cast_Idle", "Push", "Walk_Carry", "Dance",
-]
-
-## Marcha a partir da qual o corpo corre em vez de andar, em m/s. Constante de
-## apresentação — é a transição andar/correr de um humano real (~2 m/s), não um
-## número que um designer ajuste no bestiário.
-const RUN_THRESHOLD := 2.2
-
 ## Quanto o corpo do nadador sobe em relação aos próprios pés, em metros.
 ##
-## O clipe `Swim` DEITA o corpo (medido: 2,31 m de comprimento por 0,22 m de
-## altura) em torno da origem do rig — que são os pés. Tocado cru, o nadador
-## fica arrastando a barriga no leito. Esta constante o põe pairando acima
-## dele, que é onde um mergulhador sobre o fundo se lê.
+## O clipe `Swim` da UAL DEITA o corpo em torno da origem do rig — que são os
+## pés —, e uma boa parte dele fica ABAIXO dela (medido: y de -0,54 a +0,11).
+## Tocado cru, o nadador arrasta a barriga no leito. Esta constante o põe
+## pairando acima dele, que é onde um mergulhador sobre o fundo se lê.
 ##
 ## Constante e não medida da pose viva: o ponto mais baixo do esqueleto oscila
 ## ao longo da braçada, e amarrar a altura a ele faria o corpo quicar ao
 ## contrário do movimento dos membros — o mesmo defeito que impede usar essa
 ## medida num ciclo de caminhada.
+##
+## Vale para ESTE clipe e nenhum outro: o `Swim` do corpo do jogador já nasce
+## pairando e por isso `PlayerRig` deixa `swim_lift` em zero. É por isso que a
+## flutuação é campo de instância em `GaitRig` em vez de constante lá.
 const SWIM_LIFT := 0.9
-
-## Tempo de entrar e sair da flutuação. Casado com o crossfade de clipe (0,2 s)
-## e um pouco maior: o corpo tem de acabar de deitar antes de estar todo no
-## alto, senão ele sobe de pé e depois deita, que lê como elevador.
-const SWIM_BLEND_TIME := 0.35
-
-
 
 const KIT_DIR := "res://models/characters"
 const MANIFEST_PATH := KIT_DIR + "/manifest.json"
@@ -77,12 +65,7 @@ static var _kit: Dictionary = {}
 ## Compartilhadas entre todos os rigs — Animation é recurso, não nó.
 static var _anim_libs: Dictionary = {}
 
-var _anim: AnimationPlayer
 var _skeleton: Skeleton3D
-## O nó do corpo, que sobe quando ele nada (ver SWIM_CLEARANCE).
-var _body: Node3D
-var _swimming := false
-var _float_blend := 0.0
 
 
 ## Monta um rig a partir da receita. Devolve `null` para receita vazia ou
@@ -116,6 +99,7 @@ static func create(recipe: Dictionary) -> CharacterRig:
 
 	var rig := CharacterRig.new()
 	rig.name = "CharacterRig"
+	rig.swim_lift = SWIM_LIFT
 	var body_instance := packed.instantiate() as Node3D
 	body_instance.name = "Body"
 	# Os modelos do kit olham para +Z, como os placeholders de criatura; a
@@ -129,7 +113,7 @@ static func create(recipe: Dictionary) -> CharacterRig:
 	rig._body = body_instance
 
 
-	rig._skeleton = _find_skeleton(body_instance)
+	rig._skeleton = find_skeleton(body_instance)
 	if rig._skeleton == null:
 		push_warning("CharacterRig: corpo '%s' sem Skeleton3D" % body_url)
 		rig.free()
@@ -148,102 +132,6 @@ static func create(recipe: Dictionary) -> CharacterRig:
 
 	rig._build_animation()
 	return rig
-
-
-## Troca de clipe com o mesmo contrato do CreatureActor: silencia quando o
-## clipe não existe, não reinicia o que já toca.
-func play_clip(clip: String) -> void:
-	if _anim == null:
-		return
-	if _anim.has_animation(clip) and _anim.current_animation != clip:
-		_anim.play(clip, 0.2)
-
-
-func has_clip(clip: String) -> bool:
-	return _anim != null and _anim.has_animation(clip)
-
-
-## Escolhe o clipe pela marcha real e pelo meio: parado, andando, correndo ou
-## nadando — mesmo limiar de repouso do CompanionActor.
-##
-## Era binário (`Idle`/`Walk`) e por isso o jogador deslizava: ele se move a
-## `PlayerController.WALK_SPEED` = 5,2 m/s, que é marcha de CORRIDA (humano
-## andando faz ~1,4 m/s), e o ciclo de `Walk` foi calibrado a 4,0 antes de a
-## velocidade subir 30%. Nenhum blend cobre uma defasagem dessa ordem — o que
-## faltava era o clipe certo, não um ajuste de mistura.
-##
-## A escada fica aqui, e não no chamador, porque humano é UM sistema visual:
-## um NPC que um dia passear a 1,5 m/s ganha o `Walk` pela mesma chamada que
-## dá `Run` ao jogador. Trocar o literal por "Run" teria tirado o andar do
-## sistema inteiro para consertar um corpo só.
-##
-## `swimming` vem de fora porque quem sabe onde a água está é o mundo, não o
-## corpo: no PZ-01 é `MapTerrain.submerged`, e é o estado NORMAL da exploração
-## — o mapa é o leito de um mar, e só o platô da costa é seco.
-func update_motion(speed: float, swimming: bool = false, idle_threshold: float = 0.05) -> void:
-	# Guardado antes de qualquer saída: é `_process` quem faz o corpo subir, e
-	# ele precisa saber do meio mesmo que o clipe de nado não exista.
-	_swimming = swimming
-
-	if swimming and has_clip("Swim"):
-		# `Swim` também parado, de propósito. O kit traz um `Swim_Idle`, mas ele
-		# é pose de boiar na SUPERFÍCIE: o corpo inteiro pendura 1,41 m abaixo
-		# da origem do rig, contra 0,19 m do `Swim`. Alternar entre os dois
-		# obrigaria o corpo a subir e descer 1,2 m a cada parada — e, aqui, os
-		# pés do boiador entrariam no leito, porque a coluna d'água do PZ-01 não
-		# tem 1,65 m de folga. Quem paraliza embaixo d'água continua dando
-		# braçada para ficar no lugar, o que é o que um corpo submerso faz.
-		play_clip("Swim")
-		return
-
-	if speed < idle_threshold:
-		play_clip("Idle")
-		return
-	# `has_clip` antes de pedir `Run`: `play_clip` silencia no clipe ausente,
-	# e silenciar aqui deixaria o corpo preso no clipe anterior em vez de cair
-	# para o `Walk`, que todo rig do kit tem.
-	if speed >= RUN_THRESHOLD and has_clip("Run"):
-		play_clip("Run")
-		return
-	play_clip("Walk")
-
-
-## Deixa este corpo animar mesmo com a árvore pausada.
-##
-## Existe porque `AnimationPlayer` é pausável como qualquer nó: durante a
-## abertura do duelo o mundo para, e o clipe escolhido pela encenação ficava
-## **selecionado mas congelado no quadro zero** — os três corpos atravessavam a
-## cena numa pose estática, que é exatamente o deslize que a encenação existe
-## para acabar. Medido: `current_animation_position` = 0,000 em todos os
-## quadros da caminhada.
-##
-## Ligado só enquanto a encenação é dona do corpo, e não sempre, de propósito:
-## numa tela de loja o mundo congela e uma criatura presa no meio do `Walk`
-## fica *parada* — ligar isto o tempo todo a faria andar no lugar, sem sair do
-## lugar, que é pior.
-##
-## O modo cascateia para o `AnimationPlayer` filho e para o `_process` daqui,
-## que é quem move a flutuação do nado.
-func animate_while_paused(enabled: bool) -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS if enabled else Node.PROCESS_MODE_INHERIT
-
-
-func _process(delta: float) -> void:
-	_advance_float(delta)
-
-
-## Sobe o corpo quando ele nada, e o devolve ao chão quando ele sai da água.
-##
-## Só a BORDA é interpolada — entrar e sair d'água. Dentro do nado a altura é
-## fixa de propósito: um único clipe de locomoção submersa, uma única cota, e
-## nenhum salto vertical no meio da exploração.
-func _advance_float(delta: float) -> void:
-	if _body == null:
-		return
-	_float_blend = move_toward(_float_blend, 1.0 if _swimming else 0.0, delta / SWIM_BLEND_TIME)
-	_body.position.y = SWIM_LIFT * _float_blend
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -300,7 +188,7 @@ static func _build_library(skeleton_path: String) -> AnimationLibrary:
 			push_warning("CharacterRig: biblioteca %s não carregou" % lib_name)
 			continue
 		var instance := packed.instantiate()
-		var source := _find_animation_player(instance)
+		var source := find_animation_player(instance)
 		if source == null:
 			instance.free()
 			continue
@@ -363,26 +251,6 @@ static func _res_path(url: String) -> String:
 static func _slot(recipe: Dictionary, key: String) -> String:
 	var value: Variant = recipe.get(key)
 	return str(value) if value != null else ""
-
-
-static func _find_skeleton(node: Node) -> Skeleton3D:
-	if node is Skeleton3D:
-		return node
-	for child in node.get_children():
-		var found := _find_skeleton(child)
-		if found != null:
-			return found
-	return null
-
-
-static func _find_animation_player(node: Node) -> AnimationPlayer:
-	if node is AnimationPlayer:
-		return node
-	for child in node.get_children():
-		var found := _find_animation_player(child)
-		if found != null:
-			return found
-	return null
 
 
 static func _collect_meshes(node: Node) -> Array[MeshInstance3D]:

@@ -56,6 +56,23 @@ signal closed(outcome: int)
 ## há o que amostrar, e um `_process` só para isso inventaria trabalho.
 signal rendered
 
+## Chamado (com `await`) DEPOIS de `battle.resolve_round` e ANTES do
+## `_render()` do turno — recebe só os eventos NOVOS da rodada
+## (`battle.log_events.slice(antes)`) e devolve quando a sequência animada
+## acabou. Quem preenche é `EncounterDirector` (`_animate_round_events`),
+## que é quem conhece os corpos 3D; esta tela não sabe que eles existem, só
+## que "esperar aqui" é a promessa. Inválido (`Callable` vazio) em playtest
+## solto (`F6`, sem mundo) — nesse caso o turno resolve na hora, como sempre
+## resolveu, porque não há corpo nenhum pra animar.
+var animate_round: Callable
+
+## Verdadeiro do instante em que uma rodada começa a resolver até o
+## `_render()` dela — bloqueia entrada nova (ver `_input`) pelo tempo da
+## animação, que é o preço da escolha de esperar em vez de mostrar o
+## resultado em paralelo. Curto (a soma dos compassos de `EncounterDirector`,
+## tipicamente menos de 1s por evento).
+var _resolving := false
+
 ## Preenchidos por quem abre a tela como overlay. Vazios = sorteio livre, que
 ## é o comportamento quando a cena roda sozinha para playtest.
 var player_code := ""
@@ -307,6 +324,14 @@ func _input(event: InputEvent) -> void:
 	if battle.is_over():
 		return
 
+	# Rodada em andamento (animando): nenhuma tecla de jogo responde até ela
+	# terminar — é o preço curto de esperar a animação em vez de mostrar o
+	# resultado em paralelo (decisão do usuário, não default). ESC/R de cima
+	# já responderam antes deste guard, então sair ou reiniciar continua
+	# livre mesmo no meio da sequência.
+	if _resolving:
+		return
+
 	# A ativa caiu e há reserva de pé: a rodada não anda até alguém entrar.
 	# Nenhuma outra tecla responde — deixar capturar ou fugir daqui seria jogar
 	# com a criatura desmaiada ainda em campo.
@@ -346,13 +371,33 @@ func _input(event: InputEvent) -> void:
 
 	_last_message = ""
 	_switch_mode = false
-	battle.resolve_round(action, battle.choose_enemy_action())
+	_resolve_round_animated(action, battle.choose_enemy_action())
+
+
+## Resolve a rodada e SÓ ENTÃO desenha — a diferença do antigo "resolve,
+## desenha no mesmo quadro". `battle.resolve_round` continua síncrono e
+## instantâneo (é `RefCounted` puro, sem coroutine nenhuma — ver `battle.gd`);
+## o que fica assíncrono é só a APRESENTAÇÃO: `animate_round`, quando
+## preenchido, tem a promessa de devolver só quando a sequência do turno
+## acabou de tocar.
+##
+## Fogo e esquece — `_input`/`_try_capture` chamam isto sem `await` (nem
+## podem: `_input` é callback do motor, não corrotina). `_resolving` é quem
+## garante que ninguém dispara uma segunda rodada por cima enquanto esta
+## ainda está no ar.
+func _resolve_round_animated(action: BattleAction, enemy_action: BattleAction) -> void:
+	_resolving = true
+	var before := battle.log_events.size()
+	battle.resolve_round(action, enemy_action)
+	if animate_round.is_valid():
+		await animate_round.call(battle.log_events.slice(before))
 	# A rodada que derruba a ativa muda o assunto da tela. Uma dica escrita
 	# para o menu de troca ("trocar custa a rodada") sobrevivendo até aqui
 	# passaria a mentir — substituir quem caiu é de graça.
 	if battle.needs_replacement():
 		_last_message = ""
 	_render()
+	_resolving = false
 
 
 ## O número vale como slot do time quando a lista está aberta, e como golpe no
@@ -390,10 +435,7 @@ func _try_capture() -> void:
 	_switch_mode = false
 	_last_message = ""
 	var action := BattleAction.capture(relic.capture_rate(_db), relic.element_code(_db), relic.class_code(_db))
-	battle.resolve_round(action, battle.choose_enemy_action())
-	if battle.needs_replacement():
-		_last_message = ""
-	_render()
+	_resolve_round_animated(action, battle.choose_enemy_action())
 
 
 func _toggle_switch_mode() -> void:

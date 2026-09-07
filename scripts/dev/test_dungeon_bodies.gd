@@ -1,21 +1,23 @@
 extends SceneTree
 
-## Valida o corpo do kit "Bestiary - Dungeon Monsters" (Quaternius, CC0) como
-## placeholder de criatura: Imp e Puglin chegam sem clipe embutido porque
-## rodam no MESMO esqueleto da Universal Animation Library que o
-## `CharacterRig` já usa para os humanos — este corpo espera ser montado por
-## retarget, não por animação bakeada. `CreatureActor._build_retargeted_animation`
-## é o que faz essa ponte; esta suíte prende o contrato pra ele não quebrar em
-## silêncio se um dia o pack de personagens mudar de forma.
+## Valida o corpo genérico único (`CreatureActor.PLACEHOLDER_PATH`, o "Imp" do
+## kit "Bestiary - Dungeon Monsters", Quaternius CC0): chega sem clipe
+## embutido porque roda no MESMO esqueleto da Universal Animation Library que
+## o `CharacterRig` já usa para os humanos — este corpo espera ser montado
+## por retarget, não por animação bakeada.
+## `CreatureActor._build_retargeted_animation` é o que faz essa ponte; esta
+## suíte prende o contrato pra ele não quebrar em silêncio se um dia o pack
+## de personagens mudar de forma.
 ##
 ##     godot --headless --script res://scripts/dev/test_dungeon_bodies.gd
 ##
-## Cobertura de clipe pensada pro que falta nos placeholders antigos: eles
-## variam o que têm (voadores não têm `Walk`, por exemplo); este corpo, por
-## vir da MESMA biblioteca dos humanos, tem o vocabulário inteiro do jogo.
+## Cobertura de clipe completa é o ponto: por vir da MESMA biblioteca dos
+## humanos, este corpo tem o vocabulário INTEIRO do jogo — o que importa
+## porque ele agora é o corpo de TODA criatura sem modelo definitivo, não
+## mais um entre ~30 (ver o comentário de topo de `element_palette.gd` sobre
+## a limpeza de 2026-09: Imp sobrou, Puglin e os outros três packs saíram).
 
 const IMP := "/models/placeholders/dungeon/Imp.glb"
-const PUGLIN := "/models/placeholders/dungeon/Puglin.glb"
 
 ## Vocabulário completo esperado — o ganho real do retarget sobre os
 ## placeholders bakeados, que nunca têm os golpes de combate completos.
@@ -28,10 +30,9 @@ var _frames := 0
 
 func _initialize() -> void:
 	_test_body("Imp", IMP, "CRT-TEST-IMP", "ELE-001")
-	_test_body("Puglin", PUGLIN, "CRT-TEST-PUGLIN", "ELE-004")
 
 
-## `_test_real_bundle_links` monta `CreatureActor` de verdade e depende de
+## `_test_real_bundle_fallback` monta `CreatureActor` de verdade e depende de
 ## `_ready()` — que só dispara depois que a árvore roda pelo menos um quadro.
 ## Nó adicionado à raiz dentro de `_initialize()` não conta como "na árvore"
 ## ainda (mesma pegadinha documentada no `CLAUDE.md` pra medição de posição em
@@ -42,7 +43,7 @@ func _process(_delta: float) -> bool:
 	if _frames < 2:
 		return false
 
-	_test_real_bundle_links()
+	_test_real_bundle_fallback()
 
 	print("")
 	if _failures == 0:
@@ -75,19 +76,18 @@ func _test_body(label: String, model_url: String, creature_code: String, element
 			and anim.get_animation("Death").loop_mode == Animation.LOOP_NONE)
 
 	var mi: MeshInstance3D = meshes[0]
-	_check_true("%s: superficie recolorida pelo elemento" % label,
-		mi.get_surface_override_material(0) is ShaderMaterial)
+	_check_true("%s: NAO recolorido por elemento (recoloracao saiu em 2026-09)" % label,
+		not (mi.get_surface_override_material(0) is ShaderMaterial))
 
 	(visual["mesh"] as Node3D).free()
 
 
-## Ponta a ponta pelo bundle DE VERDADE (não caminho hardcoded): CRT-010 e
-## CRT-008 foram vinculadas ao Imp/Puglin via PATCH real na API do bestiário
-## (mesmo botão "vincular modelo" da ficha), passaram por `pnpm game:export`,
-## e chegam aqui como qualquer outra criatura chegaria — via
-## `CreatureActor.create` + `model_path`, sem atalho de teste.
-func _test_real_bundle_links() -> void:
-	print("\n-- vinculo real pelo bundle")
+## Ponta a ponta pelo bundle DE VERDADE: uma criatura sem `modelUrl`
+## resolvível (a maioria do elenco hoje, depois da limpeza dos placeholders
+## por família) cai no corpo genérico único — não por caminho hardcoded, mas
+## pelo mesmo `CreatureActor.create` + `model_path` que qualquer criatura usa.
+func _test_real_bundle_fallback() -> void:
+	print("\n-- fallback real pelo bundle")
 	var db := BestiaryData.new()
 	var err := db.load_bundle()
 	if err != "":
@@ -95,24 +95,30 @@ func _test_real_bundle_links() -> void:
 		db.free()
 		return
 
-	for expect in [{"code": "CRT-010", "url_part": "dungeon/Imp"}, {"code": "CRT-008", "url_part": "dungeon/Puglin"}]:
-		var code: String = expect["code"]
-		var data := db.creature(code)
-		_check_true("%s: existe no bundle" % code, not data.is_empty())
-		if data.is_empty():
-			continue
-		var model_url := str(data.get("modelUrl", ""))
-		_check_true("%s: modelUrl aponta pro corpo esperado (%s)" % [code, model_url],
-			model_url.contains(str(expect["url_part"])))
+	# CRT-008 perdeu o vínculo com dungeon/Puglin na mesma limpeza (o pack
+	# inteiro saiu, não só o Imp sobrevive) — hoje é um exemplo real de
+	# "sem modelo definitivo", o mesmo caso da maioria do elenco.
+	var code := "CRT-008"
+	var data := db.creature(code)
+	_check_true("%s: existe no bundle" % code, not data.is_empty())
+	if data.is_empty():
+		db.free()
+		return
+	# `data.get("modelUrl")` devolve `null` (chave presente com valor null),
+	# não a string vazia — `str(null)` viraria "<null>", que passaria
+	# despretensiosamente por qualquer checagem de string.
+	var model_url: Variant = data.get("modelUrl")
+	_check_true("%s: sem modelUrl (caiu no placeholder unico)" % code,
+		model_url == null or model_url == "")
 
-		var actor := CreatureActor.create(data, Vector3.ZERO, 1)
-		root.add_child(actor)
-		var resolved := CreatureActor.model_path(actor.creature_code, actor.model_url)
-		_check_true("%s: model_path resolve pro .glb espelhado" % code, resolved != "")
-		_check_true("%s: tem AnimationPlayer (retarget rodou de verdade)" % code,
-			actor.get_node_or_null("Model") != null
-			and not actor.find_children("*", "AnimationPlayer", true, false).is_empty())
-		actor.free()
+	var actor := CreatureActor.create(data, Vector3.ZERO, 1)
+	root.add_child(actor)
+	var resolved := CreatureActor.model_path(actor.creature_code, actor.model_url)
+	_check_true("%s: model_path resolve pro placeholder unico" % code, resolved == CreatureActor.PLACEHOLDER_PATH)
+	_check_true("%s: tem AnimationPlayer (retarget rodou de verdade)" % code,
+		actor.get_node_or_null("Model") != null
+		and not actor.find_children("*", "AnimationPlayer", true, false).is_empty())
+	actor.free()
 
 	db.free()
 

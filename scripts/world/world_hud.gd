@@ -3,9 +3,10 @@ extends RefCounted
 
 ## Construção da HUD de exploração e as operações mecânicas sobre ela:
 ## hint de teclas, mensagem transitória (`mine_label`, usado por toda ação
-## temporária — minerar, curar, trocar ativa — não só mineração) e o par
-## esconder/reexibir que loja, posto do Relicário e duelo chamam ao abrir e
-## fechar.
+## temporária — minerar, curar, trocar ativa — não só mineração), o botão
+## "Minerar"/"Parar" (`mine_button`, visibilidade e texto controlados por
+## `WorldRoot._process`) e o par esconder/reexibir que loja, posto do
+## Relicário e duelo chamam ao abrir e fechar.
 ##
 ## `RefCounted` com métodos `static`, sem estado: os nós continuam
 ## pertencendo a `WorldRoot` (é ele quem os usa em mais lugares — input,
@@ -13,7 +14,7 @@ extends RefCounted
 ## em vez de guardá-las aqui. Só `build()` cria nó; o resto é leitura e
 ## `.visible`.
 
-## Pacote dos sete nós que `build()` monta, para `WorldRoot` guardar cada um
+## Pacote dos oito nós que `build()` monta, para `WorldRoot` guardar cada um
 ## no próprio campo — os campos continuam lá porque são usados em métodos
 ## fora do escopo desta extração (input, janela do time, cura).
 class Panels:
@@ -24,13 +25,18 @@ class Panels:
 	var set_window: PlayerSetWindow
 	var inventory_panel: InventoryPanel
 	var mine_label: Label
+	var mine_button: Button
 
 
-## Monta a `CanvasLayer "HudLayer"` com os sete elementos da HUD de
+## Monta a `CanvasLayer "HudLayer"` com os oito elementos da HUD de
 ## exploração. `on_activate`/`on_use_item` são os callbacks de
 ## `RosterWindow` (tocam time e bolsa, não HUD); `on_inventory_changed` é o
 ## handler que mantém bolsa e janela do time em dia — continua vivendo em
-## `WorldRoot`.
+## `WorldRoot`. `on_inventory_toggle`/`on_equipment_toggle`/`on_team_toggle`
+## são os três botões do `ActiveCreaturePanel` — mesmas ações das teclas
+## V/E/T, só que clicáveis também pela HUD. O botão de Relicário abre o time
+## (`T`), não o posto do Relicário: o posto é um ponto fixo do mapa, e o botão
+## fica sem função em qualquer lugar em que o jogador não esteja parado nele.
 ##
 ## Não conecta nem chama `roster.changed`/`on_roster_changed`: isso fica por
 ## conta de quem chama, depois de guardar os painéis nos próprios campos —
@@ -40,7 +46,9 @@ class Panels:
 ## time).
 static func build(
 	parent: Node3D, db: BestiaryData, biome_code: String, inventory: PlayerInventory,
-	on_activate: Callable, on_use_item: Callable, on_inventory_changed: Callable
+	on_activate: Callable, on_use_item: Callable, on_inventory_changed: Callable,
+	on_mine_toggle: Callable, on_inventory_toggle: Callable, on_equipment_toggle: Callable,
+	on_team_toggle: Callable
 ) -> Panels:
 	var panels := Panels.new()
 
@@ -63,6 +71,9 @@ static func build(
 
 	panels.active_panel = ActiveCreaturePanel.new()
 	panels.active_panel.name = "ActiveCreaturePanel"
+	panels.active_panel.inventory_requested.connect(on_inventory_toggle)
+	panels.active_panel.equipment_requested.connect(on_equipment_toggle)
+	panels.active_panel.relicary_requested.connect(on_team_toggle)
 	layer.add_child(panels.active_panel)
 
 	panels.roster_window = RosterWindow.new()
@@ -99,13 +110,26 @@ static func build(
 	panels.mine_label.hide()
 	layer.add_child(panels.mine_label)
 
+	panels.mine_button = Button.new()
+	panels.mine_button.name = "MineButton"
+	panels.mine_button.text = "Minerar"
+	panels.mine_button.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	# Empilhado acima do hint (-16..-44) e da mensagem transitória (-48..-68),
+	# mesma coluna do canto inferior esquerdo.
+	panels.mine_button.offset_left = 20
+	panels.mine_button.offset_top = -100
+	panels.mine_button.offset_bottom = -72
+	panels.mine_button.custom_minimum_size = Vector2(110, 28)
+	panels.mine_button.pressed.connect(on_mine_toggle)
+	layer.add_child(panels.mine_button)
+
 	return panels
 
 
 static func update_hint(hint: Label, actor_count: int) -> void:
 	if hint == null:
 		return
-	hint.text = ("WASD anda · F minera · T time · E set · V bolsa · " +
+	hint.text = ("WASD anda · F minera/para · T time · E set · V bolsa · " +
 		"clique numa criatura para ver, clique de novo para lutar   (%d no mapa)") % actor_count
 
 
@@ -113,7 +137,8 @@ static func update_hint(hint: Label, actor_count: int) -> void:
 ## atrás do overlay — ruído puro enquanto a atenção está em outra coisa.
 static func hide_world(
 	hint: Label, active_panel: ActiveCreaturePanel, roster_window: RosterWindow,
-	set_window: PlayerSetWindow, inventory_panel: InventoryPanel, mine_label: Label
+	set_window: PlayerSetWindow, inventory_panel: InventoryPanel, mine_label: Label,
+	mine_button: Button
 ) -> void:
 	if hint:
 		hint.visible = false
@@ -127,11 +152,13 @@ static func hide_world(
 		inventory_panel.visible = false
 	if mine_label:
 		mine_label.hide()
+	if mine_button:
+		mine_button.visible = false
 
 
 static func show_world(
 	hint: Label, active_panel: ActiveCreaturePanel, inventory_panel: InventoryPanel,
-	inventory_hidden: bool
+	inventory_hidden: bool, mine_button: Button
 ) -> void:
 	if hint:
 		hint.visible = true
@@ -141,6 +168,10 @@ static func show_world(
 	# trazer a bolsa de volta se ele pediu pra escondê-la.
 	if inventory_panel:
 		inventory_panel.visible = not inventory_hidden
+	# `mine_button` não é forçado visível aqui: o `_process` de `WorldRoot`
+	# decide a visibilidade certa (parado/andando) no quadro seguinte. Forçar
+	# aqui faria o botão piscar visível por um quadro mesmo se o jogador
+	# estiver andando no instante em que a loja fecha.
 
 
 ## Mensagem transitória no canto inferior esquerdo — some sozinha em 2s.

@@ -45,6 +45,7 @@ func _process(_delta: float) -> bool:
 			_test_work_function()
 			_test_inventory()
 			_test_mining_flow()
+			_test_mining_cancels_on_movement()
 			_test_roster_ui()
 			_phase = "done"
 		"done":
@@ -221,38 +222,78 @@ func _test_inventory() -> void:
 
 
 func _test_mining_flow() -> void:
-	print("mineracao no WorldRoot:")
+	print("mineracao no WorldRoot (sessao):")
 	var inv := _world.inventory()
 	_check("inventario inicial vazio", inv.total_items(), 0)
+	_check_true("comeca sem sessao ativa", not _world.is_mining())
 
-	_world.trigger_mine()
-	_check_true("apos trigger_mine, inventario cresceu", inv.total_items() == 1,
-		"%d itens" % inv.total_items())
+	_world.start_mining()
+	_check_true("start_mining minera o primeiro item na hora",
+		inv.total_items() == 1, "%d itens" % inv.total_items())
+	_check_true("sessao fica ativa", _world.is_mining())
 
 	var collected := str(inv.entries()[0]["code"])
 	_check_true("o que entrou e um mineral do bundle",
 		not _db.mineral(collected).is_empty(), collected)
 
-	# Cooldown ativo: segunda chamada imediata não deve adicionar.
-	_world.trigger_mine()
-	_check("cooldown bloqueia 2a mineracao", inv.total_items(), 1)
-
-	# O cooldown gravado é o base dividido pelo modificador da classe ativa. O
+	# O relogio gravado é o base dividido pelo modificador da classe ativa —
+	# mesma fórmula de sempre, só que agora é o intervalo ATÉ O PRÓXIMO item
+	# da sequência, não um cooldown de "espera antes do próximo clique". O
 	# esperado sai do bundle, não de um literal: a classe da inicial já mudou
 	# uma vez numa reclassificação e prender "×1.0" aqui reprovaria o teste por
 	# dado novo em vez de por regressão.
 	var active_speed := MiningTable.speed_modifier(_db, _world._active_class_code())
-	_check_true("cooldown reflete o perfil da classe ativa",
-		absf(_world._mine_cooldown - WorldRoot.MINE_COOLDOWN_SEC / active_speed) < 0.01,
-		"%.2fs (base %.1fs ÷ %.2f)" % [_world._mine_cooldown, WorldRoot.MINE_COOLDOWN_SEC, active_speed])
+	_check_true("relogio da sessao reflete o perfil da classe ativa",
+		absf(_world._mine_timer - WorldRoot.MINE_COOLDOWN_SEC / active_speed) < 0.01,
+		"%.2fs (base %.1fs ÷ %.2f)" % [_world._mine_timer, WorldRoot.MINE_COOLDOWN_SEC, active_speed])
 
-	_world._mine_cooldown = 0.0
-	_world.trigger_mine()
-	_check_true("apos zerar cooldown, 3a mineracao funciona", inv.total_items() == 2,
-		"%d itens" % inv.total_items())
+	# Forçar o relogio a zero e simular um quadro é como o playtest vive o
+	# intervalo — sem sintetizar tempo real de espera na suite headless.
+	_world._mine_timer = 0.0
+	_world._process(0.0)
+	_check_true("relogio zerado libera o proximo item da sequencia",
+		inv.total_items() == 2, "%d itens" % inv.total_items())
+
+	# Parada manual a meio da sequência: perde o progresso do item atual, sem
+	# problema — é exatamente o que o botão "Parar" promete.
+	_world.stop_mining()
+	_check_true("stop_mining encerra a sessao", not _world.is_mining())
+	var items_after_stop := inv.total_items()
+	_world._mine_timer = 0.0
+	_world._process(0.0)
+	_check("sessao parada nao continua minerando sozinha", inv.total_items(), items_after_stop)
+
+	# Sequência completa: MINE_SESSION_MAX itens e para sozinha, sem um a mais.
+	_world.start_mining()
+	while _world.is_mining():
+		_world._mine_timer = 0.0
+		_world._process(0.0)
+	_check("sessao completa entrega exatamente MINE_SESSION_MAX itens",
+		inv.total_items() - items_after_stop, WorldRoot.MINE_SESSION_MAX)
+	_check_true("sessao completa termina sozinha", not _world.is_mining())
 
 	var panel: InventoryPanel = _world.get_node_or_null("HudLayer/InventoryPanel")
 	_check_true("painel de inventario existe na HUD", panel != null)
+
+
+func _test_mining_cancels_on_movement() -> void:
+	print("mineracao cancela ao andar:")
+	var controller := _world.get_node_or_null("Player") as PlayerController
+	_check_true("achou o PlayerController", controller != null)
+	if controller == null:
+		return
+
+	_world.start_mining()
+	_check_true("sessao comeca parado", _world.is_mining())
+
+	# Simula o corpo em movimento sem esperar física real: velocity é o que
+	# ground_speed()/is_moving() leem.
+	controller.velocity = Vector3(3.0, 0.0, 0.0)
+	_world._process(0.0)
+	_check_true("andar cancela a sessao", not _world.is_mining())
+
+	controller.velocity = Vector3.ZERO
+	_world._process(0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -312,14 +353,19 @@ func _test_roster_ui() -> void:
 
 	# E o ritmo. Medido contra o modificador da classe nova em vez de "a espera
 	# cresce": a direção depende de qual classe o bundle entregou como reserva,
-	# e a igualdade prova mais — pega o cooldown que mudou para o valor errado,
+	# e a igualdade prova mais — pega o relogio que mudou para o valor errado,
 	# não só o que mudou para o lado errado.
+	#
+	# Para com stop_mining() no fim (em vez de deixar a sessão pendurada): os
+	# testes seguintes trocam a ativa de volta para a inicial, e uma sessão
+	# ainda ativa continuaria minerando com a classe errada se não fosse
+	# parada aqui.
 	var reserve_speed := MiningTable.speed_modifier(_db, reserve_class)
-	_world._mine_cooldown = 0.0
-	_world.trigger_mine()
-	_check_true("o cooldown seguiu o perfil da classe nova",
-		absf(_world._mine_cooldown - WorldRoot.MINE_COOLDOWN_SEC / reserve_speed) < 0.01,
-		"%.2fs (base %.1fs ÷ %.2f)" % [_world._mine_cooldown, WorldRoot.MINE_COOLDOWN_SEC, reserve_speed])
+	_world.start_mining()
+	_check_true("o relogio da sessao seguiu o perfil da classe nova",
+		absf(_world._mine_timer - WorldRoot.MINE_COOLDOWN_SEC / reserve_speed) < 0.01,
+		"%.2fs (base %.1fs ÷ %.2f)" % [_world._mine_timer, WorldRoot.MINE_COOLDOWN_SEC, reserve_speed])
+	_world.stop_mining()
 
 	_world.activate_slot(0)
 	_check("volta para a inicial", r.active(), starter)

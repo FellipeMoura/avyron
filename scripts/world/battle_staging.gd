@@ -169,6 +169,34 @@ var _b: Node3D
 var _size_a := 1.0
 var _size_b := 1.0
 
+## Corpos cuja marcha esta encenação NÃO deve tocar agora — chaveado por
+## `get_instance_id()`, não por referência direta, porque é assim que se
+## confere presença num `Dictionary` sem sobrecarregar `==` de `Object`.
+##
+## Existe porque esta encenação roda o `_process` inteiro pela luta INTEIRA
+## (só morre quando o duelo fecha, ver `EncounterDirector._end_staging`), e
+## uma vez assentado nas marcas ela chama `staged_gait(0)` TODO quadro — é
+## isso que segura os corpos em `Idle` durante a aproximação. Sem esta
+## trava, uma animação de golpe tocada por fora (`EncounterDirector`, no
+## turno) duraria um quadro: no seguinte, esta encenação já teria puxado o
+## clipe de volta pro `Idle` por cima dela.
+var _gait_locked: Dictionary = {}
+
+
+## Tranca (ou destranca) a marcha de um corpo. `EncounterDirector` tranca os
+## dois antes de tocar a sequência do turno e destranca no fim — exceto quem
+## desmaiou, que fica preso na pose de queda até o duelo fechar (destrancar
+## deixaria esta encenação puxar o corpo de volta pro `Idle` por cima da
+## própria morte).
+func lock_gait(node: Node3D, locked: bool) -> void:
+	if node == null:
+		return
+	var id := node.get_instance_id()
+	if locked:
+		_gait_locked[id] = true
+	else:
+		_gait_locked.erase(id)
+
 ## O domador, e o raio do corpo dele. Opcional: em playtest de cena solta pode
 ## não haver jogador, e um duelo sem plateia continua sendo um duelo.
 var _trainer: Node3D
@@ -417,6 +445,8 @@ func _ground_offset(node: Node3D) -> float:
 ## Entrega a marcha imposta ao corpo, que escolhe o clipe com a mesma escada
 ## que usa quando anda sozinho. Silencioso para quem não implementa o contrato.
 func _gait(node: Node3D, speed: float) -> void:
+	if _gait_locked.has(node.get_instance_id()):
+		return
 	if node.has_method("staged_gait"):
 		node.call("staged_gait", speed)
 

@@ -37,7 +37,7 @@ extends Node3D
 
 ## Criatura com que o jogador começa. Vira o slot 0 do time; as capturas
 ## entram como reserva atrás dela.
-@export var starter_code := "CRT-002"
+@export var starter_code := "CRT-044"
 @export var encounter_level := 10
 
 ## Bioma de FALLBACK — o que vale quando a consulta por posição não responde.
@@ -110,8 +110,18 @@ var _loadout := PlayerLoadout.new()
 var _crafting_bench: CraftingBenchActor
 var _crafting_screen: CraftingScreen
 var _mine_rng := RandomNumberGenerator.new()
-var _mine_cooldown := 0.0
+## Sessão de mineração automática (botão "Minerar"/tecla F como toggle).
+## Substitui o antigo modelo de "um F = um item": um clique começa uma
+## sequência que se alimenta sozinha em `_process()` até `MINE_SESSION_MAX`
+## itens, parar sozinha, o jogador clicar "Parar", ou o jogador andar. O
+## relógio por item continua a mesma fórmula de sempre
+## (`MINE_COOLDOWN_SEC / speed_modifier` da classe ativa), recalculada a cada
+## item porque o jogador pode trocar a ativa no meio da sequência.
+var _mining_active := false
+var _mine_count := 0
+var _mine_timer := 0.0
 var _mine_label: Label
+var _mine_button: Button
 var _merchants: Array[MerchantActor] = []
 var _shop: MerchantScreen
 var _arenas: Array[ArenaActor] = []
@@ -132,6 +142,13 @@ var _portal_guardian: PortalGuardianActor
 ## Segundos entre minerações consecutivas, antes do perfil de trabalho da
 ## classe ativa. Kaíra (×1.1) espera menos, Yaruki (×0.9) espera mais.
 const MINE_COOLDOWN_SEC := 3.0
+
+## Quantos itens uma sessão de mineração produz antes de parar sozinha.
+## Constante de ENGENHARIA (tamanho do lote / fluxo de UI), não de
+## balanceamento — o QUE sai e EM QUE RITMO é `MiningTable` (bestiário);
+## quantos itens cabem numa sessão é decisão de tela, como o teto de captura
+## por dígito único que a janela do time já usa.
+const MINE_SESSION_MAX := 10
 
 
 ## Confere, na abertura, as promessas do bioma — todas por gritarem em vez de
@@ -260,14 +277,21 @@ func _ready() -> void:
 	_spawner.name = "CreatureSpawner"
 	_spawner.level = encounter_level
 	_spawner.terrain = _terrain
+	# As três referências que fazem a fauna orbitar o jogador em vez da origem:
+	# quem seguir, quem responde "está na tela?" e quem responde "que bioma é
+	# aqui?" (de onde sai a chance de spawn). Mesma injeção direta de
+	# `terrain` — o projeto não tem singleton de jogador nem de câmera.
+	_spawner.player = _player
+	_spawner.camera = _camera
+	_spawner.map_biomes = _map_biomes
 	# O mapa é do mundo, não do spawner: quem povoa e quem minera têm de
 	# concordar sobre onde o jogador está.
 	_spawner.map_code = map_code
 	add_child(_spawner)
 	_spawner.creature_engaged.connect(_on_creature_engaged)
 	# Mantém o hint em sincronia sem precisar polling: qualquer mudança de
-	# população (spawn inicial, remoção pós-batalha, respawn) atualiza o
-	# contador na HUD.
+	# população (nascimento por deslocamento, poda por frustum, remoção
+	# pós-batalha) atualiza o contador na HUD.
 	_spawner.population_changed.connect(_update_hint)
 
 	# O que existe neste mapa e onde — comerciante, posto, arena, guardião e
@@ -315,8 +339,16 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _mine_cooldown > 0.0:
-		_mine_cooldown = maxf(0.0, _mine_cooldown - delta)
+	# Cancelar por movimento vem ANTES de tentar avançar a sessão no mesmo
+	# quadro — senão um item cairia no instante exato em que o jogador começa
+	# a andar.
+	var moving := _player_is_moving()
+	if _mining_active and moving:
+		stop_mining("")  # o corpo já mostra que parou; mensagem seria ruído
+	elif _mining_active:
+		_mine_timer = maxf(0.0, _mine_timer - delta)
+		if _mine_timer <= 0.0:
+			_advance_mining_session()
 
 	# O time se recupera com o tempo de mapa. Não precisa de trava para não
 	# curar durante o combate: o mundo fica pausado, e um nó pausado não
@@ -329,6 +361,7 @@ func _process(delta: float) -> void:
 		_selection.update()
 
 	_update_biome()
+	_update_mine_button(moving)
 
 
 # ---------------------------------------------------------------------------
@@ -337,7 +370,8 @@ func _process(delta: float) -> void:
 
 func _build_hud() -> void:
 	var panels := WorldHud.build(
-		self, _db, _biome_code, _inventory, activate_slot, use_item_on_slot, _on_inventory_changed)
+		self, _db, _biome_code, _inventory, activate_slot, use_item_on_slot, _on_inventory_changed,
+		toggle_mining, toggle_inventory_panel, toggle_set_window, toggle_roster_window)
 	_hint = panels.hint
 	_info = panels.info
 	_active_panel = panels.active_panel
@@ -345,6 +379,7 @@ func _build_hud() -> void:
 	_set_window = panels.set_window
 	_inventory_panel = panels.inventory_panel
 	_mine_label = panels.mine_label
+	_mine_button = panels.mine_button
 
 	# Conectado e disparado só depois de guardar os painéis acima: o handler
 	# lê `_active_panel`, e chamá-lo antes da atribuição refrescaria um campo
@@ -458,7 +493,7 @@ func _handle_key(keycode: Key) -> void:
 	elif _roster_open() and keycode >= KEY_1 and keycode < KEY_1 + mini(_roster.capacity(), 9):
 		_roster_window.choose_row(keycode - KEY_1)
 	elif keycode == KEY_F and not _roster_open():
-		trigger_mine()
+		toggle_mining()
 	else:
 		return
 	get_viewport().set_input_as_handled()
@@ -573,7 +608,7 @@ func staging() -> BattleStaging:
 # ---------------------------------------------------------------------------
 
 ## Abre/fecha a janela do time. Público pelo mesmo motivo que `handle_click_on`
-## e `trigger_mine`: os testes headless exercitam o fluxo pela API, não
+## e `toggle_mining`: os testes headless exercitam o fluxo pela API, não
 ## sintetizando tecla.
 func toggle_roster_window() -> void:
 	if _roster_window == null or _modal_open():
@@ -702,8 +737,20 @@ func _active_class_code() -> String:
 # mineração
 # ---------------------------------------------------------------------------
 
-## Ponto de entrada da tecla F. Público para os testes headless dispararem
-## sem sintetizar InputEventKey.
+## Ponto de entrada do botão "Minerar"/"Parar" e da tecla F. Público para os
+## testes headless dispararem sem sintetizar clique/InputEventKey.
+func toggle_mining() -> void:
+	if _modal_open():
+		return
+	if _mining_active:
+		stop_mining()
+	else:
+		start_mining()
+
+
+## Início da sessão. Minera o primeiro item na hora — sem esperar um relógio
+## que ainda não existe — e deixa o resto da sequência correr sozinha em
+## `_process()`.
 ##
 ## O que sai daqui é decidido por dois fatores do bundle: o bioma em que o
 ## jogador está e a classe da criatura que ele tem à frente. Nada de tabela
@@ -713,24 +760,80 @@ func _active_class_code() -> String:
 ## `current_biome()` para a posição corrente, não mais um bioma declarado para
 ## o mapa inteiro. Minerar na costa e minerar no recife passaram a ser coisas
 ## diferentes sem o jogador tocar em menu nenhum.
-func trigger_mine() -> void:
-	if _modal_open():
+##
+## Recusa andando: o botão nem estaria visível nesse estado, mas a tecla F
+## continua ativa, e uma sessão que começa e cancela no quadro seguinte por
+## causa do próprio movimento seria pior que simplesmente não começar.
+func start_mining() -> void:
+	if _modal_open() or _mining_active:
 		return  # não minera com duelo, loja ou posto do Relicário por cima
-	if _mine_cooldown > 0.0:
-		_show_mine_msg("Aguardando... (%.1fs)" % _mine_cooldown)
+	if _player_is_moving():
 		return
 
+	_mining_active = true
+	_mine_count = 0
+	_set_mining_pose(true)
+	_advance_mining_session()
+
+
+## Fim da sessão a qualquer momento — botão "Parar", ou cancelamento por
+## movimento/modal (mensagem vazia nesses casos: o próprio corpo já mostra que
+## parou, e uma frase a mais competiria com o que já está na tela).
+func stop_mining(message: String = "Parou de minerar.") -> void:
+	if not _mining_active:
+		return
+	_mining_active = false
+	_mine_timer = 0.0
+	_set_mining_pose(false)
+	if message != "":
+		_show_mine_msg(message)
+
+
+## Sessão de mineração em curso? Público para o botão e os testes
+## consultarem sem reflexão.
+func is_mining() -> bool:
+	return _mining_active
+
+
+## Minera UM item da sessão e agenda o próximo (ou encerra em
+## `MINE_SESSION_MAX`). A fórmula não mudou uma vírgula do antigo
+## `trigger_mine()` — só passou a ser chamada em loop por `_process()` em vez
+## de uma vez por clique.
+func _advance_mining_session() -> void:
 	var class_code := _active_class_code()
 	var mineral := MiningTable.sample(_mine_rng, _db, class_code, _biome_code)
 	if mineral.is_empty():
 		# Bundle exportado antes do módulo de mineração, ou bioma sem taxas
-		# cadastradas. Dizer isso é melhor que uma tecla que não faz nada.
-		_show_mine_msg("Nada para minerar aqui.")
+		# cadastradas. Dizer isso é melhor que a sessão morrer em silêncio.
+		stop_mining("Nada para minerar aqui.")
 		return
 
 	_inventory.add(str(mineral["code"]))
-	_mine_cooldown = MINE_COOLDOWN_SEC / MiningTable.speed_modifier(_db, class_code)
-	_show_mine_msg("Coletou: %s" % str(mineral["name"]))
+	_mine_count += 1
+	_show_mine_msg("Coletou: %s (%d/%d)" % [str(mineral["name"]), _mine_count, MINE_SESSION_MAX])
+
+	if _mine_count >= MINE_SESSION_MAX:
+		stop_mining("Mineração concluída: %d itens." % MINE_SESSION_MAX)
+		return
+	_mine_timer = MINE_COOLDOWN_SEC / MiningTable.speed_modifier(_db, class_code)
+
+
+func _set_mining_pose(enabled: bool) -> void:
+	var controller := _player as PlayerController
+	if controller:
+		controller.set_mining_pose(enabled)
+
+
+func _player_is_moving() -> bool:
+	var controller := _player as PlayerController
+	return controller != null and controller.is_moving()
+
+
+func _update_mine_button(moving: bool) -> void:
+	if _mine_button == null:
+		return
+	_mine_button.visible = not moving
+	_mine_button.text = "Parar" if _mining_active else "Minerar"
 
 
 func _show_mine_msg(text: String) -> void:
@@ -786,7 +889,15 @@ func _on_shop_closed() -> void:
 	_show_world_hud()
 
 
-func _on_relic_station_engaged(actor: RelicStationActor) -> void:
+func _on_relic_station_engaged(_actor: RelicStationActor) -> void:
+	open_relic_station()
+
+
+## Só alcançável pelo posto físico no mapa (`_on_relic_station_engaged`): o
+## botão de Relicário do `ActiveCreaturePanel` abre o time (`T`), não esta
+## tela — o posto gerencia o Relicário (depositar/retirar/trocar de modelo),
+## que só faz sentido parado no ponto fixo, ao contrário da janela do time.
+func open_relic_station() -> void:
 	if _modal_open():
 		return
 
@@ -864,7 +975,7 @@ func _on_crafting_screen_closed() -> void:
 ## uma receita de três ingredientes com o último faltando deixaria o jogador
 ## sem os dois primeiros e sem a peça.
 ##
-## Público pelo mesmo motivo de `trigger_mine`: os testes headless chamam
+## Público pelo mesmo motivo de `toggle_mining`: os testes headless chamam
 ## direto, sem sintetizar tecla.
 func craft_equipment(equipment_code: String) -> void:
 	if _db == null or _inventory == null or equipment_code == "":
@@ -929,11 +1040,18 @@ func _finish_craft(message: String) -> void:
 
 
 func _hide_world_hud() -> void:
-	WorldHud.hide_world(_hint, _active_panel, _roster_window, _set_window, _inventory_panel, _mine_label)
+	# Único ponto por onde os quatro modais (duelo, loja, posto do Relicário,
+	# bancada) escondem a HUD — cancelar a sessão aqui cobre os quatro de uma
+	# vez, sem precisar espalhar `stop_mining()` em cada handler.
+	if _mining_active:
+		stop_mining("")
+	WorldHud.hide_world(
+		_hint, _active_panel, _roster_window, _set_window, _inventory_panel, _mine_label,
+		_mine_button)
 
 
 func _show_world_hud() -> void:
-	WorldHud.show_world(_hint, _active_panel, _inventory_panel, _inventory_hidden)
+	WorldHud.show_world(_hint, _active_panel, _inventory_panel, _inventory_hidden, _mine_button)
 
 
 # ---------------------------------------------------------------------------

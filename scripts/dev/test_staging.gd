@@ -115,6 +115,7 @@ func _process(_delta: float) -> bool:
 			_test_trainer()
 			_test_degenerate()
 			_test_animating()
+			_test_gait_lock()
 			_test_terrain()
 			_test_world_wiring()
 			_phase = "settling"
@@ -439,6 +440,28 @@ func _test_animating() -> void:
 			not (bodies[i] as StagedBody).animating)
 
 
+## A trava que `EncounterDirector` usa pra tocar `Attack`/`HitReact` sem a
+## encenação pisar em cima a cada quadro — sem ela, `_gait` chamaria
+## `staged_gait(0)` (parado -> `Idle`) no MESMO quadro em que o combate pede o
+## clipe de golpe, e o corpo nunca chegaria a mostrar nada além de `Idle`.
+func _test_gait_lock() -> void:
+	print("marcha trancada durante o clipe de combate:")
+	var bench := _bench(Vector3(-6.0, 0.0, 0.0), Vector3(6.0, 0.0, 0.0))
+	var a: StagedBody = bench["a"]
+	var s: BattleStaging = bench["staging"]
+
+	s.lock_gait(a, true)
+	a.last_gait = -99.0
+	s.step(STEP)
+	_check_true("trancado, a encenacao nao escreve marcha nenhuma",
+		is_equal_approx(a.last_gait, -99.0), "%.2f" % a.last_gait)
+
+	s.lock_gait(a, false)
+	s.step(STEP)
+	_check_true("destrancado, a marcha volta a chegar",
+		not is_equal_approx(a.last_gait, -99.0), "%.2f" % a.last_gait)
+
+
 # ---------------------------------------------------------------------------
 # relevo
 # ---------------------------------------------------------------------------
@@ -555,6 +578,12 @@ func _test_world_wiring() -> void:
 	_check_true("fora do duelo nao ha encenacao", _world.staging() == null)
 
 	var spawner: CreatureSpawner = _world.get_node_or_null("CreatureSpawner")
+	# O mundo abre SEM fauna desde 2026-09-06 — quem povoa é o jogador andando.
+	# Esta suíte não testa o mecanismo de spawn, só precisa de um corpo para
+	# encenar, então força um pelo primitivo interno em vez de repetir a
+	# caminhada que `test_encounter.gd` faz (lá o mecanismo é o assunto).
+	if spawner and spawner.actors().is_empty():
+		spawner.call("_spawn_one")
 	var target: CreatureActor = spawner.actors()[0] if spawner and not spawner.actors().is_empty() else null
 	if target == null:
 		_check_true("ha criatura no mapa para engajar", false)

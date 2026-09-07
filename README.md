@@ -106,7 +106,9 @@ O primeiro passe aprovado do mapa segue a concept art de composição macro: mar
 
 Velocidade única, sem tecla de corrida: `WALK_SPEED` = 5,2 m/s. O nome é herança — **5,2 m/s é marcha de corrida**, já que um humano andando faz ~1,4 m/s — e era exatamente daí que vinha o deslize do jogador: o corpo viajava a 5,2 tocando o ciclo de `Walk`, calibrado num `WALK_SPEED` anterior de 4,0 e nunca remedido depois de ele subir 30%. Defasagem dessa ordem nenhum blend cobre.
 
-A correção foi dar o **clipe certo à marcha**, não mexer na velocidade: `CharacterRig.update_motion` virou uma escada `Idle → Walk → Run` com limiar em 2,2 m/s, e o jogador está sempre acima dele. A escada mora no rig, e não no chamador, porque humano é UM sistema visual — um NPC que um dia passear a 1,5 m/s ganha o `Walk` pela mesma chamada que dá `Run` ao jogador. Trocar o literal por `"Run"` teria tirado o andar do sistema inteiro para consertar um corpo só.
+A correção foi dar o **clipe certo à marcha**, não mexer na velocidade: `GaitRig.update_motion` virou uma escada `Idle → Walk → Run` com limiar em 2,2 m/s, e o jogador está sempre acima dele. A escada mora no rig, e não no chamador, porque humano é UMA máquina de marcha — um NPC que um dia passear a 1,5 m/s ganha o `Walk` pela mesma chamada que dá `Run` ao jogador. Trocar o literal por `"Run"` teria tirado o andar do sistema inteiro para consertar um corpo só.
+
+Quando o jogador ganhou corpo próprio (ver **Os dois corpos humanos**), a escada foi o que sobrou em comum: subiu para `GaitRig`, que hoje é a base de `PlayerRig` e `CharacterRig`. Nenhum chamador mudou — o contrato entre corpo e jogo sempre foi o nome do clipe, não a montagem.
 
 A companheira ganhou a mesma escada pelo mesmo motivo: o teto dela é `WALK_SPEED × 1,12`, então ela acompanha um jogador que corre — e tocar `Walk` nessa marcha a faria deslizar ao lado dele exatamente como ele deslizava. Ela cai para `Walk` quando o corpo não tem `Run`, porque os placeholders variam.
 
@@ -206,7 +208,20 @@ Perto da borda havia um segundo defeito, pior: o posto do domador é derivado pa
 
 Uma zona morta de 12 cm em torno da distância ideal impede o tremor a dois, pelo mesmo motivo que `CompanionActor.STOP_DISTANCE` existe. E o eixo do confronto é lembrado de um quadro para o outro: dois corpos exatamente sobrepostos não têm direção entre si, e sem essa memória o afastamento escolheria um rumo diferente a cada quadro.
 
-**Ciclo de vida no mapa** — vencer o combate remove o adversário do mapa, joga um slot de respawn na fila do `CreatureSpawner`, sorteia os drops dele (ver [Nível e XP](#nível-e-xp)) e concede XP à criatura que terminou a luta. Depois de 20–40s, o slot vira uma criatura nova (espécie e posição sorteadas do pool do bioma). Fuga e derrota do jogador liberam a criatura de origem para ser reengajada. **Captura** remove o adversário sem respawn, o põe no time como reserva no próprio nível que tinha no encontro, e concede XP de captura ao relicário equipado.
+**Ciclo de vida no mapa** — vencer o combate remove o adversário do mapa, sorteia os drops dele (ver [Nível e XP](#nível-e-xp)) e concede XP à criatura que terminou a luta. Fuga e derrota do jogador liberam a criatura de origem para ser reengajada. **Captura** também remove o adversário, o põe no time como reserva no próprio nível que tinha no encontro, e concede XP de captura ao relicário equipado.
+
+Vitória e captura são a MESMA operação para o `CreatureSpawner` desde 2026-09-06: o corpo sai, e ninguém agenda nada. Até então cada morte punha um slot numa fila de respawn de 20–40 s; hoje quem repõe é o jogador andando.
+
+#### Spawn selvagem — a fauna orbita o jogador
+
+O mundo **abre sem criatura nenhuma**. A cada `SPAWN_CHECK_INTERVAL_METERS` (5 m) que o jogador percorre, o `CreatureSpawner` rola uma chance:
+
+- **Se nasce** é o BIOMA que decide — `biomes.spawnChance` no bestiário, consultado por `MapBiomes.biome_at()` na posição do jogador. É o que faz o recife fervilhar (0,40) e o platô glacial parecer morto (0,07). A costa é **0,00**, e isso é design, não dado faltando: ela é o adro dos NPCs.
+- **O que nasce** sai de um sorteio ponderado por `creature_spawn_rules.spawnWeight`, também do bestiário. Peso é relativo, não probabilidade — quem normaliza é o spawner, contra o pool do mapa.
+- **Onde nasce** é um anel ao redor do jogador, sempre FORA do campo de visão: o candidato é rejeitado se `Camera3D.is_position_in_frustum()` responder sim, com uma folga de 8 m porque a câmera persegue o jogador e varreria por cima de um corpo nascido rente à borda.
+- **Quando some** — quem fica 2,5 s contínuos fora do quadro é podado. É a poda que mantém a população limitada sem ninguém contar: o mapa inteiro nunca está povoado, só o arredor do jogador. O teto de 40 é rede de segurança, não densidade.
+
+Os dois números que um designer quer mexer — com que frequência nasce, e o que nasce — são tabela do bestiário (regra 1). O que ficou em GDScript é engenharia: de quantos em quantos metros perguntar, quanto esperar antes de podar, e a folga do frustum.
 
 ### Pontos fixos do mapa
 
@@ -240,7 +255,7 @@ Toda tela do jogo cai em **uma de duas famílias**, e a escolha decide quem prot
 
 **Janela de HUD** não pausa nada: o HP continua regenerando, as criaturas continuam patrulhando. Por isso ela precisa de guarda escrito à mão — `elif keycode == KEY_F and not _roster_open()` é carga estrutural de verdade, não redundância.
 
-`WorldRoot._modal_open()` é o ponto único que responde "tem modal por cima?". Ele existe para os pontos de entrada **públicos** (`handle_click_at`, `trigger_mine`, `toggle_roster_window`…), que são públicos porque teste headless não sintetiza mouse e por isso pulam o pause. Em jogo ele é a segunda linha; em teste é a única. Antes de 2026-08 esse predicado estava escrito à mão em dez lugares, em quatro composições diferentes que discordavam entre si sobre quais telas contavam — e nada acusava, porque o pause segurava tudo de qualquer jeito. Guarda que parece ser a proteção sem ser é pior que nenhum. `test_merchant.gd` (`_test_modal_guard`) prende o invariante.
+`WorldRoot._modal_open()` é o ponto único que responde "tem modal por cima?". Ele existe para os pontos de entrada **públicos** (`handle_click_at`, `toggle_mining`, `toggle_roster_window`…), que são públicos porque teste headless não sintetiza mouse e por isso pulam o pause. Em jogo ele é a segunda linha; em teste é a única. Antes de 2026-08 esse predicado estava escrito à mão em dez lugares, em quatro composições diferentes que discordavam entre si sobre quais telas contavam — e nada acusava, porque o pause segurava tudo de qualquer jeito. Guarda que parece ser a proteção sem ser é pior que nenhum. `test_merchant.gd` (`_test_modal_guard`) prende o invariante.
 
 ## Time e mineração
 
@@ -299,7 +314,7 @@ recuperação = 10% do HP máximo por minuto, fora de combate
 
 **Só o HP atravessa.** Carga do Despertar, buffs e usos de golpe continuam começando do zero a cada batalha — são o arco de uma luta, não um orçamento administrado ao longo do dia. O HP é a exceção porque é o que transforma uma sequência de encontros numa expedição com custo: sem ele, seis criaturas são seis opções e nenhuma é um recurso.
 
-A escala foi escolhida contra o cooldown de mineração (3 s) e o respawn de criatura (20–40 s). Recuperar é a coisa lenta do mapa, então voltar ao bioma custa tempo de verdade e mandar uma reserva inteira à frente vira decisão.
+A escala foi escolhida contra o cooldown de mineração (3 s) e, na época, contra o respawn de criatura de 20–40 s (fila que não existe mais desde 2026-09-06 — ver "Spawn selvagem"). Recuperar é a coisa lenta do mapa, então voltar ao bioma custa tempo de verdade e mandar uma reserva inteira à frente vira decisão.
 
 Consequências, todas deliberadas:
 
@@ -523,7 +538,7 @@ Derrota só acontece quando **o time inteiro** cai.
 
 ### Testes
 
-Quinze suítes headless, sem dependência de editor:
+Dezenove suítes headless, sem dependência de editor:
 
 ```powershell
 $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe"
@@ -542,7 +557,10 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_staging.gd      # os tres andam ao posto, apoiados no relevo
 & $godot --headless --script res://scripts/dev/test_glyphs.gd       # Glifo de arena, nunca de vitória selvagem
 & $godot --headless --script res://scripts/dev/test_characters.gd   # kit de personagens, rig por receita
-& $godot --headless --script res://scripts/dev/test_palette.gd      # cor por elemento, aura do Despertar
+& $godot --headless --script res://scripts/dev/test_palette.gd      # aura do Despertar (rampa neutra fixa)
+& $godot --headless --script res://scripts/dev/test_battle_effects.gd  # efeito visual de golpe/status em duelo
+& $godot --headless --script res://scripts/dev/test_dungeon_bodies.gd  # placeholder unico (Imp) por retarget na UAL
+& $godot --headless --script res://scripts/dev/test_meshy_bodies.gd    # corpo Meshy AI definitivo (CRT-002, piloto)
 & $godot --headless --script res://scripts/dev/test_equipment.gd    # set: exclusividade glacial, bancada, passivo
 ```
 
@@ -556,7 +574,7 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 
 Ele também exige o bloco `mining` — minerais nomeados, toda classe do elenco com pesos e perfil de trabalho, nenhum peso apontando para mineral inexistente. O jogo *sobe* sem mineração (só avisa, porque combate não depende de minério), mas um export sem ela é um export velho, e é aqui que isso tem de doer, não numa tecla `F` que não faz nada.
 
-`test_encounter.gd` cobre o loop completo de encontro — spawn → clique → batalha → vitória (remoção + respawn) → captura (remoção sem respawn + card do jogador).
+`test_encounter.gd` cobre o loop completo de encontro — **andar para povoar** → clique → batalha → vitória (remoção) → captura (remoção + card do jogador). A fase de caminhada existe porque o mundo abre vazio: a suíte precisa deslocar o jogador (fora da costa, que tem chance 0) antes de ter o que clicar. As asserções pós-combate são de IDENTIDADE, não de contagem — o próprio `_approach()` do teste anda com o jogador e dispara nascimentos, então "a população caiu de 7 para 6" corre contra um spawn no mesmo quadro.
 
 `test_mining.gd` cobre a `MiningTable` (distribuição normalizada, especialidade por classe, amostragem sobre 4.000 sorteios, perfil de trabalho), o `PlayerRoster` (captura vira reserva, troca não reordena, teto de slots) e o fluxo no `WorldRoot`. A asserção que importa é a de ponta a ponta: trocar a ativa por uma criatura de outra classe muda a companheira, a distribuição de minério **e** o cooldown, os três de uma vez. Se um dia essa falhar, a fórmula parou de ler um dos dois lados e o jogo ficou igual com qualquer criatura à frente.
 
@@ -603,33 +621,41 @@ Os três argumentos opcionais sobrescrevem, nesta ordem: constante de dano, dura
 
 O corpo de cada criatura vem do **`modelUrl` do bundle**, não de convenção de nome. `CreatureActor.model_path` resolve nesta ordem:
 
-1. **`res://models/<caminho do modelUrl>`** — espelhado do bestiário pelo `pnpm game:export`, que copia todo `.glb` referenciado junto com o `bestiary.json`. Hoje são os placeholders animados do Quaternius (CC0), compartilhados N:1 — várias criaturas apontam o mesmo arquivo, e é o catálogo que decide qual corpo cada uma usa (botão "vincular/alterar modelo" na ficha do bestiário).
-2. **`res://CRT-XXX.glb` na raiz** — legado dos modelos Meshy, sem animação. Só vale quando a criatura não tem `modelUrl` resolvível.
-3. **Cápsula** colorida pelo elemento — o fallback de sempre.
+1. **`res://models/<caminho do modelUrl>`** — espelhado do bestiário pelo `pnpm game:export`. É o corpo Meshy AI **definitivo** da criatura: animado, 1:1, com a arte própria dela. Piloto: CRT-002 (Anomalocaris), fundido a partir do export do Meshy por `../avyron-bestiary/scripts/convert-meshy.mjs` — export novo já sai como `.glb` único (o Meshy libera essa opção), o script só renomeia os clipes pro vocabulário canônico.
+2. **`PLACEHOLDER_PATH`** — o único corpo genérico que sobra pra toda criatura sem `modelUrl` resolvível: `models/placeholders/dungeon/Imp.glb` (Quaternius, CC0), montado por retarget no esqueleto UAL que o `CharacterRig` dos NPCs já usa. Escolhido entre os packs que existiam por dar de graça o vocabulário INTEIRO de clipes do jogo, incluindo `Swim`/`Swim_Idle` — o PZ-01 é 87,3% submerso.
+3. **Cápsula cinza** — só se nem o placeholder único carregar. Praticamente nunca, já que ele é commitado.
+
+Até 2026-09 existiam ~30 placeholders (um por família de elemento — Quaternius "big"/"flying"/"dungeon"/"easyanimated") e uma recoloração por elemento que os distinguia (`ElementPalette.apply_body`, um shader de rampa). Os dois saíram juntos: o elenco convergiu pra um placeholder só, e recolorir por elemento parou de distinguir qualquer coisa quando toda criatura sem modelo compartilha o mesmo corpo. `ElementPalette` continua existindo, mas só pra presentação de combate — ver abaixo.
 
 Depois de um export com modelos novos, rode `--headless --import` (ou abra o editor) para o Godot importá-los antes de dar play.
 
-### Cor por elemento e a aura do Despertar
+### Os dois corpos humanos
 
-Os placeholders são compartilhados N:1 — 27 dos 30 corpos dividem apenas **dois** atlas de textura. Sem mais nada, o elenco inteiro sai da mesma cor, e o jogador não distingue de longe o que está enfrentando. **`scripts/world/element_palette.gd`** resolve isso recolorindo o corpo pela paleta do elemento, que vem do catálogo (`elements.palette*` no bestiário, editável em `/elements` na UI dele).
+Até 2026-09-07 havia um só: jogador e NPCs saíam ambos do kit de personagens. Hoje são dois, e a divisão é por dono do asset.
 
-O mecanismo é uma **rampa lida por luminância**, não uma tintura. O atlas do Quaternius é paleta chapada — 1024×1024 com ~50 cores distintas, 84% da imagem em branco não usado —, então `shaders/element_palette.gdshader` mede a luminância de cada texel e usa esse valor para amostrar um `GradientTexture1D` de três paradas: `shadow` no mais escuro, `mid` no meio, `highlight` no mais claro. É isso que faz **"amarelo com preto" caber num elemento só**: Eletricidade é uma rampa que sai de quase-preto e chega em amarelo, e a forma do bicho distribui as duas pontas sozinha. Rotação de matiz não conseguiria — ela preserva as relações entre cores e nunca transforma uma cor em duas.
+| | Jogador | NPCs (comerciante, duelista) |
+|---|---|---|
+| Classe | `PlayerRig` | `CharacterRig` |
+| Corpo | `models/player.glb`, um `.glb` fechado | montado em runtime a partir de uma receita de peças |
+| Esqueleto | próprio (24 ossos, Meshy AI) | o do kit (65 ossos, compartilhado por toda peça) |
+| Animação | clipes próprios, sem retarget | bibliotecas UAL re-endereçadas para o esqueleto montado |
+| De onde vem | asset **deste** repositório | conteúdo do catálogo (`npc_appearances` → `appearance` no bundle) |
+| Fallback | cápsula, se o `.glb` não carregar | cápsula, se a receita vier vazia |
 
-Três decisões que custaram tentativa:
+O corpo do jogador é asset deste repositório, e não do bestiário, porque **não é conteúdo**: o catálogo só conhece NPC. O `.glb` sai do export multi-arquivo do Meshy (`../main_player/`, um arquivo por clipe) por `convert-meshy.mjs`, que funde tudo num corpo só e normaliza os nomes, e passa por `optimize-models.mjs --dir ../avyron/models` para virar KTX2 — 17,6 MB → 2,9 MB, e a VRAM é o número que importa (ver `docs/MODEL_OPTIMIZATION.md` no bestiário). Sete clipes: `Idle`, `Walk`, `Run`, `Swim`, `Swim_Idle`, `Harvest` (mineração) e `Throw`, este último ainda sem chamador — é o gesto que espera o arremesso de captura.
 
-- **Shader, não textura gerada.** Gerar um atlas variante por elemento com `Image` significaria ~1 milhão de pixels percorridos em GDScript por variante, mais um cache para invalidar toda vez que a paleta mudasse. Nada se perde no shader porque esses placeholders **não têm normal map nem metallic-roughness** — o material do `.glb` é só o atlas de base color.
-- **A saturação decide quem é recolorido.** Remapear tudo pela luminância pinta dentes, olhos e garras junto e o bicho vira uma mancha. Texel neutro (branco, cinza, preto) passa quase intacto; quem é saturado — o corpo — vai inteiro para a rampa.
-- **Os limiares são medidos em espaço GAMA.** Com o hint `source_color` o Godot já linearizou o texel na amostragem, e comparar limiar de sRGB contra valor linear foi o defeito que fez as seis criaturas saírem da mesma cor suja. O `fragment()` reconverte antes de medir e mistura em linear.
+**O que os dois dividem é `GaitRig`**, a base comum: a escada de marcha, o contrato de loop, o laço sintético da mineração e a flutuação do nado. O que cada um traz de próprio é a montagem e o `swim_lift` — que é medida do **clipe**, não do sistema. O `Swim` da UAL deita o nadador em torno da origem do rig (y de −0,54 a +0,11) e precisa de 0,9 m de levantamento para não arrastar a barriga no leito; o do jogador já nasce pairando (y de +0,29 a +0,88) e usa zero. Herdar o 0,9 o penduraria boiando um metro acima do fundo.
 
-`spread` (por elemento) permite que cada criatura ocupe uma faixa dentro da família: `ElementPalette.creature_bias` deriva do **código** da criatura — nunca sorteia, senão a mesma criatura mudaria de cor entre partidas e entre os dois corpos que a representam — um deslocamento aplicado como **gama** sobre a posição na rampa. Gama preserva as pontas, então a criatura clareia ou escurece dentro da família e nunca vaza para outro elemento.
+**Clipe do jogo é in-place, sem exceção.** Quem move o corpo é o `CharacterBody3D`; um clipe que também anda faz a malha viajar em dobro e voltar de um salto a cada volta do ciclo. O `Swim_Forward` do Meshy chegou exatamente assim — 2,21 m para a frente em 4,57 s, o único dos sete que andava. A deriva horizontal do osso raiz é removida **na conversão** (subtraindo uma rampa linear, para não matar a ondulação da braçada junto com a viagem), e `test_characters.gd` mede que todo clipe fecha onde abriu. Compensar isso em código deixaria o próximo corpo repetir o defeito.
 
-A **aura do Despertar Ancestral** é do duelo e só do duelo. São duas coisas: uma casca aditiva da própria malha, inflada ao longo da normal com `cull_front` (o halo é o interior do fundo da casca escapando da silhueta), e uma `OmniLight3D` na cor do elemento. Na câmera isométrica com névoa é a **luz** que se lê de longe — o halo sozinho some no cenário. A casca entra como **irmã** do `MeshInstance3D`, não filha: o `skeleton` de uma malha rigada é um NodePath relativo, e mantida a vizinhança ele continua resolvendo para o mesmo `Skeleton3D`, então a aura acompanha a animação sem nenhum código de sincronia.
+### Aura do Despertar e efeito de golpe/status — sem cor por elemento desde 2026-09
 
-Quem acende é `EncounterDirector`, ligado ao sinal `rendered` da `DuelScreen` — que dispara a cada mudança de estado, porque numa máquina de turnos não há o que amostrar entre um turno e outro. O estado é **espelhado** da batalha, não acumulado a partir dos eventos do log: despertar, reverter por tempo, cair em combate e trocar de criatura são quatro caminhos que apagam a aura, e reagir a evento exigiria acertar os quatro.
+`scripts/world/element_palette.gd` não recolore mais corpo nenhum (ver acima). O que sobra são dois efeitos de COMBATE, não de identidade do corpo, e os dois usam uma rampa **neutra fixa** (`NEUTRAL_MID`/`NEUTRAL_SHADOW`/`NEUTRAL_HIGHLIGHT`/`NEUTRAL_AURA`) em vez de uma por elemento:
 
-A aura tem **cor própria** (`paletteAura`), e não o `highlight` reaproveitado, por um motivo que só aparece quando as duas metades existem juntas: com o corpo já recolorido pelo elemento, uma aura na mesma cor some justamente na criatura em que ela deveria gritar.
+- **A aura do Despertar Ancestral** é do duelo e só do duelo: o efeito de área do pack BinbunVFX "Elemental Magic FX" (CC0, `assets/BinbunVFX_Vol2/`) ancorado no chão, mais um burst de "cast" de um só disparo no instante em que liga, mais uma `OmniLight3D` que ilumina o chão em volta — na câmera isométrica com névoa é a luz que se lê de longe. Nenhum dos três depende de malha, então até a cápsula (criatura sem `.glb`) desperta visível. Quem acende é `EncounterDirector`, ligado ao sinal `rendered` da `DuelScreen`, e o estado é **espelhado** da batalha, não acumulado a partir do log — despertar, reverter por tempo, cair em combate e trocar de criatura são quatro caminhos que apagam a aura.
+- **Golpe e status** (swing/claw pra dano, shield pra buff/debuff/cura, charge pra ganho de carga) vêm do pack BinbunVFX "Battle FX", despachados por `EncounterDirector._animate_round_events` a cada evento novo do log da batalha.
 
-Corpo legado do Meshy **não** é recolorido — base color assada com normal e metallic-roughness próprios sairia suja. O portão é o prefixo `res://models/placeholders/`, e `test_palette.gd` o prende.
+Os dois recebem `element_code` por parâmetro (mantido pra não quebrar a assinatura de quem chama), mas o valor é ignorado — sempre a mesma cor, qualquer elemento.
 
 **Props de bioma** — o que encomendar, com que orçamento e por quê, está em [`../avyron-bestiary/docs/BIOME_PROPS.md`](../avyron-bestiary/docs/BIOME_PROPS.md): o contrato que todo prop precisa cumprir (origem na base, normalizado em 1×1×1, sem frente, uma superfície), a densidade por bioma e o pedido de 21 peças que falta para o PZ-01. Eles chegam pelo mesmo export, em `models/biomes/` (preparados por `pnpm models:biomes` no bestiário). `megakit/` (Stylized Nature MegaKit do Quaternius, CC0) veste o terrestre: vegetação e pedras em escala real (CommonTree ~7 m) — samambaias escaladas 2,5–3× e cogumelos 3–4× dão a vegetação carbonífera do PZ-03; são `.gltf` com texturas **compartilhadas** de propósito (o Godot deduplica recursos por caminho; `.glb` embutiria uma cópia da casca em cada árvore). `aquatic/` (11 props gerados no Meshy) cobre o marinho do PZ-01: corais, algas e formações em `.glb` individuais, **normalizados em ~1×1×1 pelo Meshy** — a escala de cada peça é decisão da cena (recifes 2–5×, o arco 8–9× como landmark).
 
@@ -639,22 +665,26 @@ Quem aplica isso é **`scripts/world/map_dressing.gd`** (`MapDressing.apply`, ch
 
 #### O tamanho do mapa, e o que escala com ele
 
-**O PZ-01 tem 120 × 120 m desde 2026-08-28** (era 60). O alvo declarado é **350 m**, e a conta que o define é de tempo, não de gosto: a 5,2 m/s (velocidade única — nadar e andar são iguais, `submerged` só troca o clipe), **30 s de travessia por bioma** dão 156 m por bioma, que com cinco biomas pedem 350 m de lado.
+**O PZ-01 tem 350 × 350 m desde 2026-09-06** (era 60, depois 120). A conta que define o número é de tempo, não de gosto: a 5,2 m/s (velocidade única — nadar e andar são iguais, `submerged` só troca o clipe), **30 s de travessia por bioma** dão 156 m por bioma, que com cinco biomas pedem 350 m de lado.
 
-Os 120 m são a etapa intermediária, e o critério da parada é densidade: levar os 44 props de hoje para 350 m os diluiria para 1 a cada 2.784 m² — o mapa não ficaria grande, ficaria deserto. 120 m é o maior lado que o acervo atual veste (132 props, 1 a cada ~109 m²).
-
-| | 60 m (antes) | 120 m (hoje) | 350 m (alvo) |
+| | 60 m | 120 m | 350 m (hoje) |
 |---|---|---|---|
-| travessia lado a lado | 11,5 s | **23,1 s** | 67 s |
+| travessia lado a lado | 11,5 s | 23,1 s | **67 s** |
 | vértices do terreno | 3.721 | 14.641 | 123.201 |
-| props | 44 | 132 | ~1.500 |
-| criaturas | 8 | 24 | ~270 |
+| props | 44 | 132 | ~790 |
+| criaturas | 8 (fixas) | 24 (fixas) | **população local, sem contagem** |
 
-O que os 350 m vão exigir e os 120 m não exigiram: `MultiMesh` para o scatter, população de criatura local ao jogador em vez de contagem fixa, e medir os 245 mil triângulos de terreno em vez de assumi-los.
+Duas linhas dessa tabela merecem explicação, porque as duas são decisão e não consequência.
 
-**A regra que torna o próximo resize barato** está escrita no cabeçalho do `map_terrain.gd`, e é a parte que importa: cada constante do relevo cai em um de dois grupos. **Escalam com o mapa** as feições cujo papel é ocupar uma fração dele — `FLAT_RADIUS` e `COAST_RAMP_START`, porque planície e costa são biomas, e bioma que não cresce junto encolhe até sumir. **Têm tamanho próprio** as alturas (`HILL_HEIGHT`, `RIM_HEIGHT`, `COAST_HEIGHT`), a largura da rampa da costa (é conta de inclinação) e a ilha inteira (ela cabe uma arena — dobrá-la daria 36 m de platô para um duelista só). Trocar uma constante de grupo por engano é o que quebra o mapa.
+**Props ficaram abaixo da proporcional.** Manter a densidade de 120 m pediria ~2.200 nós de `.glb` soltos, e o `MultiMesh` que resolve isso não entrou nesta rodada (segue no ROADMAP). A contagem subiu ~3x em vez de ~8,5x: o mapa lê mais esparso do que lia, de propósito, até o batch existir.
 
-E a consequência boa: **o mapa dobrou e as três regiões de bioma do catálogo não precisaram de uma linha de mudança.** Como costa e anel de recife escalaram na proporção, `-0.533` e `r 0.5` continuam apontando para os mesmos lugares — `test_data` mediu a fronteira em z = −32,00 contra um `COAST_RAMP_START` de −32,00. É exatamente o que as coordenadas normalizadas prometiam, verificado num resize real em vez de assumido.
+**Criaturas deixaram de ter contagem.** A densidade proporcional daria ~270 corpos rigados simultâneos, o que não é questão de ajustar um campo — é o modelo que muda. Hoje o mundo abre vazio e a fauna orbita o jogador: uma rolagem a cada 5 m percorridos, chance vinda do bioma, espécie de sorteio ponderado, e poda de quem sai do quadro. Ver "Spawn selvagem" abaixo.
+
+**A regra que torna o próximo resize barato** está escrita no cabeçalho do `map_terrain.gd`, e no resize de 350 m ela deixou de ser convenção e virou código: as formas em planta (`COAST_*`, `GLACIAL_*`) são **frações explícitas de `_HALF`**, não metros escritos à mão. Elas sempre foram o valor normalizado do catálogo vezes o meio-lado da vez — `COAST_LOBE_R` era 27,6 = 0,46 × 60 —, só que a multiplicação era feita à mão a cada resize, e errar uma delas descolava o relevo da partição de bioma em silêncio. **Têm tamanho próprio** e não escalam: as duas cotas (`SEA_HEIGHT`/`LAND_HEIGHT`), as larguras de rampa (conta de inclinação), `BOUNDS_MARGIN` (raio de cápsula) e a ilha inteira (ela cabe uma arena — crescê-la daria um platô enorme para um duelista só).
+
+Uma armadilha vale registrar, porque não é óbvia e custa caro: **`ACCESS_RAMPS` mistura os dois grupos.** Dois dos três pontos ficam na borda do platô glacial e escalam; o terceiro é a borda da ilha — o `-9.0` dele é literalmente `ISLAND_BASE_RADIUS`. Escalar o array em bloco põe a rampa da ilha a 26 m de uma ilha de 9 m e deixa a arena, onde o jogo abre, sem acesso andável.
+
+E a consequência boa: **o mapa quase triplicou e as regiões de bioma do catálogo não precisaram de uma linha de mudança.** As coordenadas normalizadas ±1 escalaram sozinhas com `MapTerrain.SIZE`, e `test_data` continua medindo a partição sem buraco de cobertura — verificado num resize real, em vez de assumido.
 
 #### O relevo
 
@@ -677,7 +707,7 @@ As constantes `COAST_CENTER_X`, `COAST_LOBE_R`, `COAST_RECT_HALF_W` e `COAST_REC
 
 O alcance máximo da costa mar adentro (`COAST_RAMP_START`) continua existindo como número único para o shader, os testes e as notas do catálogo conferirem — mas deixou de ser a fronteira em toda a largura: agora só vale no meio. Armadilha registrada: a frente de um triângulo no Godot é a ordem **horária** — na ordem OpenGL (anti-horária) o chão inteiro é backface-culled e o mapa flutua sobre o fundo.
 
-**Animação.** Os clipes chegam com o vocabulário normalizado na conversão do bestiário (`convert-placeholders.mjs`): `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death`, mais extras por família — quadrúpedes têm `Eating`, voadores não têm `Walk` e seguem no `Idle` de flutuação. A criatura selvagem nasce em `Idle` e patrulha em `Walk`; a companheira troca de clipe pelo próprio ritmo de marcha e desliga o bob sintético quando o corpo tem rig. O importador de glTF não marca loop em nada, então `LOOPED_CLIPS` em `creature_actor.gd` marca só os clipes contínuos — nunca `Death`.
+**Animação.** Os clipes chegam com o vocabulário normalizado na conversão do bestiário (`convert-placeholders.mjs` pros placeholders Quaternius, `convert-meshy.mjs` pro Meshy AI): `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `Attack3`, `HitReact`, `Death`, `Swim`, `Swim_Idle`, `Dodge`, mais extras por família — quadrúpedes têm `Eating`, voadores não têm `Walk` e seguem no `Idle` de flutuação. `Swim_Idle` e `Attack3` usam o MESMO nome do vocabulário UAL (`GaitRig.LOOPED_CLIPS`) de propósito, não são invenção nova. A criatura selvagem nasce em `Idle` e patrulha em `Walk`; a companheira troca de clipe pelo próprio ritmo de marcha e desliga o bob sintético quando o corpo tem rig. O importador de glTF não marca loop em nada, então `LOOPED_CLIPS` em `creature_actor.gd` marca só os clipes contínuos — nunca `Death`/`Attack`/`Dodge`.
 
 Orçamento por asset para os modelos definitivos, conforme `direcao-3d-arte`:
 
@@ -687,11 +717,11 @@ Orçamento por asset para os modelos definitivos, conforme `direcao-3d-arte`:
 | Regular | 2k–4k | 512² |
 | Enxame | 500–1.5k | 256² |
 
-Loops mínimos por criatura definitiva, a 24 fps, **nos mesmos nomes do vocabulário normalizado** — o código já os consome por esses nomes: `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death`. Extras como `Yes`/`No`/`Wave` (feedback de captura/vitória) são bem-vindos.
+Loops mínimos por criatura definitiva, a 24 fps, **nos mesmos nomes do vocabulário normalizado** — o código já os consome por esses nomes: `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `Attack3`, `HitReact`, `Death`, `Swim`, `Swim_Idle`, `Dodge`. Extras como `Yes`/`No`/`Wave` (feedback de captura/vitória) são bem-vindos.
 
 Os artrópodes do elenco usam **rig flutuante** — sem rig locomotor por perna, deslizamento com bob vertical de ~5 cm. Cobre ~60% do elenco atual.
 
-Os `.glb` espelhados em `models/` são versionados via **git-lfs** (`.gitattributes` já cobre `*.glb`; confira `git lfs status` antes do commit — blob commitado direto fica no histórico para sempre). Os `CRT-XXX.glb` da raiz viraram peso morto de 8–27 MB cada desde que todo o elenco tem `modelUrl`; podem ser arquivados fora do repo. Quando os modelos definitivos voltarem (animados), importe o `.glb` mestre — o do bestiário serve texturas KTX2 otimizadas para browser, que não é o que o Godot quer.
+Os `.glb` espelhados em `models/` são versionados via **git-lfs** (`.gitattributes` já cobre `*.glb`; confira `git lfs status` antes do commit — blob commitado direto fica no histórico para sempre). Os `CRT-XXX.glb` estáticos da raiz (legado do Meshy, sem animação) foram removidos em 2026-09 — todo o elenco hoje resolve por `modelUrl` ou pelo placeholder único. Os modelos definitivos animados já chegaram (CRT-002, piloto) pelo caminho normal: `.glb` do bestiário, mirado por `pnpm game:export`, já com textura KTX2 (`pnpm models:optimize` do lado do bestiário) — não precisa de importação manual à parte.
 
 ## Convenção de escala
 

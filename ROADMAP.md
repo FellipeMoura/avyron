@@ -19,6 +19,17 @@ O PZ-01 saiu de "chão liso com cápsulas" para um mapa vestido — o detalhe de
 
 ---
 
+## Fechado na rodada de limpeza de assets e piloto Meshy (2026-09)
+
+A linha "31/31 vinculadas N:1 aos placeholders do Quaternius" (bullet acima, 2026-08) descreve o estado DAQUELA rodada — mudou nesta:
+
+- **Os ~30 placeholders por família de elemento (Quaternius "big"/"flying"/"dungeon"/"easyanimated") viraram um só**: `models/placeholders/dungeon/Imp.glb`, escolhido por dar de graça o vocabulário completo de clipes via retarget na UAL, incluindo `Swim`/`Swim_Idle` — o PZ-01 é majoritariamente submerso. Os demais (~49 MB) e os `.glb` estáticos legados do Meshy na raiz do projeto (~284 MB) foram removidos do repo do jogo.
+- **A recoloração por elemento (`ElementPalette.apply_body`, shader de rampa) saiu junto** — sem família de corpos pra distinguir, ela tinha parado de fazer sentido. Aura do Despertar e efeitos de golpe/status continuam, agora com cor neutra fixa.
+- **CRT-002 (Anomalocaris) é o primeiro corpo Meshy AI definitivo animado do elenco** — ver "Arte", abaixo, pra o pipeline e o que falta pro resto do elenco.
+- Todas as ~57 demais criaturas que apontavam pra um placeholder removido tiveram o `modelUrl` limpo e caem no placeholder único, como qualquer criatura sem modelo definitivo.
+
+---
+
 ## Pendências imediatas
 
 ### 1. Item de cura em combate
@@ -109,16 +120,21 @@ A mecânica está de pé — captura, XP de relicário e de criatura por partici
 
 Nenhum bloqueia jogar — o sistema funciona de ponta a ponta sem eles fechados. Bloqueiam é declarar a mecânica "pronta" em vez de "jogável".
 
-### 7. O mapa cresceu para 120 m, com alvo declarado de 350
+### 7. O mapa chegou aos 350 m — o que veio junto e o que ficou
 
-A conta é de tempo: **30 s de travessia por bioma** a 5,2 m/s dão 156 m por bioma, e cinco biomas pedem 350 m de lado. Aplicados 120 m nesta rodada porque tamanho sem conteúdo é vazio — os 44 props de antes diluídos em 350 m dariam 1 a cada 2.784 m². Detalhe e tabela no README, "O tamanho do mapa, e o que escala com ele".
+A conta era de tempo: **30 s de travessia por bioma** a 5,2 m/s dão 156 m por bioma, e cinco biomas pedem 350 m de lado. Os 120 m foram a etapa intermediária; o alvo fechou em **2026-09-06**.
 
-O que fica pendente para chegar aos 350 m, e nenhum é trabalho de tuning:
+Duas das quatro pendências saíram junto com o resize:
 
-- **`MultiMesh` para o scatter.** Hoje são 132 instâncias de `.glb` soltas; a 350 m seriam ~1.500 e cada uma é um nó.
-- **População de criatura local ao jogador.** `CreatureSpawner.creature_count` é contagem fixa povoada na abertura. Subiu de 8 para 24 no resize, e 24 já foi escolhido por prudência (a densidade proporcional daria 41, e esse número nunca foi medido nesta cena). A 350 m a densidade proporcional daria ~270, que não é questão de ajustar o campo.
+- ~~**População de criatura local ao jogador.**~~ **Feito.** A contagem fixa povoada na abertura acabou: o mundo abre **sem fauna** e o `CreatureSpawner` rola uma chance a cada 5 m que o jogador percorre, com a chance vindo do BIOMA (`biomes.spawnChance`) e a espécie de um sorteio ponderado (`creature_spawn_rules.spawnWeight`) — os dois no bestiário, como manda a regra 1. Quem sai do quadro por 2,5 s contínuos é podado (`Camera3D.is_position_in_frustum`), e é a poda que mantém a população limitada sem ninguém contar. Não há mais respawn por timer: quem repõe é o deslocamento.
+- ~~**As constantes de forma do relevo escalarem à mão.**~~ **Feito, e era o risco silencioso do resize.** `COAST_*`/`GLACIAL_*` eram metros absolutos recalibrados a cada mudança de tamanho, e eram — sem exceção — o valor normalizado do catálogo vezes o meio-lado da vez. Agora são frações explícitas de `MapTerrain.SIZE`, então o relevo não pode mais divergir da partição de bioma e o próximo resize é uma linha.
+
+O que **continua pendente**, e nenhum é trabalho de tuning:
+
+- **`MultiMesh` para o scatter.** É a razão de a densidade de props ter ficado ABAIXO da proporcional no resize: manter a densidade de 120 m pediria ~2.200 nós de `.glb` soltos. A contagem subiu ~3x em vez de ~8,5x, e o mapa lê mais esparso até isto entrar. Quando entrar, o número a restaurar é o da área.
 - **Medir os 245 mil triângulos do terreno.** A grade de 1 m não é opcional — `HeightMapShape3D` fixa o espaçamento, e o princípio do `MapTerrain` é que malha, colisão e consulta saem da mesma grade. É o primeiro número desse arquivo que precisa de medição em vez de estimativa.
-- **O posto avançado deixou de ser ideia e virou pré-requisito.** A ida e volta ao comerciante era de 8,8 s a 60 m, é de 18 s a 120 m e seria de 52 s a 350 m. A primeira das três fricções que este ROADMAP lista ("voltar até o comerciante") escala junto com o mapa, e é a que o posto avançado existe para resolver.
+- **O posto avançado deixou de ser ideia e virou pré-requisito.** A ida e volta ao comerciante era de 8,8 s a 60 m, é de 18 s a 120 m e é de ~52 s agora. A primeira das três fricções que este ROADMAP lista ("voltar até o comerciante") escalou junto com o mapa, e é a que o posto avançado existe para resolver.
+- **Travar o zoom da câmera.** O jogo vai rodar com zoom fixo; o scroll livre de hoje é conveniência de desenvolvimento. Não bloqueia o spawn: a poda lê o frustum CORRENTE da câmera e continua correta com ou sem zoom variável.
 
 ---
 
@@ -158,16 +174,15 @@ Agora tem sentido: os minérios têm preço, e o comerciante pode vender as plan
 
 ### Arte — em paralelo, não no fim
 
-É o único item que **não bloqueia em decisão de código**, e o de maior prazo: os loops de animação por criatura, no **vocabulário normalizado que o código já consome** (`Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `HitReact`, `Death` — ver README, "Assets 3D"), para todo o elenco.
+É o único item que **não bloqueia em decisão de código**, e o de maior prazo: os loops de animação por criatura, no **vocabulário normalizado que o código já consome** (`Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `Attack3`, `HitReact`, `Death`, `Swim`, `Swim_Idle`, `Dodge` — ver README, "Assets 3D"), para todo o elenco.
 
-**A lacuna de curto prazo fechou com os placeholders animados** (rodada do mapa): 31/31 criaturas têm corpo rigado em jogo hoje. O que esta frente entrega agora é identidade, não funcionalidade — os modelos definitivos (Meshy animado ou arte própria) substituem placeholder por placeholder via `modelUrl`, sem tocar em código.
+**A frente começou de verdade na rodada de 2026-09: CRT-002 (Anomalocaris) é o primeiro corpo Meshy AI definitivo em jogo.** É exatamente o que este item sempre previu — "os modelos definitivos substituem placeholder por placeholder via `modelUrl`, sem tocar em código" — só que agora com um caso real, não hipotético. O pipeline: Meshy exporta um `.glb` único com malha + esqueleto + todos os clipes (opção preferida — export multi-arquivo, um `.glb` por clipe, também é suportado, mas é o caminho legado que o piloto usou antes de sabermos da opção única); `../avyron-bestiary/scripts/convert-meshy.mjs` normaliza os nomes de clipe pro vocabulário canônico; `pnpm models:optimize` comprime pra KTX2; o botão "vincular modelo" (ou uma sincronização de arquivo `CRT-XXX.glb`) liga o `modelUrl`. **A cada modelo novo, quem pede a integração especifica a espécie** — não é pra quem integra adivinhar (o piloto errou uma vez, foi corrigido).
 
-**Meia identidade já chegou sem asset novo** (rodada da paleta): os placeholders são recoloridos pela rampa do elemento e o Despertar Ancestral acende aura da cor do elemento — ver README, "Cor por elemento e a aura do Despertar". Isso desanuvia a leitura de longe (27 dos 30 corpos dividiam dois atlas) e **não substitui** esta frente: matiz separa elemento, silhueta separa criatura, e duas criaturas do mesmo elemento com o mesmo corpo continuam sendo a mesma criatura para o jogador. O que a paleta compra é tempo. Duas pendências herdadas dela:
+**A "meia identidade" por paleta de elemento saiu do jogo na mesma rodada, em vez de continuar coexistindo.** Ela tinha sido pensada como ponte até os modelos definitivos chegarem ("o que a paleta compra é tempo" — a formulação original deste item), mas o elenco convergiu para UM placeholder genérico só (`models/placeholders/dungeon/Imp.glb`, ver README) em vez de manter os ~30 por família de elemento — e sem família nenhuma pra distinguir, recolorir por elemento parou de fazer sentido. `ElementPalette.apply_body`, o shader de rampa e a leitura de `palette`/`cardPalette` do bundle foram removidos. A aura do Despertar e os efeitos de golpe/status continuam (são combate, não identidade do corpo), agora com cor neutra fixa em vez de por elemento. As duas pendências que a paleta tinha herdado (rampa autorada contra o PZ-01, `spread` sem playtest) saem do roadmap junto — não têm mais o que resolver.
 
-- **A rampa foi autorada contra o PZ-01**, cujo ambiente é aquático e esverdeado. Mapa novo com dominante diferente pode engolir um elemento — a tela `/elements` do bestiário mostra a rampa contra os fundos reais do mapa, e é lá que se confere antes de gravar.
-- **`spread` está em 0,12–0,22 sem playtest.** É o quanto uma criatura pode variar dentro da família; alto demais e duas criaturas do mesmo elemento param de ler como parentes, baixo demais e ficam idênticas. Número de conteúdo, ajustável na tela, ainda sem alguém tendo jogado o suficiente para dizer.
+**O que falta**: os ~59 outros membros do elenco ainda no placeholder único, cada um esperando (a) um export do Meshy e (b) a espécie confirmada por quem está autorando o conteúdo antes da integração.
 
-**Ressalva (resolvida):** o modelo do jogador foi adiantado — e virou sistema, não asset. Jogador e NPCs humanos agora montam de um kit modular com esqueleto compartilhado (`CharacterRig`, documento `personagens-humanos` no bestiário): o jogador usa `PlayerController.DEFAULT_RECIPE`, os dois NPCs vestem receitas do catálogo (`npc_appearances`), e a cápsula ficou como fallback de receita vazia. O que restou desta frente: tela de criação de personagem (a receita já é dado; falta a UI que edita o que vira save), tint de paleta no shader toon para multiplicar variedade, e ligar o clipe `Throw` ao arremesso de captura.
+**Ressalva (resolvida):** o modelo do jogador foi adiantado — e virou sistema, não asset. Os NPCs humanos montam de um kit modular com esqueleto compartilhado (`CharacterRig`, documento `personagens-humanos` no bestiário), vestindo receitas do catálogo (`npc_appearances`), com a cápsula como fallback de receita vazia. O **jogador** passou pelo kit por uma semana e saiu dele em 2026-09-07: ganhou corpo próprio (`PlayerRig`, `models/player.glb`, Meshy AI), e o que os dois ainda dividem é só a máquina de marcha (`GaitRig`). O que restou desta frente: tela de criação de personagem (agora escolhendo entre corpos do jogador, não entre peças do kit de NPC), tint de paleta no shader toon para multiplicar variedade dos NPCs, e ligar o clipe `Throw` ao arremesso de captura — o corpo do jogador já traz o gesto, sem chamador.
 
 ---
 
@@ -184,8 +199,8 @@ Números escolhidos com raciocínio mas sem playtest. Todos ajustáveis por `PAT
 | Margem do comerciante | `sellRatio` 0.4 | `economy_rules` |
 | Distância do companheiro | 2,6 m parado / 3,6 m correndo | `CompanionActor.FOLLOW_DISTANCE` — apresentação, fica em código |
 | Recuo do domador em combate | ~3,25 m (era 6,5 m) | `BattleStaging.TRAINER_SPREAD` — apresentação, fica em código |
-| Marcha em que o corpo passa a correr | 2,2 m/s (o jogador se move a 5,2, então corre sempre) | `CharacterRig.RUN_THRESHOLD` — apresentação, fica em código |
-| Altura do nadador sobre o leito | 0,9 m | `CharacterRig.SWIM_LIFT` — apresentação, fica em código |
+| Marcha em que o corpo passa a correr | 2,2 m/s (o jogador se move a 5,2, então corre sempre) | `GaitRig.RUN_THRESHOLD` — apresentação, fica em código |
+| Altura do nadador sobre o leito | 0,9 m nos NPCs, 0 no jogador | `CharacterRig.SWIM_LIFT` / `GaitRig.swim_lift` — medida do clipe, fica em código |
 | Cota da superfície da água no PZ-01 | 1,25 m (a MESMA que fragmenta a névoa) | `MapDressing.PZ01_WATER_LINE` — vestimenta de bioma, fica em código |
 
 | Potência do Amplificador / Encantador | 5 / 10 / 15 pontos percentuais por tier | `equipment_stats.effectValue` — o teto de 15 é metade do +30% de `HAB-020`, que custa a rodada |
