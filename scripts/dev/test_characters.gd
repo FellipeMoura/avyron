@@ -166,6 +166,7 @@ func _test_player_body() -> void:
 	# O `Swim` deste corpo já nasce pairando acima da origem do rig — herdar o
 	# levantamento de 0,9 m do corpo UAL o penduraria boiando (ver PlayerRig).
 	_check("nao levanta no nado (swim_lift = 0)", is_zero_approx(rig.swim_lift))
+	_check("nem ao boiar (swim_idle_lift = 0)", is_zero_approx(rig.swim_idle_lift))
 	# Regra 4 do CLAUDE.md: o modelo olha para +Z e a frente de um nó é -Z.
 	var body := rig.get_node_or_null("Body") as Node3D
 	_check("corpo girado para encarar -Z",
@@ -238,18 +239,22 @@ func _test_gait_ladder() -> void:
 		[0.0, false, "Idle"],
 		[1.2, false, "Walk"],
 		[PlayerController.WALK_SPEED, false, "Run"],
-		[0.0, true, "Swim"],
+		[0.0, true, "Swim_Idle"],
 		[PlayerController.WALK_SPEED, true, "Swim"],
+		[0.0, true, "Swim_Idle"],
 	]
 	for c in cases:
 		rig.update_motion(float(c[0]), bool(c[1]))
 		_check("%4.1f m/s %s -> %s" % [c[0], "submerso" if c[1] else "seco  ", c[2]],
 			anim.current_animation == c[2], anim.current_animation)
 
-	# Parado embaixo d'água continua nadando, e não é descuido: `Swim_Idle` é
-	# pose de boiar na superfície e alternar com `Swim` faria o corpo pular
-	# quase um metro a cada parada.
-	_check("o corpo tem Swim_Idle, e ele fica de fora de propósito", rig.has_clip("Swim_Idle"))
+	# Corpo sem `Swim_Idle` continua dando braçada no lugar (era o comportamento
+	# de todo corpo até 2026-09-07, e ainda é o dos que não trazem o clipe).
+	# Tirado da biblioteca desta instância, não do arquivo.
+	anim.get_animation_library("").remove_animation("Swim_Idle")
+	rig.update_motion(0.0, true)
+	_check("sem Swim_Idle, parado submerso cai para Swim", anim.current_animation == "Swim",
+		anim.current_animation)
 
 	# Mineração tem prioridade sobre a escada normal, mesmo parado (é assim
 	# que WorldRoot sempre chama: só liga `mining` com o corpo já parado).
@@ -284,6 +289,10 @@ func _test_kit_rig() -> void:
 	# O kit levanta o nadador; o corpo do jogador não. A diferença é medida do
 	# clipe, não do sistema — ver `CharacterRig.SWIM_LIFT`.
 	_check("kit levanta o nadador", is_equal_approx(rig.swim_lift, CharacterRig.SWIM_LIFT))
+	# O boiador da UAL pende mais fundo que o nadador — cota própria, maior.
+	_check("kit levanta o boiador ainda mais",
+		is_equal_approx(rig.swim_idle_lift, CharacterRig.SWIM_IDLE_LIFT)
+		and rig.swim_idle_lift > rig.swim_lift)
 	_check("receita vazia devolve null (fallback de cápsula)", CharacterRig.create({}) == null)
 	rig.free()
 

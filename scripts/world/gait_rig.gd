@@ -57,7 +57,8 @@ const MINE_CLIP := "Harvest"
 ## no alto, senão ele sobe de pé e depois deita, que lê como elevador.
 const SWIM_BLEND_TIME := 0.35
 
-## Quanto o corpo do nadador sobe em relação aos próprios pés, em metros.
+## Quanto o corpo do nadador sobe em relação aos próprios pés, em metros,
+## enquanto toca `Swim`.
 ##
 ## É medida do CLIPE, não do sistema, e por isso é campo de instância em vez de
 ## constante daqui: compensa o quanto o `Swim` daquele corpo específico foi
@@ -65,11 +66,17 @@ const SWIM_BLEND_TIME := 0.35
 ## certa e não há o que compensar, que é o caso do corpo do jogador.
 var swim_lift := 0.0
 
+## O mesmo, para `Swim_Idle`. Um campo por clipe porque os dois foram autorados
+## em alturas diferentes no MESMO corpo: na UAL o boiador pende 0,88 m mais
+## fundo que o nadador (ver `CharacterRig.SWIM_IDLE_LIFT`), e uma compensação
+## única deixaria um dos dois no leito. Zero no corpo do jogador, como
+## `swim_lift`.
+var swim_idle_lift := 0.0
+
 var _anim: AnimationPlayer
-## O nó do corpo, que sobe quando ele nada (ver `swim_lift`).
+## O nó do corpo, que sobe quando ele nada (ver `swim_lift`/`swim_idle_lift`).
 var _body: Node3D
 var _swimming := false
-var _float_blend := 0.0
 var _mining := false
 
 
@@ -120,17 +127,25 @@ func update_motion(
 		play_clip(MINE_CLIP)
 		return
 
-	if swimming and has_clip("Swim"):
-		# `Swim` também parado, de propósito. Os dois corpos trazem um
-		# `Swim_Idle`, mas ele é pose de boiar na SUPERFÍCIE — no corpo UAL o
-		# nadador pendura 1,41 m abaixo da origem do rig, contra 0,54 m do
-		# `Swim`. Alternar entre os dois obrigaria o corpo a subir e descer
-		# quase um metro a cada parada, e os pés do boiador entrariam no leito,
-		# porque a coluna de água do PZ-01 não tem essa folga. Quem paralisa
-		# embaixo da água continua dando braçada para ficar no lugar, o que é o
-		# que um corpo submerso faz.
-		play_clip("Swim")
-		return
+	if swimming:
+		# Parado dentro d'água o corpo boia (`Swim_Idle`); em movimento, nada
+		# (`Swim`). Até 2026-09-07 era `Swim` nas duas marchas, e não por
+		# descuido: o único `Swim_Idle` que existia era o da UAL, pose de boiar
+		# na SUPERFÍCIE pendurada 1,42 m abaixo da origem do rig — trocar de
+		# clipe a cada parada fazia o corpo subir e descer quase um metro, e a
+		# coluna d'água do PZ-01 (1,65 m) não tem folga para levantá-lo. O
+		# corpo do jogador trouxe um `Swim_Idle` DE PÉ (medido: y de +0,19 a
+		# +1,60, quadril em +1,0, contra +0,6 no `Swim`), e a escada passou a
+		# alternar. A altura de cada clipe continua sendo medida do corpo, não
+		# da escada — ver `swim_lift`/`swim_idle_lift` e `_advance_float`.
+		# Corpo sem `Swim_Idle` continua dando braçada no lugar, que é o que um
+		# submerso faz; corpo sem `Swim` nenhum cai para a escada seca.
+		if speed < idle_threshold and has_clip("Swim_Idle"):
+			play_clip("Swim_Idle")
+			return
+		if has_clip("Swim"):
+			play_clip("Swim")
+			return
 
 	if speed < idle_threshold:
 		play_clip("Idle")
@@ -171,19 +186,26 @@ func _process(delta: float) -> void:
 
 ## Sobe o corpo quando ele nada, e o devolve ao chão quando ele sai da água.
 ##
-## Só a BORDA é interpolada — entrar e sair da água. Dentro do nado a altura é
-## fixa de propósito: um único clipe de locomoção submersa, uma única cota, e
-## nenhum salto vertical no meio da exploração.
+## A altura persegue a cota do clipe de nado que está tocando — `swim_lift` no
+## `Swim`, `swim_idle_lift` no `Swim_Idle` — e zero fora d'água. A transição
+## entre as três é sempre interpolada, à velocidade que cruza a maior das
+## cotas em `SWIM_BLEND_TIME`: um deslocamento menor (parar de nadar e boiar)
+## leva proporcionalmente menos, e casa com o crossfade do clipe do mesmo
+## jeito que a borda de entrar e sair d'água já casava.
 ##
-## Sai cedo com `swim_lift` zerado em vez de escrever `position.y = 0.0` todo
-## quadro: o corpo cujo clipe já nasce na altura certa não tem flutuação
-## nenhuma para animar, e quem quiser deslocar esse `_body` por outro motivo
-## não deve encontrar este método pisando no valor.
+## Sai cedo com as duas cotas zeradas em vez de escrever `position.y = 0.0`
+## todo quadro: o corpo cujos clipes já nascem na altura certa não tem
+## flutuação nenhuma para animar, e quem quiser deslocar esse `_body` por outro
+## motivo não deve encontrar este método pisando no valor.
 func _advance_float(delta: float) -> void:
-	if _body == null or is_zero_approx(swim_lift):
+	if _body == null or (is_zero_approx(swim_lift) and is_zero_approx(swim_idle_lift)):
 		return
-	_float_blend = move_toward(_float_blend, 1.0 if _swimming else 0.0, delta / SWIM_BLEND_TIME)
-	_body.position.y = swim_lift * _float_blend
+	var target := 0.0
+	if _swimming:
+		var floating := _anim != null and _anim.current_animation == "Swim_Idle"
+		target = swim_idle_lift if floating else swim_lift
+	var rate := maxf(swim_lift, swim_idle_lift) / SWIM_BLEND_TIME
+	_body.position.y = move_toward(_body.position.y, target, rate * delta)
 
 
 ## Relança `Harvest` do início quando ele termina. `Harvest` não está em

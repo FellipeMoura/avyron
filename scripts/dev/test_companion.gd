@@ -53,6 +53,7 @@ func _run() -> void:
 	_test_own_facing()
 	_test_creature_swap_keeps_place()
 	_test_follows_seabed_over_open_water()
+	_test_swims_in_open_water()
 
 	# Fora da árvore de cena: nada libera este Node por nós.
 	_db.free()
@@ -348,6 +349,47 @@ func _test_follows_seabed_over_open_water() -> void:
 	_check_true("a companheira segue o leito, nao prende na cota",
 		absf(companion.global_position.y - ground) < 0.01,
 		"y %.2f, cota %.2f, leito %.2f" % [companion.global_position.y, terrain.water_line, ground])
+
+	terrain.free()
+	_teardown(rig)
+
+
+## Em mar aberto a companheira nada: parada boia (`Swim_Idle`), seguindo o
+## domador dá braçada (`Swim`). É a mesma escada de `CreatureActor._gait`,
+## repetida em `_clip_for_speed` porque ela não é um `CreatureActor`; o corpo é
+## o CRT-002, que chegou do Meshy com os dois clipes. Sem terreno (as outras
+## bancadas desta suíte) ela continua em `Idle`/`Walk`/`Run` — é o que
+## `_test_settles_behind` e companhia já prendem sem saber.
+func _test_swims_in_open_water() -> void:
+	print("nada em mar aberto:")
+	var rig := _rig()
+	var player := rig[0] as Node3D
+	var companion := rig[1] as CompanionActor
+	var terrain := MapTerrain.create({})
+	terrain.water_line = MapDressing.PZ01_WATER_LINE
+	companion.terrain = terrain
+
+	# O mesmo ponto de mar aberto do teste anterior. Os dois vão juntos — ela
+	# atrás dele à distância de regime, na direção de onde a trilha "veio" (a
+	# origem, onde a bancada o criou); sem isso a coleira nasce esticada e ela
+	# parte correndo no primeiro quadro, e o clipe medido seria o de nadar.
+	var half := float(MapTerrain.SIZE) * 0.5
+	var spot := Vector3(half * 0.5, 0.0, half * 0.67)
+	player.global_position = spot
+	companion.global_position = spot + (Vector3.ZERO - spot).normalized() * CompanionActor.FOLLOW_DISTANCE
+	_idle(rig, 0.5)
+
+	_check_true("esta submersa ali", companion._submerged(),
+		"y %.2f, cota %.2f" % [companion.global_position.y, terrain.water_line])
+	_check_true("parada", companion._speed < CompanionActor.IDLE_SPEED, "%.2f m/s" % companion._speed)
+	_check("parada em mar aberto boia", companion._anim.current_animation, "Swim_Idle")
+
+	_walk(rig, Vector3.ZERO - spot, 0.6)
+	_check_true("continua submersa depois de andar", companion._submerged(),
+		"y %.2f" % companion.global_position.y)
+	_check_true("seguindo, esta em movimento",
+		companion._speed >= CompanionActor.IDLE_SPEED, "%.2f m/s" % companion._speed)
+	_check("seguindo em mar aberto nada", companion._anim.current_animation, "Swim")
 
 	terrain.free()
 	_teardown(rig)

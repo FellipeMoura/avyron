@@ -25,12 +25,16 @@ extends GaitRig
 ##   malha até enchê-la — mas 1 unidade = 1 metro é regra da casa, 1,68 m é um
 ##   humano plausível, e cápsula sobrando é o normal de toda cápsula. Escalar
 ##   seria escolher um número por estética sem medida por trás.
-## - **`swim_lift` fica em zero.** O `Swim` do corpo UAL deita o nadador em
-##   torno da origem do rig (medido: y de -0,54 a +0,11), e por isso
-##   `CharacterRig` o levanta 0,9 m — sem isso o nadador arrasta a barriga no
-##   leito. O `Swim` deste corpo já nasce pairando (y de +0,29 a +0,88): posto
-##   cru, ele fica praticamente onde o outro só chegava levantado. Herdar o 0,9
-##   o penduraria um metro acima do fundo, boiando.
+## - **`swim_lift` e `swim_idle_lift` ficam em zero.** O `Swim` do corpo UAL
+##   deita o nadador em torno da origem do rig (medido: y de -0,54 a +0,11), e
+##   por isso `CharacterRig` o levanta 0,9 m — sem isso o nadador arrasta a
+##   barriga no leito. O `Swim` deste corpo já nasce pairando (y de +0,29 a
+##   +0,88): posto cru, ele fica praticamente onde o outro só chegava
+##   levantado. Herdar o 0,9 o penduraria um metro acima do fundo, boiando. O
+##   `Swim_Idle` daqui é outra pose que a da UAL: o corpo boia DE PÉ, com os
+##   pés em +0,19 e a cabeça em +1,60 (quadril em +1,0), e não pendurado
+##   1,42 m abaixo da origem — foi ele que deixou a escada de `GaitRig` parar
+##   de tocar `Swim` com o corpo parado.
 ##
 ## O que NÃO veio de graça foi o `Swim`: ele chegou do Meshy com root motion
 ## (2,21 m para a frente em 4,57 s, o único dos sete clipes que andava). Quem

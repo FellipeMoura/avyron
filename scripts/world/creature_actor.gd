@@ -25,11 +25,13 @@ enum State { IDLE, PATROL }
 
 const PATROL_SPEED := 1.2
 
-## Marcha da encenação de duelo a partir da qual o corpo corre em vez de andar,
-## e abaixo da qual conta como parado. Só valem lá: a patrulha anda sempre, a
-## `PATROL_SPEED`, e por isso nunca chega perto do limiar de corrida.
+## Marcha a partir da qual o corpo corre em vez de andar, e abaixo da qual
+## conta como parado. A patrulha anda sempre a `PATROL_SPEED` e nunca chega
+## perto do limiar de corrida — `Run` só aparece na encenação do duelo, que
+## impõe a marcha por fora (`staged_gait`). Os dois passam pela MESMA escada
+## (`_gait`), que é também quem decide entre andar e nadar.
 const RUN_THRESHOLD := 2.0
-const STAGED_IDLE_SPEED := 0.05
+const IDLE_SPEED := 0.05
 
 const IDLE_MIN := 1.5
 const IDLE_MAX := 4.0
@@ -52,8 +54,17 @@ var display_name := ""
 var element_code := ""
 var size_meters := 1.8
 var model_url := ""
+## Quem responde "estou na água?" — injetado pelo `CreatureSpawner`, que o
+## recebe do `WorldRoot` como todo mundo que precisa do relevo. Nulo (bancadas
+## de teste sem terreno) = sempre seco, e a escada de marcha fica em
+## `Idle`/`Walk`/`Run` como antes de existir nado.
+var terrain: MapTerrain
 
 var state: State = State.IDLE
+## Último meio visto por `_gait`, para `_physics_process` reavaliar o clipe só
+## quando o corpo troca de meio — nunca a cada quadro, que pisaria num clipe
+## de combate tocado por nome (`play_battle_clip`).
+var _submerged := false
 var _home := Vector3.ZERO
 var _patrol_target := Vector3.ZERO
 var _timer := 0.0
@@ -104,12 +115,14 @@ const PLACEHOLDER_PATH := "res://models/placeholders/dungeon/Imp.glb"
 ## nada, então um `Idle` tocado cru congela no último quadro; e marcar TODOS
 ## seria pior — `Death` em loop é uma criatura morrendo para sempre. A lista
 ## segue o vocabulário normalizado dos placeholders (ver
-## `convert-placeholders.mjs`/`convert-meshy.mjs` no bestiário). `Swim_Idle` é
-## o nadar parado — mesmo nome do vocabulário UAL (`GaitRig.LOOPED_CLIPS`),
-## contínuo como `Idle`, nunca um golpe. `Attack3`/`Dodge` NÃO entram aqui —
-## um golpe ou uma esquiva em loop repetiria pra sempre, mesma razão de
-## `Attack`/`Attack2` ficarem de fora.
-const LOOPED_CLIPS := ["Idle", "Idle2", "IdleLow", "Walk", "Run", "Eating", "Jump_Idle", "Swim_Idle"]
+## `convert-placeholders.mjs`/`convert-meshy.mjs` no bestiário). `Swim` e
+## `Swim_Idle` são nadar e boiar — mesmos nomes do vocabulário UAL
+## (`GaitRig.LOOPED_CLIPS`), contínuos como `Walk` e `Idle`, nunca um golpe;
+## `Swim` faltava aqui até 2026-09-07 porque nenhuma criatura nadava, e um
+## `Swim` sem loop congela no último quadro na primeira braçada.
+## `Attack3`/`Dodge` NÃO entram — um golpe ou uma esquiva em loop repetiria
+## pra sempre, mesma razão de `Attack`/`Attack2` ficarem de fora.
+const LOOPED_CLIPS := ["Idle", "Idle2", "IdleLow", "Walk", "Run", "Eating", "Jump_Idle", "Swim", "Swim_Idle"]
 
 
 ## Resolve o caminho do `.glb` de uma criatura, ou "" quando não há arquivo.
@@ -479,17 +492,23 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 	move_and_slide()
 
+	# O meio pode mudar no meio de um estado — a coleira leva a patrulha até a
+	# beira da rampa da costa. Só a TROCA de meio reavalia o clipe; ver
+	# `_submerged` sobre por que não é a cada quadro.
+	if submerged() != _submerged:
+		_gait(Vector2(velocity.x, velocity.z).length())
+
 
 func _enter_idle() -> void:
 	state = State.IDLE
 	_timer = _rng.randf_range(IDLE_MIN, IDLE_MAX)
 	velocity = Vector3.ZERO
-	_play_clip("Idle")
+	_gait(0.0)
 
 
 func _enter_patrol() -> void:
 	state = State.PATROL
-	_play_clip("Walk")
+	_gait(PATROL_SPEED)
 	# Ancora o alvo na POSIÇÃO ATUAL, não em `_home`. O esquema antigo pegava
 	# alvo em `_home + offset`, e uma criatura que tivesse drifted para o
 	# extremo oeste do seu círculo podia receber o próximo alvo no extremo
@@ -555,6 +574,55 @@ func _play_clip(clip: String) -> void:
 		_anim.play(clip, 0.2)
 
 
+func _has_clip(clip: String) -> bool:
+	return _anim != null and _anim.has_animation(clip)
+
+
+## A criatura está debaixo d'água?
+##
+## Medido nos PÉS (a origem fica meia cápsula acima do chão — regra 5 do
+## `CLAUDE.md`), pelo mesmo `MapTerrain.submerged` e pela mesma razão do
+## jogador: é o pé que decide se o corpo já subiu a rampa. Sem terreno, ou fora
+## da árvore (ainda sem `global_position`), a resposta é seco.
+func submerged() -> bool:
+	if terrain == null or not is_inside_tree():
+		return false
+	return terrain.submerged(global_position - Vector3(0.0, staged_ground_offset(), 0.0))
+
+
+## A escada de marcha e meio deste corpo — a única, usada pela patrulha, pela
+## encenação do duelo (`staged_gait`) e pela troca de meio. Mesma forma da de
+## `GaitRig.update_motion`, escrita aqui e não herdada porque este corpo não é
+## humano nem monta rig: só o vocabulário de clipes é compartilhado.
+##
+## Submerso: parado boia (`Swim_Idle`), em movimento nada (`Swim`). Corpo com
+## `Swim` mas sem `Swim_Idle` dá braçada no lugar, que é o que um submerso faz;
+## corpo sem nado nenhum cai na escada seca, como todo corpo caía antes de
+## 2026-09-07, e `_play_clip` silencia no clipe ausente em vez de prender o
+## corpo num clipe que ele não tem. Hoje os catorze do PZ-01 trazem os dois:
+## onze chegaram do Meshy só com `Walk`/`Run` e receberam o conjunto do
+## CRT-005 por transplante (`pnpm models:transfer` no bestiário).
+##
+## `Run` só quando o corpo tem o clipe: os placeholders variam, e `_play_clip`
+## silencia no clipe ausente — pedir `Run` a quem não tem deixaria a criatura
+## atravessar a cena parada.
+func _gait(speed: float) -> void:
+	_submerged = submerged()
+	if _submerged:
+		if speed < IDLE_SPEED and _has_clip("Swim_Idle"):
+			_play_clip("Swim_Idle")
+			return
+		if _has_clip("Swim"):
+			_play_clip("Swim")
+			return
+	if speed < IDLE_SPEED:
+		_play_clip("Idle")
+	elif speed >= RUN_THRESHOLD and _has_clip("Run"):
+		_play_clip("Run")
+	else:
+		_play_clip("Walk")
+
+
 ## Toca um clipe de combate por NOME (`Attack`/`HitReact`/`Death`) — chamado
 ## pelo `EncounterDirector` durante o turno, fora da escada de marcha (esses
 ## três não têm velocidade associada). Mesmo contrato por nome do resto da
@@ -580,17 +648,10 @@ func staged_ground_offset() -> float:
 	return float(capsule_dimensions(size_meters)["height"]) * 0.5
 
 
-## A marcha imposta pela encenação, na mesma escada da exploração. `Run` só
-## quando o corpo tem o clipe: os placeholders variam, e `_play_clip` silencia
-## no clipe ausente — pedir `Run` a quem não tem deixaria a criatura atravessar
-## a cena parada.
+## A marcha imposta pela encenação, na mesma escada da exploração (`_gait`) —
+## inclusive o meio: um duelo engatado no leito do mar é nadado, não andado.
 func staged_gait(speed: float) -> void:
-	if speed < STAGED_IDLE_SPEED:
-		_play_clip("Idle")
-	elif speed >= RUN_THRESHOLD and _anim != null and _anim.has_animation("Run"):
-		_play_clip("Run")
-	else:
-		_play_clip("Walk")
+	_gait(speed)
 
 
 ## Deixa o corpo animar com a árvore pausada, enquanto a encenação o move.

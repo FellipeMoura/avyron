@@ -337,15 +337,34 @@ func _update_clip() -> void:
 		_anim.play(clip, 0.2)
 
 
-## O clipe da marcha. Cai para `Walk` quando o corpo não tem `Run` — os
+## O clipe da marcha e do meio — a mesma escada de `CreatureActor._gait`, que
+## ela precisa repetir porque não é um `CreatureActor` (é `Node3D` sem
+## física); o que as duas dividem é o vocabulário de clipes.
+##
+## Submersa, parada boia (`Swim_Idle`) e em movimento nada (`Swim`); corpo com
+## `Swim` mas sem `Swim_Idle` dá braçada no lugar, e corpo sem nado nenhum cai
+## na escada seca. Cai para `Walk` quando o corpo não tem `Run` — os
 ## placeholders variam, e silenciar aqui deixaria a criatura presa no clipe
 ## anterior em vez de andar.
 func _clip_for_speed(speed: float) -> String:
+	if _submerged():
+		if speed < IDLE_SPEED and _anim.has_animation("Swim_Idle"):
+			return "Swim_Idle"
+		if _anim.has_animation("Swim"):
+			return "Swim"
 	if speed < IDLE_SPEED:
 		return "Idle"
 	if speed >= RUN_THRESHOLD and _anim.has_animation("Run"):
 		return "Run"
 	return "Walk"
+
+
+## A companheira está debaixo d'água? A origem dela É o chão (ver
+## `staged_ground_offset`), então a consulta vai direto em `global_position`,
+## sem o desconto de meia cápsula que o `CreatureActor` precisa fazer. Sem
+## terreno (bancada), sempre seca.
+func _submerged() -> bool:
+	return terrain != null and is_inside_tree() and terrain.submerged(global_position)
 
 
 ## Toca um clipe de combate por NOME (`Attack`/`HitReact`/`Death`) — mesmo

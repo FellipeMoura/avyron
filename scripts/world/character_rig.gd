@@ -49,6 +49,22 @@ extends GaitRig
 ## flutuação é campo de instância em `GaitRig` em vez de constante lá.
 const SWIM_LIFT := 0.9
 
+## O mesmo levantamento, para `Swim_Idle`. O boiador da UAL pende 1,42 m
+## abaixo da origem do rig (medido em 2026-09-07 no corpo do kit, ponto mais
+## baixo do esqueleto ao longo do ciclo inteiro), contra 0,54 m do `Swim`:
+## 0,88 m a mais, e é exatamente essa diferença que este número soma sobre
+## `SWIM_LIFT`, para os dois clipes deixarem a mesma folga (0,37 m) sobre o
+## leito. É medida do clipe, e por isso constante e não derivada da pose viva —
+## mesma razão de `SWIM_LIFT`.
+##
+## Levantado assim, o boiador ocupa de +0,37 a +2,1 m sobre os pés, mais do
+## que a coluna d'água do PZ-01 (1,65 m) comporta — foi por isso que a escada
+## tocava `Swim` também parado até o corpo do jogador trazer um `Swim_Idle` de
+## pé. Nenhum NPC nada hoje (`update_motion` só recebe `swimming` do
+## `PlayerController`); o número existe para a escada que este corpo divide
+## com o jogador continuar correta nele em vez de ganhar um caso especial.
+const SWIM_IDLE_LIFT := SWIM_LIFT + 0.88
+
 const KIT_DIR := "res://models/characters"
 const MANIFEST_PATH := KIT_DIR + "/manifest.json"
 const ANIM_LIBRARIES := ["UAL1", "UAL2"]
@@ -100,6 +116,7 @@ static func create(recipe: Dictionary) -> CharacterRig:
 	var rig := CharacterRig.new()
 	rig.name = "CharacterRig"
 	rig.swim_lift = SWIM_LIFT
+	rig.swim_idle_lift = SWIM_IDLE_LIFT
 	var body_instance := packed.instantiate() as Node3D
 	body_instance.name = "Body"
 	# Os modelos do kit olham para +Z, como os placeholders de criatura; a
