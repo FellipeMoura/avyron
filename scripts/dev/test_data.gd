@@ -32,6 +32,7 @@ func _init() -> void:
 	_test_element_ring(db)
 	_test_damage(db)
 	_test_charge(db)
+	_test_awakening_rules(db)
 	_test_known_abilities(db)
 	_test_turn_order()
 	_test_contract_integrity(db)
@@ -337,6 +338,31 @@ func _test_known_abilities(db: BestiaryData) -> void:
 	_check_true("assinatura do Despertar disponivel desde o nivel 1", has_signature)
 
 
+## O buff do Despertar é global e universal desde 2026-09: não existe mais
+## cobertura por criatura para cobrar, nem golpe exclusivo inalcançável —
+## toda criatura desperta. O que o bundle precisa trazer é a fatia
+## `rules.awakening` (sem ela `Combatant` não tem de onde ler o número) e os
+## golpes `awakeningOnly` que o buff libera, um por elemento.
+func _test_awakening_rules(db: BestiaryData) -> void:
+	print("regras do Despertar:")
+	var a := db.awakening_rules()
+	_check_true("bundle traz rules.awakening", not a.is_empty())
+	if a.is_empty():
+		return
+	_check_true("multiplicador acima de 1", float(a.get("multiplier", 0.0)) > 1.0,
+		str(a.get("multiplier")))
+	_check_true("duracao de pelo menos 1 rodada", int(a.get("durationTurns", 0)) >= 1,
+		str(a.get("durationTurns")))
+	var signatures := {}
+	for code in db.creature_codes():
+		for entry in db.creature(str(code)).get("abilities", []):
+			var ability := db.ability(str(entry["code"]))
+			if not ability.is_empty() and bool(ability.get("awakeningOnly", false)):
+				signatures[str(entry["code"])] = true
+	_check_true("ha golpes exclusivos do Despertar no elenco", signatures.size() >= 1,
+		"%d golpes: %s" % [signatures.size(), str(signatures.keys())])
+
+
 func _test_turn_order() -> void:
 	print("ordem de turno:")
 	_check_true("mais rapido age primeiro", CombatMath.turn_order_compare(0, 80, 0, 40) > 0)
@@ -349,7 +375,6 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 	var no_stats: Array = []
 	var no_capture: Array = []
 	var no_abilities: Array = []
-	var no_awakening: Array = []
 	var bad_element: Array = []
 	var bad_drops := 0
 
@@ -361,8 +386,6 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 			no_capture.append(code)
 		if c.get("abilities", []).is_empty():
 			no_abilities.append(code)
-		if c.get("awakening", null) == null:
-			no_awakening.append(code)
 		if db.element(str(c.get("element", ""))).is_empty():
 			bad_element.append(code)
 		# `creature_drops` não pode estourar nem devolver algo que não seja
@@ -389,28 +412,6 @@ func _test_contract_integrity(db: BestiaryData) -> void:
 	_check("criaturas sem golpes", no_abilities.size(), 0)
 	_check("criaturas com elemento invalido", bad_element.size(), 0)
 	_check("criaturas com bloco de drops invalido", bad_drops, 0)
-	# Golpe de assinatura sem Despertar é erro de dado, não meta: `Combatant`
-	# filtra `awakeningOnly` por `is_awakened`, e criatura que nunca desperta
-	# nunca pode usar o golpe. Ele aparece na ficha e não serve pra nada.
-	# `CRT-013` jogou assim com 5 golpes contra 6 do resto do elenco.
-	var dead_signature: Array = []
-	for code in db.creature_codes():
-		var c := db.creature(code)
-		if c.get("awakening", null) != null:
-			continue
-		for entry in c.get("abilities", []):
-			var a := db.ability(str(entry["code"]))
-			if not a.is_empty() and bool(a.get("awakeningOnly", false)):
-				dead_signature.append("%s/%s" % [code, str(entry["code"])])
-	_check("golpes de assinatura inalcancaveis", dead_signature.size(), 0)
-
-	# A cobertura em si é meta, não invariante — o Despertar é o passo
-	# opcional do `DATA_WORKFLOW`, e sem ele a criatura ainda joga, só não usa
-	# o medidor de carga. Mesmo critério do `pnpm game:export`, que avisa aqui
-	# e aborta no golpe morto acima.
-	_warn("cobertura de Despertar 1:1", no_awakening.is_empty(),
-		"sem despertar: %s" % str(no_awakening) if not no_awakening.is_empty()
-		else "%d de %d" % [db.creature_codes().size(), db.creature_codes().size()])
 
 
 ## O contrato da classe como **especialização de atributo**.

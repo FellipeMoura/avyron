@@ -1,5 +1,7 @@
 # Auditoria de arquitetura — agosto de 2026
 
+> Nota de 2026-09-07: o Despertar Ancestral virou buff universal (sem tabela por criatura, sem cobertura 1:1, números globais em `combat_rules`). As passagens abaixo sobre cobertura de Despertar, `DSP-*` e o `test_duel_screen` fixando uma criatura com Despertar descrevem o modelo antigo e ficam como histórico.
+
 Rodada dedicada a **medir a saúde dos dois projetos e endurecer regras enquanto está barato** — não a entregar mecânica nova. O jogo aqui, o catálogo em `../avyron-bestiary`.
 
 Este documento é o ponto de retomada: o que foi consertado e como isso foi provado, o que sobrou, e as decisões que estão esperando uma resposta sua. O `ROADMAP.md` continua dono das pendências de **produto**; aqui é só saúde estrutural.

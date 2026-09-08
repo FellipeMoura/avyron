@@ -111,6 +111,11 @@ func load_bundle(path: String = BUNDLE_PATH) -> String:
 		return "bundle sem criaturas — export incompleto"
 	if rules.is_empty():
 		return "bundle sem o bloco `rules` — export de uma versao antiga do script"
+	# O buff do Despertar é global desde 2026-09; `Combatant.from_bestiary` lê
+	# daqui e não tem de onde inventar um número (regra 1). Bundle anterior a
+	# isso trazia o multiplicador por criatura, em `stats`, e não serve mais.
+	if typeof(rules.get("awakening", null)) != TYPE_DICTIONARY:
+		return "bundle sem `rules.awakening` — export anterior a 2026-09, quando o Despertar virou buff global. Re-exporte."
 	# Ausência de mineração não é fatal: combate e exploração seguem de pé, e
 	# quem falha alto por isso é `test_data.gd`, que é o guarda do contrato.
 	# Em runtime o aviso basta para o dev saber que exportou de um bestiário
@@ -562,6 +567,16 @@ func progression_rules() -> Dictionary:
 	return p if typeof(p) == TYPE_DICTIONARY else {}
 
 
+## `{multiplier, durationTurns}` — o buff do Despertar Ancestral: Ataque e
+## Defesa × `multiplier` por `durationTurns` rodadas, para toda criatura e
+## para os dois lados. Global desde 2026-09 (`combat_rules`); antes era por
+## criatura em `stats`, quando o Despertar ainda era uma transformação.
+## `load_bundle` já recusou o bundle se esta fatia faltar.
+func awakening_rules() -> Dictionary:
+	var a: Variant = rules.get("awakening", null)
+	return a if typeof(a) == TYPE_DICTIONARY else {}
+
+
 ## Teto de nível do jogo (`combat_rules.levelMax`). Cria monta subindo até
 ## aqui e para — sem isso, XP sobrando numa criatura já no topo tentaria
 ## gastar material pra um nível que não existe.
@@ -767,11 +782,3 @@ static func relic_class_code(relic: Dictionary) -> String:
 func element_multiplier(attacker_element: String, defender_element: String) -> float:
 	return CombatMath.element_multiplier(attacker_element, defender_element, _advantages, rules)
 
-
-## Multiplicador de Ataque e Defesa durante o Despertar Ancestral.
-## 1.5 para despertares de reforço, 1.7 para os de troca.
-func awakening_multiplier(creature_code: String) -> float:
-	var c := creature(creature_code)
-	if c.is_empty() or c.get("stats", null) == null:
-		return 1.0
-	return float(c["stats"]["awakeningMultiplier"])

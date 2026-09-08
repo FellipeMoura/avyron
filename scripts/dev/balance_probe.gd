@@ -17,8 +17,6 @@ const LEVEL := 25
 const BATTLES_PER_PAIR := 4
 const MAX_ROUNDS := 60
 
-var _duration_override := 0
-
 
 func _init() -> void:
 	var db := BestiaryData.new()
@@ -40,14 +38,13 @@ func _init() -> void:
 		db.rules["damage"]["constant"] = override
 		print("override: damage.constant = %s" % str(override))
 
-	# Segundo argumento sobrescreve a duração do Despertar em todas as
-	# criaturas, para medir se a transformação está durando o bastante
-	# em relação ao comprimento da luta.
-	var duration_override := 0
+	# Segundo argumento sobrescreve a duração do Despertar — regra global do
+	# bundle desde 2026-09 — para medir se o buff está durando o bastante em
+	# relação ao comprimento da luta.
 	if user_args.size() > 1 and user_args[1].is_valid_int():
-		duration_override = user_args[1].to_int()
-		print("override: awakeningDurationTurns = %d" % duration_override)
-	_duration_override = duration_override
+		var duration_override := user_args[1].to_int()
+		db.rules["awakening"]["durationTurns"] = duration_override
+		print("override: awakening.durationTurns = %d" % duration_override)
 
 	# Terceiro argumento escala a velocidade de enchimento da carga.
 	#
@@ -144,9 +141,6 @@ func _profile(rows: Array) -> String:
 func _simulate(db: BestiaryData, a_code: String, b_code: String, seed_value: int) -> Dictionary:
 	var a := Combatant.from_bestiary(db, a_code, LEVEL)
 	var b := Combatant.from_bestiary(db, b_code, LEVEL)
-	if _duration_override > 0:
-		a.awakening_duration = _duration_override
-		b.awakening_duration = _duration_override
 	var battle := Battle.new(db, [a], b, false)
 	battle.rng.seed = seed_value
 

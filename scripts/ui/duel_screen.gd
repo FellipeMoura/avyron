@@ -486,8 +486,9 @@ func _combatant_block(c: Combatant, role: String) -> String:
 		% [COL_SLATE, _class_name(c.creature_class), _element_name(c.element)])
 	lines.append("HP    %s  %d/%d"
 		% [_bar(float(c.hp) / float(c.max_hp), COL_MOSS), c.hp, c.max_hp])
-	lines.append("Carga %s  %d/100"
-		% [_bar(c.charge_meter / battle.charge_max(), COL_EMBER), int(c.charge_meter)])
+	lines.append("Carga %s  %d/%d"
+		% [_bar(c.charge_meter / battle.charge_max(), COL_EMBER), int(c.charge_meter),
+			int(battle.charge_max())])
 	return "\n".join(lines)
 
 
@@ -598,8 +599,8 @@ func _command_line(c: Combatant) -> String:
 	if c.can_awaken(battle.charge_max()):
 		parts.append("[color=%s][E] DESPERTAR ANCESTRAL[/color]" % COL_EMBER)
 	else:
-		parts.append("[color=%s][E] despertar (carga %d/100)[/color]"
-			% [COL_SLATE, int(c.charge_meter)])
+		parts.append("[color=%s][E] despertar (carga %d/%d)[/color]"
+			% [COL_SLATE, int(c.charge_meter), int(battle.charge_max())])
 
 	if battle.player_party.size() > 1:
 		parts.append("[color=%s][S] trocar (%d de pe)[/color]"

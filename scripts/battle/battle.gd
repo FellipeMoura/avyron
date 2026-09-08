@@ -179,16 +179,32 @@ func replace_active(index: int) -> bool:
 
 ## Ativar não consome o turno, então isto é chamado entre rodadas e não
 ## compete com atacar. Devolve false se o medidor não está cheio.
+##
+## O jogador ativa por tecla (`DuelScreen`); a IA ativa em
+## `_auto_awaken_enemy`. O Despertar é universal e simétrico desde 2026-09 —
+## antes só o jogador ativava, e o adversário nunca usava o golpe exclusivo.
 func activate_awakening(side_is_player: bool) -> bool:
 	var c := player_active() if side_is_player else enemy
 	if c == null or not c.can_awaken(charge_max()):
 		return false
 	c.awaken()
 	_log("awaken", c, {
-		"text": "%s acessa o Despertar Ancestral (%s) por %d turnos"
-			% [c.display_name, c.awakening_name, c.awakening_duration]
+		"text": "%s acessa o Despertar Ancestral por %d turnos"
+			% [c.display_name, c.awakening_duration]
 	})
 	return true
+
+
+## A IA desperta assim que o medidor enche, na mesma janela em que o jogador
+## aperta a tecla: entre rodadas, sem gastar a ação. Vive em dois pontos de
+## propósito — em `choose_enemy_action`, para o golpe escolhido já contar com
+## as habilidades exclusivas na mesma rodada, e no começo de `resolve_round`,
+## para quem monta a ação do inimigo à mão (suítes, sonda) não deixar o
+## adversário sem despertar. A segunda chamada é inócua quando a primeira já
+## ativou: `can_awaken` recusa quem já está desperto.
+func _auto_awaken_enemy() -> void:
+	if enemy != null and enemy.can_awaken(charge_max()):
+		activate_awakening(false)
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +218,7 @@ func resolve_round(player_action: BattleAction, enemy_action: BattleAction) -> A
 
 	var start := log_events.size()
 	round_number += 1
+	_auto_awaken_enemy()
 
 	for entry in _order(player_action, enemy_action):
 		if is_over():
@@ -446,7 +463,8 @@ func _apply_status(actor: Combatant, target: Combatant, ability: Dictionary, eff
 		"charge_gain":
 			actor.add_charge(value, charge_max())
 			_log("charge", actor, {"amount": value,
-				"text": "%s usa %s: carga em %d/100" % [actor.display_name, name, int(actor.charge_meter)]})
+				"text": "%s usa %s: carga em %d/%d"
+					% [actor.display_name, name, int(actor.charge_meter), int(charge_max())]})
 
 
 # ---------------------------------------------------------------------------
@@ -530,6 +548,7 @@ func xp_participants() -> Array:
 # ---------------------------------------------------------------------------
 
 func choose_enemy_action() -> BattleAction:
+	_auto_awaken_enemy()
 	return choose_action_for(enemy, player_active())
 
 

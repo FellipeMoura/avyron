@@ -38,20 +38,27 @@ O export **aborta sem escrever nada** se alguma criatura estiver sem stats, sem 
 | **Aetheris** | era paleozoica |
 | **Titanor** | era mesozoica |
 | **Novaterra** | era cenozoica |
-| **Despertar Ancestral** | transformação temporária em combate |
+| **Despertar Ancestral** | buff temporário de combate, universal — não uma transformação em outra criatura |
 
-"Despertar Ancestral" é o único termo válido para a transformação — o bestiário rejeita escritas que usem os termos descontinuados.
+"Despertar Ancestral" é o único termo válido para o buff — o bestiário rejeita escritas que usem os termos descontinuados.
 
 ## Regras de combate que o código precisa respeitar
 
 ```
 valor(nível) = floor(base * (1 + growthRate * (nível - 1)))
 
-dano = floor((poder * ataque / defesa) * 0.4 * multElemental * random(0.90, 1.10))
-       mínimo 1
+dano = floor((poder * ataque / defesa) * rules.damage.constant * multElemental
+              * random(rules.damage.varianceMin, rules.damage.varianceMax))
+       mínimo rules.damage.minimum
 
-carga: recebe dano ×1.0, causa dano ×0.5, escalado por (carga / 50)
-       cheia em 100, dura 3 turnos, zera na reversão
+carga: recebe dano × rules.charge.takenMultiplier, causa dano × rules.charge.dealtMultiplier,
+       escalado por (carga / rules.charge.neutralCharge); cheia em rules.charge.max
+despertar: ativar zera o medidor e não gasta o turno (a IA ativa sozinha);
+       Ataque e Defesa × rules.awakening.multiplier por rules.awakening.durationTurns
+       rodadas; trocar de criatura reverte
+
+Os números não estão escritos aqui de propósito: já envelheceram uma vez.
+`GET /combat-rules` no bestiário (ou `rules` no bundle) é a fonte.
 ```
 
 Ciclo elemental fechado — cada elemento vence exatamente um e perde para exatamente um:
@@ -521,14 +528,14 @@ Em combate ainda não se usa item. `BattleAction.Kind` continua com `ABILITY`, `
 |---|---|
 | `1`–`6` | usar golpe — ou **escolher o slot**, quando a lista do time está aberta |
 | `S` | abrir/fechar a lista de troca |
-| `E` | Despertar Ancestral (quando a carga enche) |
+| `E` | Despertar Ancestral (quando a carga enche — o adversário desperta sozinho) |
 | `C` / `F` | capturar / fugir |
 | `R` | novo duelo |
 | `Esc` | voltar ao mapa |
 
 O número tem dois significados, e o painel de ações troca de conteúdo junto — então nunca fica ambíguo para quem está olhando.
 
-**Trocar custa a rodada** e tem prioridade 6, acima de quase todo golpe: recuar uma criatura de pé é uma jogada, e o adversário ataca no intervalo. Sair de campo reverte o Despertar — a transformação é do momento, não um estado que se guarda no banco.
+**Trocar custa a rodada** e tem prioridade 6, acima de quase todo golpe: recuar uma criatura de pé é uma jogada, e o adversário ataca no intervalo. Sair de campo reverte o Despertar — o buff é do momento, não um estado que se guarda no banco.
 
 **Substituir quem caiu é de graça.** A rodada trava até alguém entrar, e nenhuma outra tecla responde — capturar ou fugir com a criatura desmaiada ainda em campo não é jogada, é brecha. Cobrar um turno pela substituição puniria duas vezes o mesmo golpe. Por isso `Battle.replace_active` existe separado de `_do_switch`: além do design, há um motivo mecânico — `resolve_round` pula o ator desmaiado, então uma ação de troca emitida pela ativa caída nunca chegaria a executar.
 
@@ -568,9 +575,9 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 
 `test_data.gd` é o guarda do contrato com o bestiário: se o formato do bundle mudar, se uma fórmula sair do lugar ou se o export deixar passar uma criatura sem stats, estoura ali em vez de virar bug de runtime. Rode depois de todo `game:export`.
 
-**Erro e alvo saem por portas diferentes.** `_check` reprova a suíte; `_warn` reporta e deixa passar, e o resumo vira `OK — N verificacoes passaram (1 aviso(s))`. A regra: suíte vermelha significa *quebrado*, não *incompleto*. Criatura sem Despertar é incompleta — ela joga, só não usa o medidor de carga, e o `DATA_WORKFLOW` chama esse passo de opcional de propósito. Já uma criatura sem Despertar que **conhece um golpe `awakeningOnly`** é quebrada: o golpe aparece na ficha e nunca pode ser usado, porque `Combatant` o filtra por `is_awakened`.
+**Erro e alvo saem por portas diferentes.** `_check` reprova a suíte; `_warn` reporta e deixa passar, e o resumo vira `OK — N verificacoes passaram (1 aviso(s))`. A regra: suíte vermelha significa *quebrado*, não *incompleto*. Bioma de mapa sem `mining_rates` é incompleto — o jogo roda, a mineração lá cai para só-classe. Já uma criatura num mapa **sem peso de spawn** é quebrada: o sorteio ponderado não tem número para usar, e inventar um em GDScript é a regra 1 rompida.
 
-`pnpm game:export` usa exatamente o mesmo par de critérios — aborta no golpe inalcançável, avisa na cobertura. Isso é deliberado: os dois guardas já discordaram, e a fresta era exatamente essa. O export não olhava nenhuma das duas coisas, e o teste reprovava na cobertura sem checar o golpe morto — foi assim que `CRT-013` saiu num bundle jogando com 5 golpes contra 6 do resto do elenco, com a suíte vermelha apontando para o sintoma errado.
+`pnpm game:export` usa exatamente o mesmo par de critérios — aborta no peso ausente, avisa nas taxas. Isso é deliberado: os dois guardas já discordaram, e a fresta era exatamente essa. Quando o Despertar ainda era cadastrado por criatura, o export não olhava o golpe `awakeningOnly` inalcançável e o teste reprovava na cobertura 1:1 sem checar o golpe morto — foi assim que `CRT-013` saiu num bundle jogando com 5 golpes contra 6 do resto do elenco, com a suíte vermelha apontando para o sintoma errado. Esse caso específico deixou de existir em 2026-09 (toda criatura desperta), a lição não.
 
 Ele também exige o bloco `mining` — minerais nomeados, toda classe do elenco com pesos e perfil de trabalho, nenhum peso apontando para mineral inexistente. O jogo *sobe* sem mineração (só avisa, porque combate não depende de minério), mas um export sem ela é um export velho, e é aqui que isso tem de doer, não numa tecla `F` que não faz nada.
 
@@ -615,7 +622,7 @@ Ela também prende que o encaramento é medido **no plano**: a bancada põe os d
 
 Simula o elenco inteiro lutando contra si mesmo (2.600 batalhas) e reporta taxa de vitória por criatura, duração média e quanto o Despertar Ancestral realmente vira o jogo. Não falha nem afirma nada — é leitura, para tuning sair de números em vez de impressão.
 
-Os três argumentos opcionais sobrescrevem, nesta ordem: constante de dano, duração do Despertar, escala de enchimento da carga. Servem para medir o efeito de uma mudança **antes** de gravá-la no bestiário.
+Os três argumentos opcionais sobrescrevem, nesta ordem: constante de dano, duração do Despertar (regra global do bundle), escala de enchimento da carga. Servem para medir o efeito de uma mudança **antes** de gravá-la no bestiário.
 
 ## Assets 3D
 

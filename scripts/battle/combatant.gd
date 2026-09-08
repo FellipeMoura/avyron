@@ -22,22 +22,23 @@ var base_defense: int
 var base_speed: int
 var base_charge: int
 
-## 0 a 100. Cheio libera o Despertar Ancestral.
+## 0 a `rules.charge.max`. Cheio libera o Despertar Ancestral.
 var charge_meter: float = 0.0
 
+## O Despertar é universal e é um buff: toda criatura tem, os dois lados usam.
+## Os dois números vêm de `rules.awakening` (regra 1 — nada de tuning aqui);
+## os defaults são neutros de propósito, para um combatente montado fora de
+## `from_bestiary` não carregar número nenhum escondido.
 var is_awakened := false
 var awakened_rounds_left := 0
-var awakening_multiplier := 1.5
-var awakening_duration := 3
-var awakening_name := ""
-var has_awakening := false
+var awakening_multiplier := 1.0
+var awakening_duration := 0
 
 ## Multiplicadores acumulados por buff/debuff. 1.0 é neutro.
 var attack_modifier := 1.0
 var defense_modifier := 1.0
 
 var catch_rate := 0
-var awakened_capture_multiplier := 1.0
 
 ## Quanto esta espécie concede a quem vencer, no nível atual — a conta de XP
 ## em si (dividir e arredondar) fica com quem monitora a batalha de fora
@@ -72,19 +73,15 @@ static func from_bestiary(db: BestiaryData, creature_code: String, at_level: int
 	c.base_charge = s["charge"]
 
 	var raw_stats: Dictionary = data["stats"]
-	c.awakening_multiplier = float(raw_stats["awakeningMultiplier"])
-	c.awakening_duration = int(raw_stats["awakeningDurationTurns"])
 	c.xp_yield = int(raw_stats.get("xpYield", 0))
 
-	var awk: Variant = data.get("awakening", null)
-	c.has_awakening = awk != null
-	if c.has_awakening:
-		c.awakening_name = str(awk["name"])
+	var awakening := db.awakening_rules()
+	c.awakening_multiplier = float(awakening["multiplier"])
+	c.awakening_duration = int(awakening["durationTurns"])
 
 	var cap: Variant = data.get("capture", null)
 	if cap != null:
 		c.catch_rate = int(cap["catchRate"])
-		c.awakened_capture_multiplier = float(cap["awakenedMultiplier"])
 
 	c._abilities = db.known_abilities(creature_code, at_level)
 	for a in c._abilities:
@@ -176,7 +173,7 @@ func add_charge(amount: float, charge_max: float) -> void:
 
 
 func can_awaken(charge_max: float) -> bool:
-	return has_awakening and not is_awakened and charge_meter >= charge_max
+	return not is_awakened and charge_meter >= charge_max
 
 
 ## Ativa a transformação. Não consome o turno — por isso não vive dentro de

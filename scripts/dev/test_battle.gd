@@ -26,6 +26,7 @@ func _init() -> void:
 	_test_turn_order()
 	_test_damage_and_charge()
 	_test_awakening_cycle()
+	_test_enemy_auto_awakens()
 	_test_switching()
 	_test_capture()
 	_test_status_effects()
@@ -89,7 +90,11 @@ func _test_combatant_build() -> void:
 		"%d > %d" % [c.base_attack, int(_db.creature("CRT-021")["stats"]["attack"])])
 	_check("comeca com HP cheio", c.hp, c.max_hp)
 	_check("carga comeca zerada", c.charge_meter, 0.0)
-	_check_true("tem Despertar", c.has_awakening, c.awakening_name)
+	# O buff é global: o combatente carrega os números das regras, não da espécie.
+	_check("multiplicador do Despertar vem das regras", c.awakening_multiplier,
+		float(_db.rules["awakening"]["multiplier"]))
+	_check("duracao do Despertar vem das regras", c.awakening_duration,
+		int(_db.rules["awakening"]["durationTurns"]))
 
 	var lv30 := Combatant.from_bestiary(_db, "CRT-021", 30)
 	_check_true("nivel 30 e mais forte", lv30.max_hp > c.max_hp,
@@ -180,15 +185,16 @@ func _test_awakening_cycle() -> void:
 	var b := _battle()
 	var hero := b.player_active()
 
+	var duration := int(_db.rules["awakening"]["durationTurns"])
 	_check_true("nao desperta com medidor vazio", not b.activate_awakening(true))
 
-	hero.charge_meter = 100.0
+	hero.charge_meter = b.charge_max()
 	var atk_before := hero.effective_attack()
 	_check_true("desperta com medidor cheio", b.activate_awakening(true))
 	_check_true("ataque sobe durante o Despertar", hero.effective_attack() > atk_before,
 		"%d -> %d" % [atk_before, hero.effective_attack()])
 	_check("medidor zera ao ativar", hero.charge_meter, 0.0)
-	_check("duracao de 3 turnos", hero.awakened_rounds_left, 3)
+	_check("duracao vem das regras", hero.awakened_rounds_left, duration)
 
 	# A assinatura fica disponível durante a transformação.
 	var has_signature := false
@@ -201,14 +207,50 @@ func _test_awakening_cycle() -> void:
 	hero.add_charge(50.0, b.charge_max())
 	_check("carga nao acumula durante o Despertar", hero.charge_meter, 0.0)
 
-	# Três rodadas e reverte.
-	for i in 3:
+	# Passada a duração, reverte.
+	for i in duration:
 		if not b.is_over():
 			b.resolve_round(
 				BattleAction.use_ability("HAB-001"), BattleAction.use_ability("HAB-010"))
-	_check_true("reverteu apos 3 turnos", not hero.is_awakened,
+	_check_true("reverteu apos a duracao", not hero.is_awakened,
 		"turnos restantes: %d" % hero.awakened_rounds_left)
 	_check("ataque volta ao normal", hero.effective_attack(), atk_before)
+
+
+## A IA desperta sozinha — o Despertar é simétrico desde 2026-09. Dois
+## caminhos: a rodada em si (quem monta a ação do inimigo à mão) e a escolha
+## de golpe da IA (o jogo real), que precisa ver as exclusivas na mesma rodada.
+func _test_enemy_auto_awakens() -> void:
+	print("IA desperta sozinha:")
+	var b := _battle()
+	b.enemy.charge_meter = b.charge_max()
+	var ev := b.resolve_round(
+		BattleAction.use_ability("HAB-001"), BattleAction.use_ability("HAB-010"))
+	var awaken_index := -1
+	var first_damage_index := -1
+	for i in ev.size():
+		var e: Dictionary = ev[i]
+		if e["type"] == "awaken" and not bool(e.get("is_player", true)) and awaken_index < 0:
+			awaken_index = i
+		if e["type"] == "damage" and first_damage_index < 0:
+			first_damage_index = i
+	_check_true("evento awaken do inimigo na rodada", awaken_index >= 0,
+		"%d eventos" % ev.size())
+	_check_true("desperta antes do primeiro golpe da rodada",
+		awaken_index >= 0 and (first_damage_index < 0 or awaken_index < first_damage_index),
+		"awaken em %d, dano em %d" % [awaken_index, first_damage_index])
+	_check_true("inimigo continua desperto depois da rodada", b.enemy.is_awakened,
+		"turnos restantes: %d" % b.enemy.awakened_rounds_left)
+
+	var b2 := _battle()
+	b2.enemy.charge_meter = b2.charge_max()
+	b2.choose_enemy_action()
+	_check_true("choose_enemy_action ativa o Despertar antes de escolher", b2.enemy.is_awakened)
+	var sees_signature := false
+	for a in b2.enemy.available_abilities():
+		if a["awakeningOnly"]:
+			sees_signature = true
+	_check_true("a IA enxerga o golpe exclusivo na mesma rodada", sees_signature)
 
 
 func _test_switching() -> void:
@@ -303,11 +345,10 @@ func _test_full_battle() -> void:
 	while not b.is_over() and rounds < 60:
 		rounds += 1
 		var hero := b.player_active()
-		# Desperta assim que puder — é o que um jogador faria.
+		# Desperta assim que puder — é o que um jogador faria. O inimigo não
+		# precisa: a IA ativa sozinha dentro de `resolve_round`.
 		if hero.can_awaken(b.charge_max()):
 			b.activate_awakening(true)
-		if b.enemy.can_awaken(b.charge_max()):
-			b.activate_awakening(false)
 
 		var options := hero.available_abilities()
 		var pick := "HAB-001"
@@ -323,6 +364,11 @@ func _test_full_battle() -> void:
 		"%d rodadas" % rounds)
 	_check_true("houve Despertar em algum momento",
 		_log_has(b, "awaken"), "eventos: %d" % b.log_events.size())
+	var enemy_awakened := false
+	for e in b.log_events:
+		if e["type"] == "awaken" and not bool(e.get("is_player", true)):
+			enemy_awakened = true
+	_check_true("a IA despertou sozinha", enemy_awakened)
 	_check_true("alguem foi derrotado", _log_has(b, "faint"))
 
 	print("     resumo da luta:")
