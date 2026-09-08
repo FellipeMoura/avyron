@@ -34,6 +34,7 @@ func _init() -> void:
 	_test_charge(db)
 	_test_awakening_rules(db)
 	_test_known_abilities(db)
+	_test_pz01_attack_scheme(db)
 	_test_turn_order()
 	_test_contract_integrity(db)
 	_test_class_contract(db)
@@ -361,6 +362,44 @@ func _test_awakening_rules(db: BestiaryData) -> void:
 				signatures[str(entry["code"])] = true
 	_check_true("ha golpes exclusivos do Despertar no elenco", signatures.size() >= 1,
 		"%d golpes: %s" % [signatures.size(), str(signatures.keys())])
+
+
+## PZ-01 (CRT-001..014) é o primeiro elenco a seguir o esquema padronizado de
+## 3 golpes: 1 básico (dano, não-awakening), 1 buff e 1 elemental exclusivo do
+## Despertar. Espelha a checagem que `export-game-data.mjs` já faz do lado do
+## bestiário — os dois guardas precisam concordar. Resto do elenco não entra
+## aqui: ainda segue o padrão antigo de 5-6 golpes.
+func _test_pz01_attack_scheme(db: BestiaryData) -> void:
+	print("esquema de ataques do PZ-01:")
+	var bad_count: Array = []
+	var bad_roles: Array = []
+	for i in range(1, 15):
+		var code := "CRT-%03d" % i
+		var c := db.creature(code)
+		if c.is_empty() or str(c.get("map", "")) != "PZ-01":
+			continue
+		var abilities: Array = c.get("abilities", [])
+		if abilities.size() != 3:
+			bad_count.append(code)
+			continue
+		var basic := 0
+		var buff := 0
+		var awaken := 0
+		for entry in abilities:
+			var ability := db.ability(str(entry["code"]))
+			if ability.is_empty():
+				continue
+			if bool(ability.get("awakeningOnly", false)):
+				awaken += 1
+			elif str(ability.get("effectCode", "")) == "damage":
+				basic += 1
+			elif str(ability.get("effectCode", "")).begins_with("buff_"):
+				buff += 1
+		if basic != 1 or buff != 1 or awaken != 1:
+			bad_roles.append(code)
+	_check("criaturas do PZ-01 sem exatamente 3 golpes", bad_count.size(), 0)
+	_check("criaturas do PZ-01 sem 1 basico + 1 buff + 1 elemental do Despertar",
+		bad_roles.size(), 0)
 
 
 func _test_turn_order() -> void:
