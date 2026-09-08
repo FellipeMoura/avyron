@@ -50,9 +50,15 @@ const PZ01_WATER_BG := Color("#062C3B")
 ## intensidade em terra firme e sob a água) tingia até a cor dos props/chão
 ## seco, que deveriam ler na cor própria deles. O frio da água agora vem só
 ## da névoa de altura logo abaixo (`PZ01_FOG`), que já era fragmentada por
-## cota — luminância igual à do teal antigo, só sem matiz, pra não mudar o
-## nível de exposição geral junto.
-const PZ01_AMBIENT := Color("#959595")
+## cota — sem matiz, pra não mudar o TOM geral.
+##
+## Clareado em 2026-09-08 (`#959595` → `#C8C8C8`, ~58%→~78% de brilho):
+## `ambient_light_color` é multiplicativo sobre tudo que a luz ambiente
+## atinge, então o cinza médio de antes achatava pele/cabelo do elenco bem
+## abaixo do que o visualizador de modelo (luz branca cheia) mostra — o
+## personagem lia "apagado" mesmo em terra firme, longe da névoa. Pedido do
+## usuário após comparar captura in-game com o preview do modelo.
+const PZ01_AMBIENT := Color("#C8C8C8")
 const PZ01_FOG := Color("#163E61")
 const PZ01_SUN := Color("#E9FFF8")
 
@@ -358,7 +364,11 @@ static func _apply_pz01_ambience(root: Node3D) -> void:
 	env.background_color = PZ01_WATER_BG
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = PZ01_AMBIENT
-	env.ambient_light_energy = 1.35
+	# 1.35 → 1.6 em 2026-09-08, junto com o clareamento de `PZ01_AMBIENT`: é o
+	# lado sombreado do personagem (sem luz direta do sol) que depende só
+	# disto, e é o lado que mais destoava do visualizador de modelo em
+	# screenshot comparativo.
+	env.ambient_light_energy = 1.6
 	env.fog_enabled = true
 	env.fog_light_color = PZ01_FOG
 	# Névoa de altura: densa abaixo da linha d'água, quase nada acima. O sinal
@@ -371,9 +381,13 @@ static func _apply_pz01_ambience(root: Node3D) -> void:
 	# originais do bioma (bio-002-costa-primordial.md, 3.5): sem AO, fenda
 	# entre rochas e base de prop leem plano na câmera ortográfica, porque não
 	# há sombra projetada de uma fonte única sustentando o volume sozinha.
+	# Intensidade reduzida em 2026-09-08 (1.6 → 0.9): no elenco (CRT-001..014),
+	# a força antiga escurecia demais o contato cabelo/roupa-corpo, reforçando
+	# a leitura "apagada" que já vinha do ambient — mantém o volume nas
+	# frestas de rocha/prop sem escurecer o personagem inteiro.
 	env.ssao_enabled = true
 	env.ssao_radius = 1.2
-	env.ssao_intensity = 1.6
+	env.ssao_intensity = 0.9
 	env.ssao_power = 1.5
 	var we := WorldEnvironment.new()
 	we.name = "Ambience"
@@ -388,7 +402,9 @@ static func _apply_pz01_ambience(root: Node3D) -> void:
 	var key := root.get_node_or_null("KeyLight") as DirectionalLight3D
 	if key:
 		key.light_color = PZ01_SUN
-		key.light_energy = 1.35
+		# 1.35 → 1.6 em 2026-09-08, junto com `ambient_light_energy` — o lado
+		# lit do elenco também lia escuro perto do sol frio original.
+		key.light_energy = 1.6
 		key.shadow_enabled = true
 
 	# O banho quente do trecho seco. Omnis largas sobre a vila da costa: quem
