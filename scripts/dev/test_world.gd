@@ -15,7 +15,7 @@ var _checks := 0
 func _init() -> void:
 	_test_input_map()
 	_test_direction_math()
-	_test_scroll_zoom()
+	_test_locked_zoom()
 	_test_water_line()
 	_test_main_scene()
 
@@ -118,8 +118,19 @@ func _test_direction_math() -> void:
 	_check_true("direcao fica no plano do chao", absf(w_dir.y) < 0.0001)
 
 
-func _test_scroll_zoom() -> void:
-	print("zoom por scroll:")
+## O enquadramento é FIXO desde 2026-09-07.
+##
+## Esta função testava o contrário: o scroll do mouse, a faixa 0,5x–3,0x, o
+## travamento durante a batalha e o multiplicador sobrevivendo à transição.
+## Nada disso existe — o scroll era ferramenta para ESCOLHER o enquadramento,
+## e depois de escolhido (0,80 × 17,15 = 13,72) ele saiu junto com a leitura
+## de calibração da HUD.
+##
+## O que passa a ser cobrado é o inverso, e é o que dá para quebrar sem
+## perceber: que ninguém reintroduza um caminho de mudar `size` fora das
+## modulações de batalha.
+func _test_locked_zoom() -> void:
+	print("zoom travado:")
 	var cam := IsoCamera.new()
 	root.add_child(cam)
 	# `_init()` roda antes da árvore estar viva (mesma pegadinha do
@@ -127,45 +138,23 @@ func _test_scroll_zoom() -> void:
 	# dispara `_ready()` a tempo, então chama à mão.
 	cam._ready()
 
-	_check_true("comeca no base_size", absf(cam.size - cam.base_size) < 0.001,
+	_check_true("abre no base_size", absf(cam.size - cam.base_size) < 0.001,
 		"%.3f" % cam.size)
 
-	var wheel_up := InputEventMouseButton.new()
-	wheel_up.button_index = MOUSE_BUTTON_WHEEL_UP
-	wheel_up.pressed = true
-	cam._unhandled_input(wheel_up)
-	_check_true("roda pra cima aproxima (size menor)", cam.size < cam.base_size,
-		"%.3f" % cam.size)
+	# A trava é a AUSÊNCIA do handler. Testar por `has_method` é o único jeito
+	# de prender isso: reintroduzir o scroll passaria despercebido em qualquer
+	# asserção sobre valores, porque um jogo com zoom livre também abre no
+	# `base_size`.
+	_check_true("nao ha handler de scroll", not cam.has_method("_unhandled_input"))
 
-	var wheel_down := InputEventMouseButton.new()
-	wheel_down.button_index = MOUSE_BUTTON_WHEEL_DOWN
-	wheel_down.pressed = true
-	for _i in 30:
-		cam._unhandled_input(wheel_down)
-	_check_true("roda pra baixo trava no teto do multiplicador",
-		absf(cam._zoom_mult - IsoCamera.ZOOM_MULT_MAX) < 0.001, "%.3f" % cam._zoom_mult)
-	_check_true("size acompanha o teto", absf(cam.size - cam._zoomed_base_size()) < 0.001)
-
-	for _i in 30:
-		cam._unhandled_input(wheel_up)
-	_check_true("roda pra cima trava no piso do multiplicador",
-		absf(cam._zoom_mult - IsoCamera.ZOOM_MULT_MIN) < 0.001, "%.3f" % cam._zoom_mult)
-
-	# Composição com a batalha: o zoom escolhido pelo jogador sobrevive à
-	# transição, e o scroll fica travado enquanto ela dura.
-	cam._zoom_mult = 0.8
-	cam.size = cam._zoomed_base_size()
-	cam.enter_battle()
-	_check_true("entrar em batalha trava o scroll", cam._in_battle)
-	cam._unhandled_input(wheel_down)
-	_check_true("scroll ignorado durante a batalha",
-		absf(cam._zoom_mult - 0.8) < 0.001, "%.3f" % cam._zoom_mult)
-
-	cam.exit_battle()
-	_check_true("sair da batalha destrava o scroll", not cam._in_battle)
-	cam._unhandled_input(wheel_down)
-	_check_true("scroll funciona de novo depois",
-		cam._zoom_mult > 0.8, "%.3f" % cam._zoom_mult)
+	# As três molduras saem do MESMO número — é o que garante que retunar o
+	# enquadramento mova exploração, duelo e chefe juntos, em vez de deixar a
+	# batalha com vida própria.
+	_check_true("batalha e proporcao do base_size",
+		absf(cam.base_size * cam.battle_zoom_ratio - 12.005) < 0.01,
+		"%.3f" % (cam.base_size * cam.battle_zoom_ratio))
+	_check_true("chefe e proporcao do base_size",
+		cam.base_size * cam.boss_zoom_ratio > cam.base_size)
 
 	cam.free()
 

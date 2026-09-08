@@ -8,13 +8,15 @@ extends Camera3D
 ## criatura é a projeção do modelo vista de 30°/45°. Abrir a câmera para
 ## outros ângulos invalida o teste de silhueta de todo o bestiário.
 ##
-## O **zoom**, ao contrário do ângulo, é ajustável — num lugar só. Batalha e
-## chefe são proporções do mesmo `base_size`, então mexer nele move os três
-## juntos, que é o comportamento desejado: são enquadramentos do mesmo rig,
-## nunca cortes para outra câmera. O scroll do mouse entra como mais uma
-## modulação desse mesmo `size`, não como uma câmera paralela — guardado como
-## multiplicador (`_zoom_mult`) para sobreviver às transições de batalha em
-## vez de ser descartado a cada uma.
+## O **zoom é FIXO desde 2026-09-07**, como o ângulo. Existiu scroll do mouse
+## com faixa de 0,5x a 3,0x, e ele era conveniência de desenvolvimento, não
+## feature: servia para ler o mapa enquanto o PZ-01 era desenhado. O jogo
+## sempre foi para rodar com um enquadramento só, e ele foi escolhido olhando
+## seis capturas do mesmo ponto do mar raso lado a lado.
+##
+## Batalha e chefe continuam sendo proporções do mesmo `base_size`, então
+## mexer nele move os três juntos — são enquadramentos do mesmo rig, nunca
+## cortes para outra câmera.
 ##
 ## Especificação: documentos `camera-e-perspectiva` e
 ## `escala-e-camera-de-batalha` no bestiário.
@@ -36,12 +38,25 @@ const YAW_DEGREES := 45.0
 ## ortográfica, isto não muda o tamanho aparente — só evita clipping.
 const RIG_DISTANCE := 20.0
 
-## Tamanho ortográfico padrão. Este é o número que controla o zoom aparente, e
+## Tamanho ortográfico do jogo. Este é o número que controla o zoom aparente, e
 ## é o inverso dele: tamanho maior enquadra mais mundo, ou seja, **menos** zoom.
 ##
-## Era 12,0. O zoom caiu para 70% do que era — 12 / 0,7 — para caber mais mapa
-## na tela.
-@export var base_size: float = 17.15
+## Histórico: 12,0 → 17,15 em 2026-08 (para caber mais mapa) → **13,72 em
+## 2026-09-07**, quando o zoom foi travado. 13,72 é 0,80 × 17,15, escolhido
+## comparando seis capturas do mesmo ponto do mar raso.
+##
+## O que 13,72 compra, e o que custa: enquadra ~24 m de largura e deixa um
+## corpo de 1,4 m ocupando ~10% da altura da tela — o dobro do que 1,70x dava.
+## Isso é decisão de produto: com o elenco do PZ-01 fechado em 14 criaturas
+## COM modelo próprio, o corpo é o conteúdo, e um enquadramento que o reduz a
+## um ponto joga fora o trabalho de modelagem. O custo é ver menos mundo por
+## tela num mapa de 350 m, e é um custo aceito.
+##
+## Mexer aqui move batalha e chefe junto (são proporções deste número) e mexe
+## também no que a fauna faz: a poda de criatura é por frustum, então um
+## enquadramento maior segura mais corpos vivos ao mesmo tempo — ver
+## `CreatureSpawner`.
+@export var base_size: float = 13.72
 
 ## Modulações permitidas. Combate aproxima; chefe afasta. São modulações do
 ## mesmo enquadramento, nunca corte para outra câmera.
@@ -73,22 +88,13 @@ const RIG_DISTANCE := 20.0
 
 @export var target_path: NodePath
 
-## Passo por notch de scroll, e faixa do multiplicador sobre `base_size`.
-## Faixa relativa (não tamanho absoluto) de propósito: continua válida se
-## `base_size` for retunado depois, sem precisar remedir os limites.
-const ZOOM_STEP := 0.1
-const ZOOM_MULT_MIN := 0.5
-## Subiu de 2.0 para 3.0 no resize de 2026-08-28. Não é preferência: a 60 m
-## o afastamento máximo enquadrava o mapa INTEIRO, e a 120 m enquadraria um
-## quarto dele. Perder a visão de conjunto por completo trocaria a leitura do
-## mapa sem ninguém ter decidido isso — 3.0 devolve ~92 m de largura, que é a
-## maior parte do mapa novo.
-const ZOOM_MULT_MAX := 3.0
+## O scroll do mouse ajustava um multiplicador sobre `base_size`, de 0,5x a
+## 3,0x. Saiu em 2026-09-07 junto com a leitura de calibração da HUD: era
+## ferramenta para ESCOLHER o enquadramento, e a escolha foi feita.
 
 var _target: Node3D
 var _lookahead := Vector3.ZERO
 var _transition_tween: Tween
-var _zoom_mult := 1.0
 
 ## Os dois combatentes, durante a batalha. Enquanto ambos estiverem
 ## presentes, o foco da câmera é o vão entre eles, não `_target` — é o que
@@ -96,15 +102,11 @@ var _zoom_mult := 1.0
 ## composição de duelo (a exploração continua centrada no jogador).
 var _focus_a: Node3D
 var _focus_b: Node3D
-## Trava o scroll durante a batalha: a câmera já está sob o tween de combate
-## (`PROCESS_MODE_ALWAYS`, roda com o mundo pausado — ver `WorldRoot`), e
-## scroll nesse meio-tempo brigaria com ele por `size` quadro a quadro.
-var _in_battle := false
 
 
 func _ready() -> void:
 	projection = PROJECTION_ORTHOGONAL
-	size = _zoomed_base_size()
+	size = base_size
 	# Ortográfica com alvo à frente: o near precisa ser negativo o bastante
 	# para não recortar o que está entre a câmera e o ponto de foco.
 	near = 0.05
@@ -167,19 +169,18 @@ func _rig_position(focus: Vector3) -> Vector3:
 # ---------------------------------------------------------------------------
 
 func enter_battle() -> void:
-	_in_battle = true
-	_tween_transition(_zoomed_base_size() * battle_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
+	_tween_transition(base_size * battle_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
 
 func enter_boss_battle() -> void:
-	_in_battle = true
-	_tween_transition(_zoomed_base_size() * boss_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
+	_tween_transition(base_size * boss_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
 
 func exit_battle() -> void:
-	_in_battle = false
 	clear_battle_focus()
-	# Volta para o zoom que o jogador tinha escolhido, não para o `base_size`
-	# cru — senão todo duelo resetaria o scroll dele.
-	_tween_transition(_zoomed_base_size(), PITCH_DEGREES, zoom_out_duration)
+	# Volta ao enquadramento do jogo. Enquanto o scroll existiu, este retorno
+	# era para o zoom ESCOLHIDO pelo jogador (senão todo duelo resetava a roda
+	# dele); com o zoom travado, o enquadramento e o `base_size` são a mesma
+	# coisa e não há mais o que preservar.
+	_tween_transition(base_size, PITCH_DEGREES, zoom_out_duration)
 
 
 ## Prende o foco da câmera ao vão entre os dois combatentes em vez de
@@ -213,32 +214,6 @@ func _tween_transition(target_size: float, target_pitch: float, duration: float)
 	_transition_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	_transition_tween.tween_property(self, "size", target_size, duration)
 	_transition_tween.tween_property(self, "rotation_degrees:x", target_pitch, duration)
-
-
-# ---------------------------------------------------------------------------
-# zoom por scroll
-# ---------------------------------------------------------------------------
-
-func _unhandled_input(event: InputEvent) -> void:
-	if _in_battle or not (event is InputEventMouseButton and event.pressed):
-		return
-	match event.button_index:
-		MOUSE_BUTTON_WHEEL_UP:
-			_adjust_zoom(-ZOOM_STEP)
-		MOUSE_BUTTON_WHEEL_DOWN:
-			_adjust_zoom(ZOOM_STEP)
-
-
-## Roda pra cima aproxima (`size` menor — ver docstring de `base_size`);
-## roda pra baixo afasta. O estado é o multiplicador, nunca `size` direto,
-## porque `enter_battle` precisa dele sobrevivendo à animação de batalha.
-func _adjust_zoom(delta_mult: float) -> void:
-	_zoom_mult = clampf(_zoom_mult + delta_mult, ZOOM_MULT_MIN, ZOOM_MULT_MAX)
-	size = _zoomed_base_size()
-
-
-func _zoomed_base_size() -> float:
-	return base_size * _zoom_mult
 
 
 # ---------------------------------------------------------------------------

@@ -39,9 +39,35 @@ extends Node3D
 
 ## Raio máximo de nascimento ao redor do jogador. Não é "onde a criatura pode
 ## estar" — é só onde ela pode APARECER; depois disso ela patrulha por conta.
-## Longe demais e o jogador nunca alcança o que nasceu antes da poda levar;
-## perto demais e não sobra anel fora do quadro para nascer.
-@export var spawn_radius := 45.0
+##
+## **Está amarrado ao enquadramento da câmera, e por isso mudou junto com ele.**
+## Era 45 m enquanto o zoom era livre. Ao travar em `base_size` 13,72
+## (2026-09-07) o quadro passou a ter ~24 m de largura, e a conta ficou
+## impossível: medido, a borda do quadro mais a `FRUSTUM_MARGIN` acaba por
+## volta de 16–20 m do jogador, e ele percorre só ~13 m nos
+## `OFFSCREEN_GRACE_SEC` de carência (5,2 m/s). Um corpo nascido a 40 m, que é
+## onde `sqrt(randf()) * 45` põe a maioria, nascia fora do quadro e era podado
+## 2,5 s depois **sem nunca ter sido visto** — o mundo lia como vazio enquanto
+## o spawner trabalhava a plena carga.
+##
+## 22 m foi medido, não estimado. Andando na velocidade real e contando quantos
+## nascimentos chegam a entrar no quadro ao menos uma vez:
+##
+##     45 m → 12 nasceram, 0 vistos     (0%)   ← o valor do zoom livre
+##     34 m →  7 nasceram, 0 vistos     (0%)
+##     26 m →  9 nasceram, 2 vistos    (22%)
+##     22 m → 10 nasceram, 3 vistos    (30%)
+##     18 m →  0 nasceram              (a faixa cai dentro do quadro e todo
+##                                      candidato é rejeitado)
+##
+## O teto estrutural é ~50%, e não é este número que o levanta: o ângulo de
+## nascimento é uniforme enquanto o jogador anda numa direção só, então metade
+## nasce atrás dele e morre sem ser vista. Enviesar o ângulo para a frente do
+## movimento é o que passaria disso — está no ROADMAP, não aqui.
+##
+## Mexer no `base_size` da câmera pede remedir isto: são o mesmo número visto
+## de dois lados.
+@export var spawn_radius := 22.0
 @export var min_separation := 4.0
 @export var level := 10
 

@@ -582,6 +582,15 @@ func _test_world_wiring() -> void:
 	# Esta suíte não testa o mecanismo de spawn, só precisa de um corpo para
 	# encenar, então força um pelo primitivo interno em vez de repetir a
 	# caminhada que `test_encounter.gd` faz (lá o mecanismo é o assunto).
+	#
+	# Sair da COSTA antes é obrigatório desde que o `spawn_radius` encolheu
+	# para 26 m junto com a trava do zoom (2026-09-07): o jogo abre na vila, e
+	# o keep-out da costa rejeita todo candidato de um disco de 26 m centrado
+	# ali — o lobo da costa tem 80 m de raio. Com 45 m o disco ainda alcançava
+	# mar aberto e isto passava por acidente.
+	var player := _world.get_node_or_null("Player") as Node3D
+	if player:
+		player.global_position = Vector3(20.0, 4.0, 60.0)
 	if spawner and spawner.actors().is_empty():
 		spawner.call("_spawn_one")
 	var target: CreatureActor = spawner.actors()[0] if spawner and not spawner.actors().is_empty() else null
