@@ -30,6 +30,24 @@ A linha "31/31 vinculadas N:1 aos placeholders do Quaternius" (bullet acima, 202
 
 ---
 
+## Fechado na rodada "base + casca" (2026-09-15 a 17)
+
+O fluxo Meshy da rodada anterior (rig próprio por corpo, clipes bakeados, transplante de gestos entre corpos, KTX2 codificado no bestiário e decodificado de volta para o jogo) foi substituído inteiro. O que vale agora, e onde está escrito:
+
+- **Todo corpo de criatura divide uma base**: o esqueleto de 55 ossos da mestre (`../mestre/manequim-mestre.glb`, manequim chibi sobre o esqueleto do Puglin, nomes da UAL), zero clipes no arquivo, animação pela biblioteca UAL em runtime — o mesmo caminho do placeholder Imp. Cada espécie traz só a **casca**: malha e textura geradas no Tripo Studio sobre a silhueta da mestre e vestidas por transferência de pesos (`../avyron-bestiary/scripts/convert-tripo.mjs`: alinhamento, rig adaptativo, apêndices rígidos). Os 14 do PZ-01 estão assim. Checklist por espécie em `../mestre/README.md`; um comando publica (`pnpm models:publish -- --code CRT-XXX`).
+- **Jogo**: `motion_scale` do esqueleto pela altura de repouso do quadril (o Imp andava 10 cm no ar); corpo skinado escala por altura; a montagem da biblioteca UAL tira a viagem líquida do quadril de cada clipe (o `Attack3` deslocava e pulava de volta); o caminho de clipe embutido saiu de `CreatureActor`; `test_meshy_bodies` virou `test_creature_bodies`.
+- **Jogador voltou ao kit de personagens** (`PlayerController.PLAYER_RECIPE`); `PlayerRig` e `models/player.glb` saíram. Humano é um corpo (`CharacterRig`) e uma máquina de marcha (`GaitRig`).
+- **Sem KTX2 e sem código Meshy** nos dois repos. O legado inteiro (exports crus, corpos publicados, jogador) está em `../shared-assets/legacy/`, com README.
+
+Pendências que esta rodada deixou, em ordem de valor:
+
+1. **Textura 1024² e sem mapa de metal/rugosidade** nos corpos de criatura — 3 mapas de 2048² para um chibi a 10% da tela é o maior peso restante (24 MB de GLB mais ~16 MB de texturas extraídas no jogo). Cap no `convert-tripo.mjs` e republicar; é decisão de arte, por isso ficou de fora.
+2. **CRT-006 Odaraia**: a folha restilizada saiu com braços 35% mais curtos que a mestre (rig adaptativo em ×0,65, o piso da faixa). Funciona, mas vale regerar a folha.
+3. **Nado do jogador**: com o kit, o `Swim_Idle` boia pendurado (UAL), diferente do boiar de pé do corpo Meshy. Se incomodar, é `CharacterRig.SWIM_IDLE_LIFT`.
+4. **Apêndice articulado** (cauda que balança): hoje todo apêndice anda rígido com a base. O caminho é osso opcional na mestre movido por física no Godot, sem clipe.
+5. **Elenco fora do PZ-01** continua no placeholder Imp; entra pelo mesmo checklist. O `species-prompt.mjs` só tem dica de anatomia para CRT-001..014 — o `silhouetteNote` do catálogo é o lugar certo para as demais.
+6. API do Tripo sem créditos (conta zerada); o fluxo é 100% Tripo Studio. `tripo-multiview-probe.mjs` já fala com a API se um dia houver saldo.
+
 ## Pendências imediatas
 
 ### 1. Item de cura em combate
@@ -120,9 +138,11 @@ A mecânica está de pé — captura, XP de relicário e de criatura por partici
 
 Nenhum bloqueia jogar — o sistema funciona de ponta a ponta sem eles fechados. Bloqueiam é declarar a mecânica "pronta" em vez de "jogável".
 
-### 7. O mapa chegou aos 350 m — o que veio junto e o que ficou
+### 7. O mapa chegou aos 350 m, e voltou para 175 m — o que veio junto e o que ficou
 
 A conta era de tempo: **30 s de travessia por bioma** a 5,2 m/s dão 156 m por bioma, e cinco biomas pedem 350 m de lado. Os 120 m foram a etapa intermediária; o alvo fechou em **2026-09-06**.
+
+**Em 2026-09-16 o lado caiu pela metade, para 175 m** (¼ da área). A regra virou **cruzar o mapa de lado a lado em ~35 s** (33,7 s) — ver README, "O tamanho do mapa". O resize foi uma linha em `MapTerrain.SIZE` mais as contagens de scatter; bestiário sem mudança de dado. As pendências abaixo foram revistas contra o tamanho novo.
 
 Duas das quatro pendências saíram junto com o resize:
 
@@ -131,9 +151,9 @@ Duas das quatro pendências saíram junto com o resize:
 
 O que **continua pendente**, e nenhum é trabalho de tuning:
 
-- **`MultiMesh` para o scatter.** É a razão de a densidade de props ter ficado ABAIXO da proporcional no resize: manter a densidade de 120 m pediria ~2.200 nós de `.glb` soltos. A contagem subiu ~3x em vez de ~8,5x, e o mapa lê mais esparso até isto entrar. Quando entrar, o número a restaurar é o da área.
-- **Medir os 245 mil triângulos do terreno.** A grade de 1 m não é opcional — `HeightMapShape3D` fixa o espaçamento, e o princípio do `MapTerrain` é que malha, colisão e consulta saem da mesma grade. É o primeiro número desse arquivo que precisa de medição em vez de estimativa.
-- **O posto avançado deixou de ser ideia e virou pré-requisito.** A ida e volta ao comerciante era de 8,8 s a 60 m, é de 18 s a 120 m e é de ~52 s agora. A primeira das três fricções que este ROADMAP lista ("voltar até o comerciante") escalou junto com o mapa, e é a que o posto avançado existe para resolver.
+- **`MultiMesh` para o scatter — rebaixado em 2026-09-16.** Era a razão de a densidade de props ter ficado abaixo da proporcional a 350 m (~2.200 nós de `.glb` pela conta da área). A 175 m a densidade de 120 m custa ~550 nós, menos do que já rodava, e voltou por inteiro. Continua sendo o caminho se a densidade subir, ou num mapa maior; deixou de ser o que segura a leitura do PZ-01.
+- **Medir os ~61 mil triângulos do terreno.** Eram 245 mil a 350 m; a 175 m caíram para um quarto, então a urgência caiu junto, mas o número continua estimado. A grade de 1 m não é opcional — `HeightMapShape3D` fixa o espaçamento, e o princípio do `MapTerrain` é que malha, colisão e consulta saem da mesma grade.
+- **Posto avançado — deixou de ser pré-requisito em 2026-09-16.** A ida e volta ao comerciante era de 8,8 s a 60 m, 18 s a 120 m e ~52 s a 350 m, e foi esse número que o tornou obrigatório. A 175 m ela fica em ~26 s. A fricção "voltar até o comerciante" continua existindo, e o posto continua sendo a resposta a ela — só que agora como ideia, não como bloqueio.
 - ~~**Travar o zoom da câmera.**~~ **Feito em 2026-09-07.** `base_size` foi de 17,15 para **13,72** (0,80x), escolhido comparando seis capturas do mesmo ponto do mar raso: enquadra ~24 m e deixa um corpo de 1,4 m ocupando ~10% da altura da tela. A decisão é do elenco — com o PZ-01 fechado em 14 criaturas COM modelo próprio, um enquadramento que reduz o corpo a um ponto joga fora o trabalho de modelagem. Saíram junto o scroll, a faixa 0,5x–3,0x e o `_in_battle` que só existia para travá-lo.
 
 - **Enviesar o ângulo de nascimento para a frente do jogador.** Descoberto medindo o resize do quadro: o ângulo de spawn é uniforme enquanto o jogador anda numa direção só, então **metade dos nascimentos acontece atrás dele e morre sem nunca ser vista**. Andando na velocidade real, o aproveitamento medido é ~30%, e o teto estrutural desse desenho é ~50%. `spawn_radius` já foi de 45 m para 22 m para tirar o pior do desperdício (a 45 m era **0%** — 12 nascimentos, nenhum visto), mas o resto só sai enviesando o ângulo. Não é micro-otimização: é a diferença entre a chance por bioma significar o que diz e o mundo ler como vazio.
@@ -201,7 +221,8 @@ Números escolhidos com raciocínio mas sem playtest. Todos ajustáveis por `PAT
 | Margem do comerciante | `sellRatio` 0.4 | `economy_rules` |
 | Distância do companheiro | 2,6 m parado / 3,6 m correndo | `CompanionActor.FOLLOW_DISTANCE` — apresentação, fica em código |
 | Recuo do domador em combate | ~3,25 m (era 6,5 m) | `BattleStaging.TRAINER_SPREAD` — apresentação, fica em código |
-| Marcha em que o corpo passa a correr | 2,2 m/s (o jogador se move a 5,2, então corre sempre) | `GaitRig.RUN_THRESHOLD` — apresentação, fica em código |
+| Marcha em que o corpo passa a correr | 2,2 m/s (NPCs; jogador e companheira nunca tocam `Run` desde 2026-09-17, por decisão de produto) | `GaitRig.RUN_THRESHOLD` — apresentação, fica em código |
+| Velocidade do jogador | 3,12 m/s (era 5,2; caiu 40% junto com a decisão acima) | `PlayerController.WALK_SPEED` — apresentação, fica em código |
 | Altura do nadador sobre o leito | 0,9 m nos NPCs, 0 no jogador | `CharacterRig.SWIM_LIFT` / `GaitRig.swim_lift` — medida do clipe, fica em código |
 | Cota da superfície da água no PZ-01 | 1,25 m (a MESMA que fragmenta a névoa) | `MapDressing.PZ01_WATER_LINE` — vestimenta de bioma, fica em código |
 

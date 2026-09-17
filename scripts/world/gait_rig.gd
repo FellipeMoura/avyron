@@ -4,22 +4,17 @@ extends Node3D
 ## A máquina de marcha de um corpo humano: dada a velocidade e o meio, qual
 ## clipe toca.
 ##
-## Existe porque desde 2026-09-07 há DOIS corpos humanos no jogo, montados de
-## formas incompatíveis, que precisam responder igual:
-##
-## - `CharacterRig` — os NPCs. Montado em runtime a partir de uma receita de
-##   peças do kit de personagens, com as bibliotecas UAL re-endereçadas para o
-##   esqueleto resultante.
-## - `PlayerRig` — o jogador. Um `.glb` fechado do Meshy AI, com esqueleto e
-##   clipes próprios, sem retarget nenhum.
-##
-## O que os dois têm em comum não é a montagem — é o VOCABULÁRIO de clipes
-## (`Idle`/`Walk`/`Run`/`Swim`/`Harvest`, garantido na conversão pelo bestiário)
-## e a escada que escolhe entre eles. O `CLAUDE.md` já exigia que essa escada
-## fosse uma só ("a escolha do clipe é sempre uma escada de marcha e meio,
-## nunca um literal fixo no chamador"); com dois corpos ela precisou de um dono
-## em vez de uma cópia por corpo. A subclasse traz a montagem e o número medido
-## no PRÓPRIO clipe (`swim_lift`); tudo o mais é daqui.
+## Separada da montagem (`CharacterRig`) desde 2026-09-07, quando o jogo teve
+## por dez dias dois corpos humanos de montagem diferente — o jogador num
+## `.glb` fechado do Meshy, os NPCs no kit — que precisavam responder igual.
+## Desde 2026-09-17 todo humano é kit outra vez, mas a divisão ficou porque
+## continua verdadeira: o que a escada precisa de um corpo é só o VOCABULÁRIO
+## de clipes (`Idle`/`Walk`/`Run`/`Swim`/`Swim_Idle`/`Harvest`) e o número
+## medido no próprio clipe de nado (`swim_lift`); montagem é outro assunto. O
+## `CLAUDE.md` exige que a escada seja uma só ("a escolha do clipe é sempre
+## uma escada de marcha e meio, nunca um literal fixo no chamador"), e é aqui
+## que ela mora. Os helpers estáticos (`find_skeleton`, `find_animation_player`,
+## `mark_looping`) são reusados pelos atores de criatura.
 
 ## Clipes contínuos, que devem tocar em loop. O importador de glTF não marca
 ## loop em nada, então quem monta o corpo marca — e só estes. `Harvest`,
@@ -110,9 +105,16 @@ func has_clip(clip: String) -> bool:
 ## `swimming` vem de fora porque quem sabe onde a água está é o mundo, não o
 ## corpo: no PZ-01 é `MapTerrain.submerged`, e é o estado NORMAL da exploração
 ## — o mapa é o leito de um mar, e só o platô da costa e a ilha são secos.
+##
+## `allow_run` existe para o corpo que quer animar `Walk` mesmo acima de
+## `RUN_THRESHOLD` — desde 2026-09-17 é o caso do jogador (ver
+## `PlayerController.WALK_SPEED`), que se move na marcha de corrida mas anima
+## como se andasse, por decisão de produto. `false` só desliga o RAMO de
+## `Run`; a escada `Idle`/`Walk` e o nado continuam iguais, e por curto-
+## circuito de `and` nem `has_clip("Run")` chega a ser consultado.
 func update_motion(
 	speed: float, swimming: bool = false, mining: bool = false,
-	idle_threshold: float = IDLE_THRESHOLD
+	idle_threshold: float = IDLE_THRESHOLD, allow_run: bool = true
 ) -> void:
 	# Guardado antes de qualquer saída: é `_process` quem faz o corpo subir, e
 	# ele precisa saber do meio mesmo que o clipe de nado não exista.
@@ -153,7 +155,7 @@ func update_motion(
 	# `has_clip` antes de pedir `Run`: `play_clip` silencia no clipe ausente,
 	# e silenciar aqui deixaria o corpo preso no clipe anterior em vez de cair
 	# para o `Walk`, que todo corpo humano do jogo tem.
-	if speed >= RUN_THRESHOLD and has_clip("Run"):
+	if allow_run and speed >= RUN_THRESHOLD and has_clip("Run"):
 		play_clip("Run")
 		return
 	play_clip("Walk")

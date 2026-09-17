@@ -1,13 +1,14 @@
 class_name CharacterRig
 extends GaitRig
 
-## Corpo humano de NPC, montado em runtime a partir de uma receita de aparência.
+## Corpo humano — jogador e NPCs — montado em runtime a partir de uma receita
+## de aparência.
 ##
-## Até 2026-09-07 este era o corpo de TODO humano do jogo, jogador incluído. O
-## jogador saiu para um `.glb` próprio (`PlayerRig`) e o kit ficou sendo o que
-## sempre foi bom em ser: um gerador de gente variada a partir de peças. O que
-## os dois ainda dividem é a máquina de marcha, que subiu para `GaitRig` quando
-## deixou de ter um corpo só.
+## É o corpo de TODO humano do jogo. Entre 2026-09-07 e 17 o jogador teve um
+## `.glb` próprio do Meshy (`PlayerRig`); voltou ao kit em 2026-09-17 porque um
+## segundo sistema de corpo custava um segundo pipeline de asset por um corpo
+## só. A receita do jogador é `PlayerController.PLAYER_RECIPE`; as dos NPCs vêm
+## do bundle. A máquina de marcha mora em `GaitRig`.
 ##
 ## O kit de personagens (`models/characters/`, espelhado pelo bestiário) traz
 ## corpos, cabelos e peças de outfit todos rigados no mesmo esqueleto de 65
@@ -44,9 +45,9 @@ extends GaitRig
 ## contrário do movimento dos membros — o mesmo defeito que impede usar essa
 ## medida num ciclo de caminhada.
 ##
-## Vale para ESTE clipe e nenhum outro: o `Swim` do corpo do jogador já nasce
-## pairando e por isso `PlayerRig` deixa `swim_lift` em zero. É por isso que a
-## flutuação é campo de instância em `GaitRig` em vez de constante lá.
+## É medida do clipe da UAL, não do sistema — por isso a flutuação é campo de
+## instância em `GaitRig` em vez de constante lá: um corpo com outro `Swim`
+## traria outro número.
 const SWIM_LIFT := 0.9
 
 ## O mesmo levantamento, para `Swim_Idle`. O boiador da UAL pende 1,42 m
@@ -225,11 +226,48 @@ static func _build_library(skeleton_path: String) -> AnimationLibrary:
 					track,
 					NodePath("%s:%s" % [skeleton_path, path.get_concatenated_subnames()]),
 				)
+				# Todo clipe do jogo é in-place: quem move é o ator. A UAL não é
+				# 100% assim — `Attack3` desloca o `pelvis` 0,15 m (em escala
+				# chibi; 0,4 m num humano) e termina lá, e o corpo pula de
+				# volta quando o Idle entra. Medido em 2026-09-16 por
+				# `test_meshy_bodies.gd` no primeiro corpo retargetado com
+				# `modelUrl`. Mesma correção que `scripts/lib/root-motion.mjs`
+				# aplica aos clipes Meshy no bestiário, só que aqui, na
+				# montagem: a viagem líquida do quadril é tirada linearmente
+				# ao longo do clipe. `Death` fica como está — termina deitado
+				# de propósito.
+				if path.get_concatenated_subnames() == "pelvis" \
+						and anim.track_get_type(track) == Animation.TYPE_POSITION_3D \
+						and String(clip_name) != "Death":
+					_strip_root_motion(anim, track)
 			if String(clip_name) in LOOPED_CLIPS:
 				anim.loop_mode = Animation.LOOP_LINEAR
 			library.add_animation(clip_name, anim)
 		instance.free()
 	return library
+
+
+## Remove a viagem líquida de uma trilha de posição: subtrai, quadro a
+## quadro, a fração proporcional ao tempo do deslocamento entre a primeira e
+## a última chave. Um clipe que já fecha onde abriu sai intocado (delta
+## abaixo de 1 cm); o balanço vertical da passada é preservado porque só o
+## DELTA líquido sai, não o movimento em si.
+static func _strip_root_motion(anim: Animation, track: int) -> void:
+	var count := anim.track_get_key_count(track)
+	if count < 2:
+		return
+	var first: Vector3 = anim.track_get_key_value(track, 0)
+	var last: Vector3 = anim.track_get_key_value(track, count - 1)
+	var delta := last - first
+	if delta.length() < 0.01:
+		return
+	var t0 := anim.track_get_key_time(track, 0)
+	var t1 := anim.track_get_key_time(track, count - 1)
+	var span := maxf(t1 - t0, 0.0001)
+	for k in range(count):
+		var ratio := (anim.track_get_key_time(track, k) - t0) / span
+		var value: Vector3 = anim.track_get_key_value(track, k)
+		anim.track_set_key_value(track, k, value - delta * ratio)
 
 
 # ---------------------------------------------------------------------------

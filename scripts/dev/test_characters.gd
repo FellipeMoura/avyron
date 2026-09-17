@@ -1,25 +1,27 @@
 extends SceneTree
 
-## Validação headless dos DOIS corpos humanos do jogo.
+## Validação headless do corpo humano do jogo — jogador e NPCs.
 ##
 ##     godot --headless --script res://scripts/dev/test_characters.gd
 ##
-## Desde 2026-09-07 são dois, montados de formas incompatíveis: o jogador vem
-## de um `.glb` fechado (`PlayerRig`, `models/player.glb`) e os NPCs continuam
-## sendo montados peça a peça pelo kit de personagens (`CharacterRig`). A suíte
-## guarda cinco contratos: o manifest do kit (toda peça listada precisa ter
-## recurso importado atrás dela), o corpo do jogador (clipes canônicos, loop e
-## ausência de root motion), a escada de marcha que os dois dividem
-## (`GaitRig`), a montagem das receitas `appearance` que o bundle traz para os
-## NPCs, e a fusão das bibliotecas de animação com as trilhas re-endereçadas.
+## Desde 2026-09-17 é um sistema só: todo humano, jogador incluído, é montado
+## peça a peça pelo kit de personagens (`CharacterRig`) e animado pelas
+## bibliotecas UAL por retarget. Entre 2026-09-07 e 17 o jogador teve um `.glb`
+## fechado do Meshy (`PlayerRig`); voltou ao kit para não manter um segundo
+## pipeline de asset por um corpo só. A suíte guarda cinco contratos: o
+## manifest do kit (toda peça listada precisa ter recurso importado atrás
+## dela), o corpo do jogador (a receita monta, os clipes que ele usa existem,
+## loop e ausência de root motion), a escada de marcha (`GaitRig`), a montagem
+## das receitas `appearance` que o bundle traz para os NPCs, e a fusão das
+## bibliotecas de animação com as trilhas re-endereçadas.
 ## Se o bestiário exportar uma receita com peça inexistente, ou uma conversão
 ## nova devolver um clipe que anda sozinho, estoura aqui — não como um NPC
 ## invisível ou um corpo escapando da cápsula em runtime.
 
-## Uma receita do kit para exercitar a montagem de NPC. Era a
-## `PlayerController.DEFAULT_RECIPE` até o jogador ganhar corpo próprio; ficou
-## aqui como FIXTURE porque o kit precisa de alguma receita completa para ser
-## testado, e as do bundle variam com o catálogo. Não representa ninguém.
+## Uma receita do kit para exercitar a montagem de NPC, como FIXTURE: o kit
+## precisa de alguma receita completa para ser testado, e as do bundle variam
+## com o catálogo. Não representa ninguém — a do jogador é
+## `PlayerController.PLAYER_RECIPE`, testada à parte.
 const KIT_RECIPE := {
 	"gender": "male",
 	"hair": "Hair_SimpleParted",
@@ -30,7 +32,8 @@ const KIT_RECIPE := {
 }
 
 ## Deriva horizontal tolerada num ciclo inteiro, em metros. Um clipe in-place
-## fecha onde abriu; o `Swim_Forward` do Meshy chegava andando 2,21 m.
+## fecha onde abriu; a montagem da biblioteca (`CharacterRig._build_library`)
+## tira a viagem líquida do quadril de cada clipe da UAL.
 const DRIFT_TOLERANCE := 0.05
 
 var _failures := 0
@@ -39,7 +42,7 @@ var _checks := 0
 ## O corpo medido no `_process`: pose de osso exige a árvore viva, e no
 ## `_initialize` todo clipe mediria igual (o `AnimationPlayer` não aplica pose
 ## nenhuma antes de a árvore existir).
-var _staged: PlayerRig
+var _staged: CharacterRig
 
 
 func _initialize() -> void:
@@ -50,7 +53,7 @@ func _initialize() -> void:
 	_test_npc_rigs()
 	_test_animation_library()
 
-	_staged = PlayerRig.create()
+	_staged = CharacterRig.create(PlayerController.PLAYER_RECIPE)
 	if _staged != null:
 		get_root().add_child(_staged)
 
@@ -134,25 +137,27 @@ func _test_manifest() -> void:
 
 
 # ---------------------------------------------------------------------------
-# corpo do jogador (models/player.glb, clipes próprios, sem retarget)
+# corpo do jogador (receita fixa do kit, `PlayerController.PLAYER_RECIPE`)
 # ---------------------------------------------------------------------------
 
-## O contrato do corpo do jogador é o VOCABULÁRIO, não a montagem: o `.glb`
-## chega do Meshy com esqueleto e clipes próprios, e é a normalização de nome
-## feita por `convert-meshy.mjs` que faz a escada de marcha encontrar o que
-## pedir. Um export novo que perca o mapeamento de um clipe cai aqui.
+## O contrato do corpo do jogador é o VOCABULÁRIO, não a montagem: a receita
+## precisa montar (toda peça existe no manifest) e a biblioteca UAL precisa
+## trazer o que a escada de marcha e o `WorldRoot` pedem — `Harvest` para
+## minerar e `Throw` para o arremesso de captura. Uma peça renomeada no kit ou
+## um clipe que suma na conversão das bibliotecas cai aqui.
 func _test_player_body() -> void:
 	print("corpo do jogador:")
-	var rig := PlayerRig.create()
-	_check("montou de %s" % PlayerRig.MODEL_PATH, rig != null)
+	var rig := CharacterRig.create(PlayerController.PLAYER_RECIPE)
+	_check("montou a partir de PlayerController.PLAYER_RECIPE", rig != null)
 	if rig == null:
 		return
+	_check("%d malhas penduradas no esqueleto (esperado >= 8)" % _skeleton_meshes(rig).size(), _skeleton_meshes(rig).size() >= 8)
 
 	for clip in ["Idle", "Walk", "Run", "Swim", "Swim_Idle", "Harvest", "Throw"]:
 		_check("clipe canônico %s disponível" % clip, rig.has_clip(clip))
 
 	var anim := _anim_of(rig)
-	_check("AnimationPlayer próprio (sem retarget)", anim != null)
+	_check("AnimationPlayer por retarget presente", anim != null)
 	if anim != null:
 		for clip in ["Idle", "Walk", "Run", "Swim", "Swim_Idle"]:
 			_check("%s em loop" % clip,
@@ -163,23 +168,22 @@ func _test_player_body() -> void:
 			_check("%s sem loop" % clip,
 				anim.get_animation(clip).loop_mode == Animation.LOOP_NONE)
 
-	# O `Swim` deste corpo já nasce pairando acima da origem do rig — herdar o
-	# levantamento de 0,9 m do corpo UAL o penduraria boiando (ver PlayerRig).
-	_check("nao levanta no nado (swim_lift = 0)", is_zero_approx(rig.swim_lift))
-	_check("nem ao boiar (swim_idle_lift = 0)", is_zero_approx(rig.swim_idle_lift))
+	# O `Swim` da UAL deita o nadador em torno da origem do rig: o kit o levanta
+	# 0,9 m, e o jogador, sendo kit, também — ver `CharacterRig.SWIM_LIFT`.
+	_check("levanta no nado (swim_lift do kit)", is_equal_approx(rig.swim_lift, CharacterRig.SWIM_LIFT))
 	# Regra 4 do CLAUDE.md: o modelo olha para +Z e a frente de um nó é -Z.
 	var body := rig.get_node_or_null("Body") as Node3D
 	_check("corpo girado para encarar -Z",
-		body != null and is_equal_approx(body.rotation.y, PlayerRig.MODEL_YAW))
+		body != null and is_equal_approx(body.rotation.y, PI))
 	rig.free()
 
 
 ## Nenhum clipe pode ANDAR sozinho: quem move este corpo é o `CharacterBody3D`,
 ## e um clipe com root motion o faria viajar em dobro — a malha escapando da
 ## cápsula durante o ciclo e voltando de um salto quando ele reinicia. O
-## `Swim_Forward` do Meshy chegou exatamente assim (2,21 m em 4,57 s) e é
-## corrigido na conversão; este teste é o que impede a correção de se perder
-## numa reconversão futura.
+## `Attack3` da UAL chega assim (o quadril termina 40 cm à frente num humano)
+## e é corrigido na montagem da biblioteca; este teste é o que impede a
+## correção de se perder.
 func _test_clips_in_place() -> void:
 	print("clipes in-place (sem root motion):")
 	if _staged == null:
@@ -190,22 +194,24 @@ func _test_clips_in_place() -> void:
 	if anim == null or skel == null:
 		_check("AnimationPlayer e Skeleton3D presentes", false)
 		return
-	var hips := skel.find_bone("Hips")
-	_check("osso raiz Hips encontrado", hips >= 0)
+	var hips := skel.find_bone("pelvis")
+	_check("osso do quadril (pelvis) encontrado", hips >= 0)
 	if hips < 0:
 		return
 
 	for clip in anim.get_animation_list():
+		# `Death` termina deitado: o quadril sai do lugar de propósito, e a
+		# montagem da biblioteca o deixa de fora da remoção de root motion.
+		if String(clip) == "Death":
+			continue
 		var start := _hips_at(anim, skel, hips, String(clip), 0.0)
 		var finish := _hips_at(anim, skel, hips, String(clip), 1.0)
 		var drift := Vector2(finish.x - start.x, finish.z - start.z).length()
 		_check("%s fecha onde abriu (%.3f m)" % [clip, drift], drift < DRIFT_TOLERANCE)
 
 
-## Posição do quadril em METROS, no espaço do rig. Passa pelo
-## `global_transform` do esqueleto de propósito: o `.glb` do Meshy vem em
-## centímetros com a escala no nó `Armature`, e ler a pose crua daria um número
-## cem vezes maior sem nenhum sinal de que está errado.
+## Posição do quadril em METROS, no espaço do rig, pelo `global_transform` do
+## esqueleto — a pose crua ignoraria qualquer escala que o import bakeie.
 func _hips_at(anim: AnimationPlayer, skel: Skeleton3D, bone: int, clip: String, ratio: float) -> Vector3:
 	var a := anim.get_animation(clip)
 	anim.play(clip)
@@ -220,16 +226,18 @@ func _hips_at(anim: AnimationPlayer, skel: Skeleton3D, bone: int, clip: String, 
 # ---------------------------------------------------------------------------
 
 ## O corpo escolhe o clipe pela marcha E pelo meio. As duas asserções que
-## importam são as pontas: correr a 5,2 m/s (a velocidade real do jogador —
-## tocar `Walk` ali é o deslize que motivou a escada) e nadar submerso, que no
-## PZ-01 é o estado NORMAL da exploração, porque o mapa é o leito de um mar.
+## importam são as pontas: correr a `PlayerController.WALK_SPEED` (3,12 m/s
+## desde 2026-09-17, era 5,2 — tocar `Walk` ali é o deslize que motivou a
+## escada) e nadar submerso, que no PZ-01 é o estado NORMAL da exploração,
+## porque o mapa é o leito de um mar. Esta suíte mede a escada CRUA de
+## `GaitRig` (`allow_run` no default `true`) — o jogador de verdade passa
+## `allow_run = false` e nunca toca `Run` (ver `PlayerController`).
 ##
 ## Medida no corpo do JOGADOR, que é quem de fato anda, nada e minera. A escada
-## é a mesma para os NPCs porque mora em `GaitRig` e não em nenhum dos dois
-## corpos — é justamente o que o segundo corpo obrigou a separar.
+## mora em `GaitRig`, então vale igual para os NPCs.
 func _test_gait_ladder() -> void:
 	print("escada de marcha:")
-	var rig := PlayerRig.create()
+	var rig := CharacterRig.create(PlayerController.PLAYER_RECIPE)
 	if rig == null:
 		_check("montou o corpo para medir a escada", false)
 		return
@@ -248,13 +256,15 @@ func _test_gait_ladder() -> void:
 		_check("%4.1f m/s %s -> %s" % [c[0], "submerso" if c[1] else "seco  ", c[2]],
 			anim.current_animation == c[2], anim.current_animation)
 
-	# Corpo sem `Swim_Idle` continua dando braçada no lugar (era o comportamento
-	# de todo corpo até 2026-09-07, e ainda é o dos que não trazem o clipe).
-	# Tirado da biblioteca desta instância, não do arquivo.
-	anim.get_animation_library("").remove_animation("Swim_Idle")
+	# Corpo sem `Swim_Idle` continua dando braçada no lugar. Tirado da
+	# biblioteca, que é compartilhada por esqueleto — e devolvido em seguida.
+	var library := anim.get_animation_library("")
+	var swim_idle := library.get_animation("Swim_Idle")
+	library.remove_animation("Swim_Idle")
 	rig.update_motion(0.0, true)
 	_check("sem Swim_Idle, parado submerso cai para Swim", anim.current_animation == "Swim",
 		anim.current_animation)
+	library.add_animation("Swim_Idle", swim_idle)
 
 	# Mineração tem prioridade sobre a escada normal, mesmo parado (é assim
 	# que WorldRoot sempre chama: só liga `mining` com o corpo já parado).
@@ -286,8 +296,7 @@ func _test_kit_rig() -> void:
 
 	for clip in ["Idle", "Walk", "Run", "Swim", "Attack", "Throw", "Consume", "Death"]:
 		_check("clipe %s disponível" % clip, rig.has_clip(clip))
-	# O kit levanta o nadador; o corpo do jogador não. A diferença é medida do
-	# clipe, não do sistema — ver `CharacterRig.SWIM_LIFT`.
+	# O kit levanta o nadador — medida do clipe da UAL, ver `CharacterRig.SWIM_LIFT`.
 	_check("kit levanta o nadador", is_equal_approx(rig.swim_lift, CharacterRig.SWIM_LIFT))
 	# O boiador da UAL pende mais fundo que o nadador — cota própria, maior.
 	_check("kit levanta o boiador ainda mais",

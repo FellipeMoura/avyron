@@ -103,7 +103,7 @@ Na primeira vez você precisa importar o projeto — depois é só abrir do Proj
 
 Se pedir para escolher a Main Scene na primeira execução, aponte para `scenes/main.tscn` — está fixado no `project.godot`, mas versões novas do Godot às vezes perguntam mesmo assim.
 
-**Mapa** (`scenes/main.tscn`) — WASD anda, **F minera**, **T abre o time**, **E abre o set do jogador**, **V esconde/reexibe a bolsa**, câmera isométrica travada seguindo com lookahead. O cenário do PZ-01 (ambiência subaquática + recifes) é vestido em runtime por `MapDressing.apply`, e o chão chapado da cena é substituído pelo relevo do `MapTerrain` — ver "Assets 3D". O jogo abre no topo da **ilha da arena**, no meio do mapa; o resto é mar, e se atravessa nadando. A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele — puramente visual, sem colisão nem clique; corpo rigado anima `Idle`/`Walk`/`Run` pela marcha, cápsula usa o bob leve.
+**Mapa** (`scenes/main.tscn`) — WASD anda, **F minera**, **T abre o time**, **E abre o set do jogador**, **V esconde/reexibe a bolsa**, câmera isométrica travada seguindo com lookahead. O cenário do PZ-01 (ambiência subaquática + recifes) é vestido em runtime por `MapDressing.apply`, e o chão chapado da cena é substituído pelo relevo do `MapTerrain` — ver "Assets 3D". O jogo abre no topo da **ilha da arena**, no meio do mapa; o resto é mar, e se atravessa nadando. A **criatura ativa** do jogador (starter, `CRT-002` por padrão) segue atrás dele — puramente visual, sem colisão nem clique; corpo rigado anima `Idle`/`Walk` pela marcha (nunca `Run`, ver "A marcha e o clipe"), cápsula usa o bob leve.
 
 ### Graybox visual do PZ-01
 
@@ -111,13 +111,13 @@ O primeiro passe aprovado do mapa segue a concept art de composição macro: mar
 
 ### A marcha e o clipe
 
-Velocidade única, sem tecla de corrida: `WALK_SPEED` = 5,2 m/s. O nome é herança — **5,2 m/s é marcha de corrida**, já que um humano andando faz ~1,4 m/s — e era exatamente daí que vinha o deslize do jogador: o corpo viajava a 5,2 tocando o ciclo de `Walk`, calibrado num `WALK_SPEED` anterior de 4,0 e nunca remedido depois de ele subir 30%. Defasagem dessa ordem nenhum blend cobre.
+Velocidade única, sem tecla de corrida: `WALK_SPEED` = 3,12 m/s (5,2 m/s até 2026-09-17). O nome é herança — os 5,2 m/s originais eram **marcha de corrida**, já que um humano andando faz ~1,4 m/s — e era exatamente daí que vinha o deslize do jogador: o corpo viajava a 5,2 tocando o ciclo de `Walk`, calibrado num `WALK_SPEED` anterior de 4,0 e nunca remedido depois de ele subir 30%. Defasagem dessa ordem nenhum blend cobre.
 
-A correção foi dar o **clipe certo à marcha**, não mexer na velocidade: `GaitRig.update_motion` virou uma escada `Idle → Walk → Run` com limiar em 2,2 m/s, e o jogador está sempre acima dele. A escada mora no rig, e não no chamador, porque humano é UMA máquina de marcha — um NPC que um dia passear a 1,5 m/s ganha o `Walk` pela mesma chamada que dá `Run` ao jogador. Trocar o literal por `"Run"` teria tirado o andar do sistema inteiro para consertar um corpo só.
+A correção original foi dar o **clipe certo à marcha**, não mexer na velocidade: `GaitRig.update_motion` virou uma escada `Idle → Walk → Run` com limiar em 2,2 m/s, e o jogador ficava sempre acima dele. A escada mora no rig, e não no chamador, porque humano é UMA máquina de marcha — um NPC que um dia passear a 1,5 m/s ganha o `Walk` pela mesma chamada que dá `Run` ao jogador. Trocar o literal por `"Run"` teria tirado o andar do sistema inteiro para consertar um corpo só.
 
-Quando o jogador ganhou corpo próprio (ver **Os dois corpos humanos**), a escada foi o que sobrou em comum: subiu para `GaitRig`, que hoje é a base de `PlayerRig` e `CharacterRig`. Nenhum chamador mudou — o contrato entre corpo e jogo sempre foi o nome do clipe, não a montagem.
+A escada mora em `GaitRig`, base de `CharacterRig` (ver **O corpo humano**): separou-se da montagem quando o jogador teve, por dez dias, um corpo de montagem diferente, e ficou separada porque continua sendo outro assunto. O contrato entre corpo e jogo é o nome do clipe, não a montagem.
 
-A companheira ganhou a mesma escada pelo mesmo motivo: o teto dela é `WALK_SPEED × 1,12`, então ela acompanha um jogador que corre — e tocar `Walk` nessa marcha a faria deslizar ao lado dele exatamente como ele deslizava. Ela cai para `Walk` quando o corpo não tem `Run`, porque os placeholders variam.
+Em 2026-09-17, por decisão de produto, o jogador e a companheira pararam de tocar `Run`: a velocidade caiu 40% (5,2 → 3,12) e as duas chamadas que movem o rig do jogador (`_physics_process` e `staged_gait`) passaram `allow_run = false` para `GaitRig.update_motion` — o novo parâmetro desliga só o RAMO de `Run`, a escada `Idle`/`Walk` continua igual, e NPCs (que não passam o parâmetro) seguem correndo normalmente acima do limiar. A companheira (`CompanionActor._clip_for_speed`) teve o ramo de `Run` removido direto, pelo mesmo motivo — a marcha dela deriva de `WALK_SPEED`, então a redução de velocidade e a troca de clipe são a mesma decisão dos dois lados.
 
 Se ainda restar deslize, o ajuste seguinte é a **cadência** (`speed_scale` do `AnimationPlayer`), não o clipe nem a velocidade — os dois compõem, não são alternativas.
 
@@ -568,7 +568,8 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_palette.gd      # aura do Despertar (rampa neutra fixa)
 & $godot --headless --script res://scripts/dev/test_battle_effects.gd  # efeito visual de golpe/status em duelo
 & $godot --headless --script res://scripts/dev/test_dungeon_bodies.gd  # placeholder unico (Imp) por retarget na UAL
-& $godot --headless --script res://scripts/dev/test_meshy_bodies.gd    # corpo Meshy AI definitivo (CRT-002, piloto)
+& $godot --headless --script res://scripts/dev/test_creature_bodies.gd # contrato do corpo de criatura (base + casca), escada de nado, clipes in-place
+& $godot --headless --script res://scripts/dev/test_tripo_shell.gd -- --shell /models/CRT-XXX.glb   # um corpo específico: esqueleto, retarget, altura
 & $godot --headless --script res://scripts/dev/test_equipment.gd    # set: exclusividade glacial, bancada, passivo
 ```
 
@@ -629,7 +630,7 @@ Os três argumentos opcionais sobrescrevem, nesta ordem: constante de dano, dura
 
 O corpo de cada criatura vem do **`modelUrl` do bundle**, não de convenção de nome. `CreatureActor.model_path` resolve nesta ordem:
 
-1. **`res://models/<caminho do modelUrl>`** — espelhado do bestiário pelo `pnpm game:export`. É o corpo Meshy AI **definitivo** da criatura: animado, 1:1, com a arte própria dela. Piloto: CRT-002 (Anomalocaris), fundido a partir do export do Meshy por `../avyron-bestiary/scripts/convert-meshy.mjs` — export novo já sai como `.glb` único (o Meshy libera essa opção), o script só renomeia os clipes pro vocabulário canônico.
+1. **`res://models/<caminho do modelUrl>`** — espelhado do bestiário pelo `pnpm game:export`, cópia direta do arquivo servido lá. É o corpo **definitivo** da criatura, 1:1, com a arte própria dela, produzido pelo fluxo "base + casca" (`../mestre/README.md`): uma casca gerada no Tripo sobre a silhueta da mestre, vestida no esqueleto dela — os 55 ossos com os nomes da UAL, os mesmos do placeholder Imp. O arquivo **não traz clipe**: `CreatureActor` lhe dá a biblioteca UAL inteira por retarget, e o `motion_scale` do esqueleto escala o balanço do quadril à altura de repouso do corpo. Todo o PZ-01 (CRT-001..014) está assim desde 2026-09-17.
 2. **`PLACEHOLDER_PATH`** — o único corpo genérico que sobra pra toda criatura sem `modelUrl` resolvível: `models/placeholders/dungeon/Imp.glb` (Quaternius, CC0), montado por retarget no esqueleto UAL que o `CharacterRig` dos NPCs já usa. Escolhido entre os packs que existiam por dar de graça o vocabulário INTEIRO de clipes do jogo, incluindo `Swim`/`Swim_Idle` — o PZ-01 é 87,3% submerso.
 3. **Cápsula cinza** — só se nem o placeholder único carregar. Praticamente nunca, já que ele é commitado.
 
@@ -637,24 +638,20 @@ Até 2026-09 existiam ~30 placeholders (um por família de elemento — Quaterni
 
 Depois de um export com modelos novos, rode `--headless --import` (ou abra o editor) para o Godot importá-los antes de dar play.
 
-### Os dois corpos humanos
+### O corpo humano
 
-Até 2026-09-07 havia um só: jogador e NPCs saíam ambos do kit de personagens. Hoje são dois, e a divisão é por dono do asset.
+Jogador e NPCs são o **mesmo** sistema: `CharacterRig`, montado em runtime a partir de uma *receita* de peças do kit de personagens (`models/characters/`, espelhado do bestiário) — um corpo base, cabelo e uma peça por slot de outfit, todos rigados no mesmo esqueleto de 65 ossos — e animado pelas bibliotecas UAL re-endereçadas para esse esqueleto. A diferença entre os dois é só de onde vem a receita:
 
 | | Jogador | NPCs (comerciante, duelista) |
 |---|---|---|
-| Classe | `PlayerRig` | `CharacterRig` |
-| Corpo | `models/player.glb`, um `.glb` fechado | montado em runtime a partir de uma receita de peças |
-| Esqueleto | próprio (24 ossos, Meshy AI) | o do kit (65 ossos, compartilhado por toda peça) |
-| Animação | clipes próprios, sem retarget | bibliotecas UAL re-endereçadas para o esqueleto montado |
-| De onde vem | asset **deste** repositório | conteúdo do catálogo (`npc_appearances` → `appearance` no bundle) |
-| Fallback | cápsula, se o `.glb` não carregar | cápsula, se a receita vier vazia |
+| Receita | `PlayerController.PLAYER_RECIPE`, fixa no jogo (ranger com capuz) | `appearance` no bundle, conteúdo do catálogo (`npc_appearances`) |
+| Fallback | cápsula, se a receita não montar | cápsula, se a receita vier vazia |
 
-O corpo do jogador é asset deste repositório, e não do bestiário, porque **não é conteúdo**: o catálogo só conhece NPC. O `.glb` sai do export multi-arquivo do Meshy (`../main_player/`, um arquivo por clipe) por `convert-meshy.mjs`, que funde tudo num corpo só e normaliza os nomes, e passa por `optimize-models.mjs --dir ../avyron/models` para virar KTX2 — 17,6 MB → 2,9 MB, e a VRAM é o número que importa (ver `docs/MODEL_OPTIMIZATION.md` no bestiário). Sete clipes: `Idle`, `Walk`, `Run`, `Swim`, `Swim_Idle`, `Harvest` (mineração) e `Throw`, este último ainda sem chamador — é o gesto que espera o arremesso de captura.
+Entre 2026-09-07 e 2026-09-17 o jogador teve um corpo próprio — `PlayerRig`, um `.glb` fechado do Meshy AI com esqueleto e clipes só dele. Voltou ao kit porque um segundo sistema de corpo humano custava um segundo pipeline de asset (conversão, remoção de root motion, correção de material) para um corpo só, e o kit já entrega o vocabulário inteiro do jogo por retarget: `Harvest` para minerar e `Throw` para o arremesso de captura, sem asset novo. O `.glb` Meshy foi para `../shared-assets/legacy/meshy-player/`. Se a criação de personagem entrar, ela escolhe peças do kit, e a escolha persiste no save — nunca no bestiário.
 
-**O que os dois dividem é `GaitRig`**, a base comum: a escada de marcha, o contrato de loop, o laço sintético da mineração e a flutuação do nado. O que cada um traz de próprio é a montagem e o `swim_lift` — que é medida do **clipe**, não do sistema. O `Swim` da UAL deita o nadador em torno da origem do rig (y de −0,54 a +0,11) e precisa de 0,9 m de levantamento para não arrastar a barriga no leito; o do jogador já nasce pairando (y de +0,29 a +0,88) e usa zero. Herdar o 0,9 o penduraria boiando um metro acima do fundo.
+**`GaitRig` é a máquina de marcha**, base de `CharacterRig`: a escada de marcha e meio, o contrato de loop, o laço sintético da mineração e a flutuação do nado (`swim_lift`, 0,9 m: o `Swim` da UAL deita o nadador em torno da origem do rig e sem o levantamento ele arrasta a barriga no leito). Seus helpers estáticos são reusados pelos atores de criatura.
 
-**Clipe do jogo é in-place, sem exceção.** Quem move o corpo é o `CharacterBody3D`; um clipe que também anda faz a malha viajar em dobro e voltar de um salto a cada volta do ciclo. O `Swim_Forward` do Meshy chegou exatamente assim — 2,21 m para a frente em 4,57 s, o único dos sete que andava. A deriva horizontal do osso raiz é removida **na conversão** (subtraindo uma rampa linear, para não matar a ondulação da braçada junto com a viagem), e `test_characters.gd` mede que todo clipe fecha onde abriu. Compensar isso em código deixaria o próximo corpo repetir o defeito.
+**Clipe do jogo é in-place, sem exceção.** Quem move o corpo é o `CharacterBody3D`; um clipe que também anda faz a malha viajar em dobro e voltar de um salto a cada volta do ciclo. A montagem da biblioteca (`CharacterRig._build_library`) tira a viagem líquida do quadril de cada clipe da UAL, e `test_characters.gd` mede que todo clipe fecha onde abriu no corpo do jogador.
 
 ### Aura do Despertar e efeito de golpe/status — sem cor por elemento desde 2026-09
 
@@ -673,26 +670,30 @@ Quem aplica isso é **`scripts/world/map_dressing.gd`** (`MapDressing.apply`, ch
 
 #### O tamanho do mapa, e o que escala com ele
 
-**O PZ-01 tem 350 × 350 m desde 2026-09-06** (era 60, depois 120). A conta que define o número é de tempo, não de gosto: a 5,2 m/s (velocidade única — nadar e andar são iguais, `submerged` só troca o clipe), **30 s de travessia por bioma** dão 156 m por bioma, que com cinco biomas pedem 350 m de lado.
+**O PZ-01 tem 175 × 175 m desde 2026-09-16** (era 60, depois 120, depois 350). A conta que define o número é de tempo, não de gosto: a 5,2 m/s (velocidade única — nadar e andar são iguais, `submerged` só troca o clipe), **cruzar o mapa de lado a lado em ~35 s** dá 175 m (33,7 s), e põe a ida e volta à vila da costa abaixo de 30 s.
 
-| | 60 m | 120 m | 350 m (hoje) |
-|---|---|---|---|
-| travessia lado a lado | 11,5 s | 23,1 s | **67 s** |
-| vértices do terreno | 3.721 | 14.641 | 123.201 |
-| props | 44 | 132 | ~790 |
-| criaturas | 8 (fixas) | 24 (fixas) | **população local, sem contagem** |
+A regra anterior, dos 350 m, era "30 s de travessia por bioma". Ela gerou 67 s de travessia e ~52 s de ida e volta ao comerciante — deslocamento vazio, que a fauna (nasce só ao redor do jogador) e o cenário não enchiam, e que tinha transformado o posto avançado em pré-requisito. A regra de hoje é sobre o mapa inteiro, não sobre bioma, porque é o mapa inteiro que o jogador cruza para voltar à vila.
+
+| | 60 m | 120 m | 350 m | 175 m (hoje) |
+|---|---|---|---|---|
+| travessia lado a lado | 11,5 s | 23,1 s | 67 s | **33,7 s** |
+| vértices do terreno | 3.721 | 14.641 | 123.201 | 30.976 |
+| props | 44 | 132 | ~790 | ~560 |
+| criaturas | 8 (fixas) | 24 (fixas) | população local | **população local, sem contagem** |
 
 Duas linhas dessa tabela merecem explicação, porque as duas são decisão e não consequência.
 
-**Props ficaram abaixo da proporcional.** Manter a densidade de 120 m pediria ~2.200 nós de `.glb` soltos, e o `MultiMesh` que resolve isso não entrou nesta rodada (segue no ROADMAP). A contagem subiu ~3x em vez de ~8,5x: o mapa lê mais esparso do que lia, de propósito, até o batch existir.
+**Props seguem a densidade do mapa de 120 m.** A 350 m ela pedia ~2.200 nós de `.glb` soltos, sem `MultiMesh` para segurar, e a contagem ficou sub-escalada (~3x em vez de ~8,5x) — o mapa leu mais esparso enquanto teve aquele tamanho. A 175 m a mesma densidade pede ~550, menos do que já rodava, então ela voltou sem custo (`PZ01_SCATTER_COUNT` 250, `PZ01_REEF_SCATTER_COUNT` 300). A contagem é o único número do resize que não segue `SIZE` sozinho: quem a define é o orçamento de nó.
 
-**Criaturas deixaram de ter contagem.** A densidade proporcional daria ~270 corpos rigados simultâneos, o que não é questão de ajustar um campo — é o modelo que muda. Hoje o mundo abre vazio e a fauna orbita o jogador: uma rolagem a cada 5 m percorridos, chance vinda do bioma, espécie de sorteio ponderado, e poda de quem sai do quadro. Ver "Spawn selvagem" abaixo.
+**Criaturas deixaram de ter contagem.** A densidade proporcional daria ~270 corpos rigados simultâneos a 350 m (e ainda ~50 a 175 m), o que não é questão de ajustar um campo — é o modelo que muda. Hoje o mundo abre vazio e a fauna orbita o jogador: uma rolagem a cada 5 m percorridos, chance vinda do bioma, espécie de sorteio ponderado, e poda de quem sai do quadro. Ver "Spawn selvagem" abaixo.
 
 **A regra que torna o próximo resize barato** está escrita no cabeçalho do `map_terrain.gd`, e no resize de 350 m ela deixou de ser convenção e virou código: as formas em planta (`COAST_*`, `GLACIAL_*`) são **frações explícitas de `_HALF`**, não metros escritos à mão. Elas sempre foram o valor normalizado do catálogo vezes o meio-lado da vez — `COAST_LOBE_R` era 27,6 = 0,46 × 60 —, só que a multiplicação era feita à mão a cada resize, e errar uma delas descolava o relevo da partição de bioma em silêncio. **Têm tamanho próprio** e não escalam: as duas cotas (`SEA_HEIGHT`/`LAND_HEIGHT`), as larguras de rampa (conta de inclinação), `BOUNDS_MARGIN` (raio de cápsula) e a ilha inteira (ela cabe uma arena — crescê-la daria um platô enorme para um duelista só).
 
 Uma armadilha vale registrar, porque não é óbvia e custa caro: **`ACCESS_RAMPS` mistura os dois grupos.** Dois dos três pontos ficam na borda do platô glacial e escalam; o terceiro é a borda da ilha — o `-9.0` dele é literalmente `ISLAND_BASE_RADIUS`. Escalar o array em bloco põe a rampa da ilha a 26 m de uma ilha de 9 m e deixa a arena, onde o jogo abre, sem acesso andável.
 
-E a consequência boa: **o mapa quase triplicou e as regiões de bioma do catálogo não precisaram de uma linha de mudança.** As coordenadas normalizadas ±1 escalaram sozinhas com `MapTerrain.SIZE`, e `test_data` continua medindo a partição sem buraco de cobertura — verificado num resize real, em vez de assumido.
+E a consequência boa: **o mapa quase triplicou, depois caiu pela metade, e as regiões de bioma do catálogo não precisaram de uma linha de mudança nas duas vezes.** As coordenadas normalizadas ±1 escalaram sozinhas com `MapTerrain.SIZE`, e `test_data` continua medindo a partição sem buraco de cobertura — verificado em dois resizes reais, em vez de assumido. O de 175 m foi o primeiro em que o bestiário não recebeu nenhuma mudança de dado nem export.
+
+Um resto do mapa de 120 m só apareceu no resize de 175 m: as luzes quentes da vila (`PZ01_COAST_LIGHT_*`) eram coordenada de mundo e ficaram em z = -46 nos dois resizes — a 350 m, acesas sobre mar aberto, a quase 90 m da vila. Hoje são offset de `WorldPopulator.MERCHANT_SPOT`.
 
 #### O relevo
 
@@ -715,7 +716,7 @@ As constantes `COAST_CENTER_X`, `COAST_LOBE_R`, `COAST_RECT_HALF_W` e `COAST_REC
 
 O alcance máximo da costa mar adentro (`COAST_RAMP_START`) continua existindo como número único para o shader, os testes e as notas do catálogo conferirem — mas deixou de ser a fronteira em toda a largura: agora só vale no meio. Armadilha registrada: a frente de um triângulo no Godot é a ordem **horária** — na ordem OpenGL (anti-horária) o chão inteiro é backface-culled e o mapa flutua sobre o fundo.
 
-**Animação.** Os clipes chegam com o vocabulário normalizado na conversão do bestiário (`convert-placeholders.mjs` pros placeholders Quaternius, `convert-meshy.mjs` pro Meshy AI): `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `Attack3`, `HitReact`, `Death`, `Swim`, `Swim_Idle`, `Dodge`, mais extras por família — quadrúpedes têm `Eating`, voadores não têm `Walk` e seguem no `Idle` de flutuação. `Swim_Idle` e `Attack3` usam o MESMO nome do vocabulário UAL (`GaitRig.LOOPED_CLIPS`) de propósito, não são invenção nova. A criatura selvagem nasce em `Idle` e patrulha em `Walk` — submersa, nasce boiando em `Swim_Idle` e patrulha em `Swim` (`CreatureActor._gait`, que pergunta ao terreno injetado pelo spawner; ver "Parado boia" na seção do corpo submerso); a companheira troca de clipe pelo próprio ritmo de marcha e pelo mesmo meio, e desliga o bob sintético quando o corpo tem rig. O importador de glTF não marca loop em nada, então `LOOPED_CLIPS` em `creature_actor.gd` marca só os clipes contínuos (`Swim` e `Swim_Idle` inclusos) — nunca `Death`/`Attack`/`Dodge`. **Todo clipe é in-place**: os corpos de criatura chegaram do Meshy com `Swim`, `Attack2` e `Death` andando 1,0–1,7 m por ciclo (a companheira "nadava mais rápido e resetava" a cada volta), corrigidos por `pnpm models:strip` no bestiário em 2026-09-08; `test_meshy_bodies.gd` mede o quadril de todo clipe dos catorze e reprova se algum andar mais de 5 cm.
+**Animação.** Corpo de criatura não traz clipe: todo corpo com `modelUrl` e o placeholder Imp recebem a biblioteca UAL por retarget (`CreatureActor._build_retargeted_animation` → `CharacterRig._build_library`), e o vocabulário é o da UAL já normalizado na conversão do kit de personagens: `Idle`, `Walk`, `Run`, `Attack`, `Attack2`, `Attack3`, `HitReact`, `Death`, `Swim`, `Swim_Idle`, `Dodge`, mais extras por família — quadrúpedes têm `Eating`, voadores não têm `Walk` e seguem no `Idle` de flutuação. `Swim_Idle` e `Attack3` usam o MESMO nome do vocabulário UAL (`GaitRig.LOOPED_CLIPS`) de propósito, não são invenção nova. A criatura selvagem nasce em `Idle` e patrulha em `Walk` — submersa, nasce boiando em `Swim_Idle` e patrulha em `Swim` (`CreatureActor._gait`, que pergunta ao terreno injetado pelo spawner; ver "Parado boia" na seção do corpo submerso); a companheira troca de clipe pelo próprio ritmo de marcha e pelo mesmo meio, e desliga o bob sintético quando o corpo tem rig. Quem marca loop é `GaitRig.LOOPED_CLIPS`, na montagem da biblioteca — os contínuos (`Idle`, `Walk`, `Run`, `Swim`, `Swim_Idle`…), nunca `Death`/`Attack`. **Todo clipe é in-place**: a montagem da biblioteca tira a viagem líquida do quadril de cada clipe (o `Attack3` da UAL deslocava 15 cm em escala chibi e o corpo pulava de volta ao Idle), e `test_creature_bodies.gd` mede o quadril dos clipes que o jogo toca em todo corpo do PZ-01 e reprova se algum andar mais de 5 cm.
 
 Orçamento por asset para os modelos definitivos, conforme `direcao-3d-arte`:
 
@@ -729,7 +730,7 @@ Loops mínimos por criatura definitiva, a 24 fps, **nos mesmos nomes do vocabul�
 
 Os artrópodes do elenco usam **rig flutuante** — sem rig locomotor por perna, deslizamento com bob vertical de ~5 cm. Cobre ~60% do elenco atual.
 
-Os `.glb` espelhados em `models/` são versionados via **git-lfs** (`.gitattributes` já cobre `*.glb`; confira `git lfs status` antes do commit — blob commitado direto fica no histórico para sempre). Os `CRT-XXX.glb` estáticos da raiz (legado do Meshy, sem animação) foram removidos em 2026-09 — todo o elenco hoje resolve por `modelUrl` ou pelo placeholder único. Os modelos definitivos animados já chegaram (CRT-002, piloto) pelo caminho normal: `.glb` do bestiário, mirado por `pnpm game:export`, já com textura KTX2 (`pnpm models:optimize` do lado do bestiário) — não precisa de importação manual à parte.
+Os `.glb` espelhados em `models/` são versionados via **git-lfs** (`.gitattributes` já cobre `*.glb`; confira `git lfs status` antes do commit — blob commitado direto fica no histórico para sempre). Todo o elenco resolve por `modelUrl` ou pelo placeholder único; os corpos chegam pelo `pnpm game:export` como cópia direta do bestiário, com textura em JPEG/PNG (o KTX2 saiu em 2026-09-17: o Godot escurecia a cor ao decodificá-lo e comprime PNG/JPEG para VRAM sozinho na importação). `models/dev/manequim-mestre.glb` é a mestre do fluxo, referência de escala para `shot_shell.gd`, não um corpo do jogo.
 
 ## Convenção de escala
 

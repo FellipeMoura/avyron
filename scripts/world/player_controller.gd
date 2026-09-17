@@ -3,18 +3,30 @@ extends CharacterBody3D
 
 ## Locomoção do domador. Livre, não presa a grid, velocidade única.
 ##
-## `WALK_SPEED` guarda o nome por herança, mas 5,2 m/s é marcha de CORRIDA —
-## humano andando faz ~1,4 m/s. Era daí que vinha o deslize: o corpo viajava a
-## 5,2 tocando o ciclo de `Walk`, que fora calibrado num `WALK_SPEED` anterior
-## de 4,0 e nunca remedido depois de ele subir 30%. A correção foi dar o clipe
-## certo à marcha, não mexer na velocidade — `GaitRig.update_motion` escolhe
-## `Run` acima de `RUN_THRESHOLD`, e o jogador está sempre acima dele.
+## `WALK_SPEED` guarda o nome por herança, mas até 2026-09-17 valia 5,2 m/s —
+## marcha de CORRIDA (humano andando faz ~1,4 m/s). Era daí que vinha o
+## deslize: o corpo viajava a 5,2 tocando o ciclo de `Walk`, que fora
+## calibrado num `WALK_SPEED` anterior de 4,0 e nunca remedido depois de ele
+## subir 30%. A correção original foi dar o clipe certo à marcha —
+## `GaitRig.update_motion` passou a escolher `Run` acima de `RUN_THRESHOLD`,
+## e o jogador ficava sempre acima dele.
+##
+## Em 2026-09-17 as duas pontas mudaram juntas, por decisão de produto: a
+## velocidade caiu 40% (5,2 → 3,12) e o corpo passou a tocar `Walk` sempre,
+## nunca `Run`, mesmo continuando acima de `RUN_THRESHOLD` — as duas chamadas
+## que movem o rig (`_physics_process` e `staged_gait`) passam
+## `allow_run = false` para `GaitRig.update_motion`. `CompanionActor` (a
+## criatura aliada) segue a mesma dupla de decisões, porque a marcha dela
+## deriva desta constante (ver o comentário de `CompanionActor._update_clip`).
+## Reverter é mexer no `allow_run`, não introduzir um literal `"Walk"` em
+## outro lugar — a escada continua sendo a única dona da escolha de clipe.
+##
 ## Se ainda restar deslize, o ajuste seguinte é a CADÊNCIA (`speed_scale` do
 ## AnimationPlayer), não o clipe nem a velocidade.
 ##
 ## Especificação: documento `movimento-e-controles` no bestiário.
 
-const WALK_SPEED := 5.2
+const WALK_SPEED := 3.12
 
 ## Tempo de 0 até a velocidade de caminhada, e de qualquer velocidade até 0.
 const ACCEL_TIME := 0.15
@@ -30,14 +42,27 @@ const BRAKE_TIME := 0.10
 ## corpo segue a colisão o tempo todo agora, dentro ou fora da terra firme,
 ## sem exceção — gravidade normal, sem ramo especial.
 
-## Até 2026-09-07 havia aqui uma `DEFAULT_RECIPE`: o domador era montado pelo
-## kit de personagens, como os NPCs, a partir de uma lista fixa de peças
-## (`Male_Ranger_*`) que viraria o valor inicial de uma tela de criação. O
-## jogador ganhou corpo PRÓPRIO (`PlayerRig`, `models/player.glb`) e o kit
-## passou a ser o sistema dos NPCs e só deles — não há mais receita de jogador
-## para guardar. Se a criação de personagem voltar à mesa, ela escolhe entre
-## corpos do jogador, não entre peças do kit de NPC, e o escolhido persiste no
-## save — nunca no bestiário, que só conhece NPC.
+## O domador é montado pelo MESMO kit de personagens dos NPCs (`CharacterRig`),
+## a partir desta receita fixa de peças. Entre 2026-09-07 e 2026-09-17 ele
+## teve um corpo próprio, um `.glb` fechado do Meshy AI com esqueleto e clipes
+## só dele (`PlayerRig`) — voltou ao kit porque um segundo sistema de corpo
+## humano custava um segundo pipeline de asset (conversão, root motion,
+## material) para um corpo só, e o kit já entrega o vocabulário inteiro do
+## jogo (`Harvest` para minerar, `Throw` para o arremesso de captura) por
+## retarget, sem asset novo. Esta receita é o valor inicial de uma futura
+## tela de criação de personagem; o escolhido persiste no save — nunca no
+## bestiário, que só conhece NPC. Ranger com capuz e sem barba, para não se
+## confundir com os dois NPCs do catálogo (camponês barbado e ranger mulher).
+const PLAYER_RECIPE := {
+	"gender": "male",
+	"hair": "Hair_Buzzed",
+	"eyebrows": "Eyebrows_Regular",
+	"body": "Male_Ranger_Body",
+	"arms": "Male_Ranger_Arms",
+	"legs": "Male_Ranger_Legs",
+	"feet": "Male_Ranger_Feet_Boots",
+	"head": "Male_Ranger_Head_Hood",
+}
 
 ## Quão rápido o corpo gira para encarar a direção do movimento.
 @export var turn_speed: float = 12.0
@@ -49,7 +74,7 @@ const BRAKE_TIME := 0.10
 var terrain: MapTerrain
 
 var _speed_target := 0.0
-var _rig: PlayerRig
+var _rig: CharacterRig
 ## Pose de mineração, ligada/desligada por `WorldRoot`: o controller não
 ## decide POR QUE está minerando, só repassa o estado para a máquina de
 ## marcha a cada frame físico.
@@ -58,7 +83,7 @@ var _mining := false
 
 
 func _ready() -> void:
-	_rig = PlayerRig.create()
+	_rig = CharacterRig.create(PLAYER_RECIPE)
 	if _rig == null:
 		return
 	# Pés na base da cápsula de colisão (origem do corpo é o centro dela).
@@ -96,7 +121,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 	if _rig != null:
-		_rig.update_motion(ground_speed(), submerged(), _mining)
+		_rig.update_motion(ground_speed(), submerged(), _mining, GaitRig.IDLE_THRESHOLD, false)
 
 
 ## Liga/desliga a pose de mineração no rig. Chamado por `WorldRoot` ao
@@ -172,7 +197,7 @@ func staged_ground_offset() -> float:
 func staged_gait(speed: float) -> void:
 	velocity = Vector3.ZERO
 	if _rig != null:
-		_rig.update_motion(speed, submerged())
+		_rig.update_motion(speed, submerged(), false, GaitRig.IDLE_THRESHOLD, false)
 
 
 ## A encenação é dona deste corpo enquanto o mundo está pausado, e nó pausado

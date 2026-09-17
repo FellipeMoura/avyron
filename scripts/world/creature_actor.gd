@@ -111,18 +111,11 @@ const MODEL_DIR := "res://models/"
 ## um corpo sem `Swim` ficaria parado boa parte do tempo.
 const PLACEHOLDER_PATH := "res://models/placeholders/dungeon/Imp.glb"
 
-## Clipes que devem rodar em loop. O importador de glTF não marca loop em
-## nada, então um `Idle` tocado cru congela no último quadro; e marcar TODOS
-## seria pior — `Death` em loop é uma criatura morrendo para sempre. A lista
-## segue o vocabulário normalizado dos placeholders (ver
-## `convert-placeholders.mjs`/`convert-meshy.mjs` no bestiário). `Swim` e
-## `Swim_Idle` são nadar e boiar — mesmos nomes do vocabulário UAL
-## (`GaitRig.LOOPED_CLIPS`), contínuos como `Walk` e `Idle`, nunca um golpe;
-## `Swim` faltava aqui até 2026-09-07 porque nenhuma criatura nadava, e um
-## `Swim` sem loop congela no último quadro na primeira braçada.
-## `Attack3`/`Dodge` NÃO entram — um golpe ou uma esquiva em loop repetiria
-## pra sempre, mesma razão de `Attack`/`Attack2` ficarem de fora.
-const LOOPED_CLIPS := ["Idle", "Idle2", "IdleLow", "Walk", "Run", "Eating", "Jump_Idle", "Swim", "Swim_Idle"]
+## Quais clipes rodam em loop é decisão de `GaitRig.LOOPED_CLIPS`, aplicada
+## na montagem da biblioteca UAL (`CharacterRig._build_library`) — criatura,
+## NPC e placeholder recebem a mesma biblioteca, então uma lista própria
+## aqui (que existiu até 2026-09-17, com nomes dos placeholders de 2026-08)
+## só podia divergir dela.
 
 
 ## Resolve o caminho do `.glb` de uma criatura, ou "" quando não há arquivo.
@@ -237,10 +230,13 @@ static func build_visual(size_meters: float, element_code: String, creature_code
 ##
 ## A escala do arquivo é desconhecida a priori (o pipeline de exportação não
 ## garante 1 unidade = 1 metro), então esta função mede o AABB combinado das
-## malhas e escala pelo MAIOR eixo até bater com `size_meters` — é esse eixo,
-## não a altura, que carrega o "tamanho" de um artrópode comprido e baixo como
-## Eurypterus. Depois recentra em X/Z e apoia a base em Y no mesmo ponto onde a
-## cápsula apoiaria, para colisão e visual concordarem sobre onde é o chão.
+## malhas e escala até bater com `size_meters`: pela ALTURA quando o corpo é
+## skinado (todo corpo rigado nasce em T-pose, e lá o maior eixo é a
+## envergadura, não o corpo), e pelo MAIOR eixo quando é malha estática — é
+## esse eixo, não a altura, que carrega o "tamanho" de um artrópode comprido e
+## baixo como Eurypterus. Depois recentra em X/Z e apoia a base em Y no mesmo
+## ponto onde a cápsula apoiaria, para colisão e visual concordarem sobre onde
+## é o chão.
 static func _build_model_visual(path: String, size_meters: float, dims: Dictionary) -> Dictionary:
 	if path == "":
 		return {}
@@ -257,7 +253,19 @@ static func _build_model_visual(path: String, size_meters: float, dims: Dictiona
 		return {}
 
 	var aabb := _local_aabb(instance, mesh_instances)
-	var extent := maxf(aabb.size.x, maxf(aabb.size.y, aabb.size.z))
+	# Corpo SKINADO (esqueleto): o "tamanho" é a ALTURA. Todo corpo rigado do
+	# jogo nasce em T-pose (a mestre do fluxo base + casca, o placeholder
+	# Imp, o kit de personagens), e em T-pose o maior eixo é a envergadura,
+	# não o corpo: um chibi de 0,93 m com braços de 1,47 m escalado pelo
+	# maior eixo virava um corpo de 0,89 m para `sizeMeters` 1,4 (medido em
+	# 2026-09-15). Malha estática segue pelo maior eixo — é ela que carrega o
+	# caso do artrópode comprido e baixo da docstring.
+	var skinned := false
+	for mi in mesh_instances:
+		if mi.skeleton != NodePath():
+			skinned = true
+			break
+	var extent := aabb.size.y if skinned else maxf(aabb.size.x, maxf(aabb.size.y, aabb.size.z))
 	if extent <= 0.0:
 		instance.queue_free()
 		return {}
@@ -266,13 +274,12 @@ static func _build_model_visual(path: String, size_meters: float, dims: Dictiona
 	var center := aabb.get_center()
 	var height: float = dims["height"]
 
-	# Os `.glb` de CRT-006 e CRT-010 (códigos da época — o elenco foi renumerado
-	# em 2026-09, ver CLAUDE.md do bestiário) saem da exportação com a cabeça em +Z, não
-	# -Z — confirmado visualmente com marcadores em `shot_model_swap.gd` (a
-	# cauda ficava no lado marcado como frente pela convenção do código). Sem
-	# este giro, `_face()` viraria a criatura para o rumo do movimento e ela
-	# andaria de costas, a cauda na frente — a mesma classe de bug da regra 4
-	# do CLAUDE.md, só que na malha em vez do cálculo de ângulo.
+	# Regra: todo corpo de criatura olha para +Z no arquivo (a mestre do fluxo
+	# base + casca, o placeholder Imp e o kit da UAL nascem assim, e o Tripo
+	# exporta assim). A frente do jogo é -Z (`_face()` vira o corpo para o
+	# rumo do movimento), então o giro de meia-volta é o contrato, não uma
+	# exceção — sem ele a criatura anda de costas, a cauda na frente, a mesma
+	# classe de bug da regra 4 do CLAUDE.md, só que na malha.
 	instance.rotation.y = PI
 	instance.scale = Vector3.ONE * factor
 	# X/Z: recentra a malha na origem do wrapper — os sinais são POSITIVOS
@@ -291,25 +298,17 @@ static func _build_model_visual(path: String, size_meters: float, dims: Dictiona
 	wrapper.name = "Model"
 	wrapper.add_child(instance)
 
-	# Os placeholders chegam rigados com o vocabulário normalizado de clipes
-	# (Idle/Walk/Run/Attack/...). O corpo já nasce em `Idle`; quem move a
-	# criatura troca de clipe via `_play_clip`. Modelo sem AnimationPlayer
-	# E sem Skeleton3D (os .glb legados do Meshy) fica parado, como sempre
-	# ficou.
-	var anim := _find_animation_player(instance)
-	if anim == null:
-		# O kit "Dungeon Monsters" (Quaternius) chega sem clipe nenhum — ele
-		# roda no MESMO esqueleto da Universal Animation Library que
-		# `CharacterRig` já usa para os humanos, e espera ser montado por
-		# retarget, não por clipe embutido. Mesmo mecanismo de
-		# `CharacterRig._build_library`, reusado em vez de duplicado: dá pro
-		# corpo o vocabulário INTEIRO do jogo (`Attack2`, `HitReact`, `Death`,
-		# `Swim`...) em vez do punhado que cada placeholder bakeado tinha.
-		anim = _build_retargeted_animation(instance)
-	if anim != null:
-		_prepare_animations(anim)
-		if anim.has_animation("Idle"):
-			anim.play("Idle")
+	# Todo corpo de criatura chega SEM clipe e é animado por retarget: o
+	# esqueleto tem os nomes da UAL (a mestre do fluxo base + casca e o
+	# placeholder Imp são o mesmo esqueleto), e `_build_retargeted_animation`
+	# lhe dá a biblioteca inteira do jogo, já com loop marcado e root motion
+	# removido na montagem (`CharacterRig._build_library`). Até 2026-09-17
+	# havia um segundo caminho, o de clipe embutido dos corpos Meshy, e dois
+	# caminhos é o que produz bug silencioso (um corpo com clipes de nome
+	# errado tocava nada, sem aviso). Corpo sem Skeleton3D fica parado.
+	var anim := _build_retargeted_animation(instance)
+	if anim != null and anim.has_animation("Idle"):
+		anim.play("Idle")
 
 	return {
 		"mesh": wrapper,
@@ -319,16 +318,6 @@ static func _build_model_visual(path: String, size_meters: float, dims: Dictiona
 		"height": height,
 		"radius": dims["radius"],
 	}
-
-
-static func _find_animation_player(node: Node) -> AnimationPlayer:
-	if node is AnimationPlayer:
-		return node
-	for child in node.get_children():
-		var found := _find_animation_player(child)
-		if found != null:
-			return found
-	return null
 
 
 ## Constrói um `AnimationPlayer` retargeted para o `Skeleton3D` de `instance`,
@@ -343,6 +332,23 @@ static func _build_retargeted_animation(instance: Node) -> AnimationPlayer:
 	var skeleton := GaitRig.find_skeleton(instance)
 	if skeleton == null:
 		return null
+	# As trilhas de ROTAÇÃO da UAL valem para qualquer corpo com estes nomes
+	# de osso, e o importador já descarta as trilhas de posição constantes
+	# (comprimento de osso fica o do corpo). Mas a posição do `pelvis` varia
+	# (balanço da passada) e é ABSOLUTA, em metros da UAL: o quadril de todo
+	# corpo ia parar a 0,87–0,92 m do chão, fosse qual fosse a altura de
+	# repouso dele. Medido em 2026-09-15: o Imp (quadril 0,81) andava com o
+	# pé 10 cm no ar; uma mestre chibi (quadril 0,39) flutuaria meio metro.
+	# `motion_scale` multiplica as trilhas de posição do esqueleto — é o
+	# mecanismo do próprio Godot para retarget entre alturas —, então a
+	# razão entre a altura de repouso do quadril deste corpo e a da UAL
+	# devolve o balanço na escala certa. Mesma ideia do `Hips` escalado por
+	# razão de alturas em `transfer-clips.mjs` do bestiário.
+	var pelvis := skeleton.find_bone("pelvis")
+	if pelvis != -1:
+		var rest_height := skeleton.get_bone_global_rest(pelvis).origin.y
+		if rest_height > 0.0:
+			skeleton.motion_scale = rest_height / UAL_PELVIS_REST_HEIGHT
 	var anim := AnimationPlayer.new()
 	anim.name = "Anim"
 	instance.add_child(anim)
@@ -351,12 +357,10 @@ static func _build_retargeted_animation(instance: Node) -> AnimationPlayer:
 	return anim
 
 
-## Marca loop nos clipes contínuos — ver `LOOPED_CLIPS` sobre por que não são
-## todos. Mexe no recurso Animation da instância importada, não no arquivo.
-static func _prepare_animations(player: AnimationPlayer) -> void:
-	for anim_name in player.get_animation_list():
-		if String(anim_name) in LOOPED_CLIPS:
-			player.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
+## Altura de repouso do `pelvis` no esqueleto da UAL, em metros — medida em
+## `characters/animations/UAL1.glb` (2026-09-15). É a referência contra a qual
+## `motion_scale` escala as trilhas de posição de um corpo retargetado.
+const UAL_PELVIS_REST_HEIGHT := 0.9167
 
 
 static func _collect_mesh_instances(node: Node) -> Array[MeshInstance3D]:
