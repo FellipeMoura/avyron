@@ -8,11 +8,14 @@ extends Camera3D
 ## criatura é a projeção do modelo vista de 30°/45°. Abrir a câmera para
 ## outros ângulos invalida o teste de silhueta de todo o bestiário.
 ##
-## O **zoom é FIXO desde 2026-09-07**, como o ângulo. Existiu scroll do mouse
-## com faixa de 0,5x a 3,0x, e ele era conveniência de desenvolvimento, não
-## feature: servia para ler o mapa enquanto o PZ-01 era desenhado. O jogo
-## sempre foi para rodar com um enquadramento só, e ele foi escolhido olhando
-## seis capturas do mesmo ponto do mar raso lado a lado.
+## O **zoom final do jogo é `base_size` puro (0,80x), travado desde
+## 2026-09-07**, como o ângulo — a escolha de produto não mudou. O scroll do
+## mouse voltou em 2026-09-09 como conveniência de DESENVOLVIMENTO
+## (`dev_scroll_zoom_enabled`), pela mesma razão de antes: ler o mapa enquanto
+## ele é desenhado. Ele multiplica `base_size` (faixa 0,5x–3,0x) em vez de
+## substituí-lo, então build final é só desligar `dev_scroll_zoom_enabled` (ou
+## deixar como está e nunca rolar o mouse) — o número travado continua sendo
+## `base_size`, não o zoom que o scroll produz numa sessão de dev.
 ##
 ## Batalha e chefe continuam sendo proporções do mesmo `base_size`, então
 ## mexer nele move os três juntos — são enquadramentos do mesmo rig, nunca
@@ -50,7 +53,8 @@ const RIG_DISTANCE := 20.0
 ## Isso é decisão de produto: com o elenco do PZ-01 fechado em 14 criaturas
 ## COM modelo próprio, o corpo é o conteúdo, e um enquadramento que o reduz a
 ## um ponto joga fora o trabalho de modelagem. O custo é ver menos mundo por
-## tela num mapa de 350 m, e é um custo aceito.
+## tela, e é um custo aceito — e ficou menor quando o mapa caiu de 350 para
+## 175 m (2026-09-16).
 ##
 ## Mexer aqui move batalha e chefe junto (são proporções deste número) e mexe
 ## também no que a fauna faz: a poda de criatura é por frustum, então um
@@ -88,9 +92,19 @@ const RIG_DISTANCE := 20.0
 
 @export var target_path: NodePath
 
-## O scroll do mouse ajustava um multiplicador sobre `base_size`, de 0,5x a
-## 3,0x. Saiu em 2026-09-07 junto com a leitura de calibração da HUD: era
-## ferramenta para ESCOLHER o enquadramento, e a escolha foi feita.
+## Liga o scroll do mouse como zoom de desenvolvimento (ver docstring da
+## classe). Desligar aqui — ou não rolar o mouse — devolve o jogo ao
+## enquadramento travado (`base_size` puro).
+@export var dev_scroll_zoom_enabled: bool = true
+
+## Passo por "clique" de roda, em fração de `base_size` por notch.
+@export var dev_scroll_zoom_step: float = 0.1
+const DEV_ZOOM_MIN := 0.5
+const DEV_ZOOM_MAX := 3.0
+
+## Multiplicador do scroll de dev sobre `base_size`. 1,0 é o enquadramento
+## travado; só se afasta disso por input de roda, nunca por código de jogo.
+var _dev_zoom_multiplier: float = 1.0
 
 var _target: Node3D
 var _lookahead := Vector3.ZERO
@@ -106,7 +120,7 @@ var _focus_b: Node3D
 
 func _ready() -> void:
 	projection = PROJECTION_ORTHOGONAL
-	size = base_size
+	size = _effective_base_size()
 	# Ortográfica com alvo à frente: o near precisa ser negativo o bastante
 	# para não recortar o que está entre a câmera e o ponto de foco.
 	near = 0.05
@@ -117,6 +131,38 @@ func _ready() -> void:
 		_target = get_node_or_null(target_path) as Node3D
 	if _target:
 		global_position = _rig_position(_target.global_position)
+
+
+## `base_size` já multiplicado pelo zoom de scroll de dev, quando ligado.
+## Ponto único de leitura — todo alvo de tamanho (repouso e transições de
+## batalha) passa por aqui, para o scroll continuar valendo dentro do duelo
+## em vez de ser descartado na primeira transição.
+func _effective_base_size() -> float:
+	return base_size * _dev_zoom_multiplier
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not dev_scroll_zoom_enabled:
+		return
+	if _focus_a and is_instance_valid(_focus_a) and _focus_b and is_instance_valid(_focus_b):
+		# Em batalha o tamanho é dono do tween de transição (ver
+		# `_tween_transition`); scroll aqui brigaria com ele pelo mesmo valor.
+		return
+	var mb := event as InputEventMouseButton
+	if not mb or not mb.pressed:
+		return
+	if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+		_dev_zoom_multiplier = clampf(_dev_zoom_multiplier - dev_scroll_zoom_step, DEV_ZOOM_MIN, DEV_ZOOM_MAX)
+	elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		_dev_zoom_multiplier = clampf(_dev_zoom_multiplier + dev_scroll_zoom_step, DEV_ZOOM_MIN, DEV_ZOOM_MAX)
+	else:
+		return
+	size = _effective_base_size()
+	# Nulo em bancada de teste (câmera fora de uma árvore com viewport de
+	# verdade) — em jogo sempre existe.
+	var viewport := get_viewport()
+	if viewport:
+		viewport.set_input_as_handled()
 
 
 func set_target(node: Node3D) -> void:
@@ -169,18 +215,17 @@ func _rig_position(focus: Vector3) -> Vector3:
 # ---------------------------------------------------------------------------
 
 func enter_battle() -> void:
-	_tween_transition(base_size * battle_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
+	_tween_transition(_effective_base_size() * battle_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
 
 func enter_boss_battle() -> void:
-	_tween_transition(base_size * boss_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
+	_tween_transition(_effective_base_size() * boss_zoom_ratio, battle_pitch_degrees, zoom_in_duration)
 
 func exit_battle() -> void:
 	clear_battle_focus()
-	# Volta ao enquadramento do jogo. Enquanto o scroll existiu, este retorno
-	# era para o zoom ESCOLHIDO pelo jogador (senão todo duelo resetava a roda
-	# dele); com o zoom travado, o enquadramento e o `base_size` são a mesma
-	# coisa e não há mais o que preservar.
-	_tween_transition(base_size, PITCH_DEGREES, zoom_out_duration)
+	# Volta ao enquadramento do jogo — `base_size` puro em build final, ou o
+	# multiplicador de scroll de dev corrente (ver `dev_scroll_zoom_enabled`),
+	# nunca o zoom de batalha que só acabou de sair.
+	_tween_transition(_effective_base_size(), PITCH_DEGREES, zoom_out_duration)
 
 
 ## Prende o foco da câmera ao vão entre os dois combatentes em vez de

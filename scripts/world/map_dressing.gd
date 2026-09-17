@@ -52,13 +52,12 @@ const PZ01_WATER_BG := Color("#062C3B")
 ## da névoa de altura logo abaixo (`PZ01_FOG`), que já era fragmentada por
 ## cota — sem matiz, pra não mudar o TOM geral.
 ##
-## Clareado em 2026-09-08 (`#959595` → `#C8C8C8`, ~58%→~78% de brilho):
-## `ambient_light_color` é multiplicativo sobre tudo que a luz ambiente
-## atinge, então o cinza médio de antes achatava pele/cabelo do elenco bem
-## abaixo do que o visualizador de modelo (luz branca cheia) mostra — o
-## personagem lia "apagado" mesmo em terra firme, longe da névoa. Pedido do
-## usuário após comparar captura in-game com o preview do modelo.
-const PZ01_AMBIENT := Color("#C8C8C8")
+## Cinza médio (~58% de brilho). Foi clareado a `#C8C8C8` em 2026-09-08
+## porque o elenco lia "apagado" perto do visualizador de modelo — mas a
+## causa era a textura KTX2 chegando ~gamma 2,2 mais escura do decode do
+## Godot (ver `godot-textures.mjs` no bestiário). Com a textura em PNG o
+## clareamento estourava pele e cabelo, e voltou em 2026-09-09.
+const PZ01_AMBIENT := Color("#959595")
 const PZ01_FOG := Color("#163E61")
 const PZ01_SUN := Color("#E9FFF8")
 
@@ -81,10 +80,17 @@ const PZ01_FOG_UNDERWATER_DENSITY := 1.0
 ## aquecer só ali sem mexer no sol/ambiente globais (neutros desde
 ## 2026-09-02, ver `PZ01_AMBIENT`). Sem sombra: são banho de cor, não fonte
 ## de leitura.
+##
+## As posições são OFFSET a partir do comerciante (`WorldPopulator.MERCHANT_SPOT`,
+## que é a âncora da vila), não coordenada de mundo. Até 2026-09-16 eram
+## `(2, 5.5, -46)` e `(10, 5.5, -46.5)` — a vila do mapa de 120 m, onde a âncora
+## ficava em `(4, 0, -46)` —, e nenhum dos dois resizes as moveu: a 350 m a
+## vila foi para z ≈ -134 e as duas luzes ficaram acesas sobre mar aberto.
+## Offset é medida de prédio, igual ao `_VILLAGE_SPACING`: não escala.
 const PZ01_COAST_LIGHT := Color("#FFD9A6")
 const PZ01_COAST_LIGHT_ENERGY := 1.1
 const PZ01_COAST_LIGHT_RANGE := 13.0
-const PZ01_COAST_LIGHT_SPOTS: Array = [Vector3(2.0, 5.5, -46.0), Vector3(10.0, 5.5, -46.5)]
+const PZ01_COAST_LIGHT_OFFSETS: Array = [Vector3(-2.0, 5.5, 0.0), Vector3(6.0, 5.5, -0.5)]
 ## A ilha da arena recebe o mesmo banho quente pela mesma regra: chão que
 ## emerge sai da murk também na luz. Uma omni só, centrada — o platô inteiro
 ## cabe no alcance.
@@ -187,19 +193,22 @@ const PZ01_SCATTER_POOL: Array = [
 ]
 
 ## Os RAIOS acompanham o mapa (é geografia: o anel tem de cobrir o mar que
-## existe), mas a CONTAGEM deixou de acompanhar no resize de 350 m
-## (2026-09-06) — e essa separação é deliberada, não descuido.
+## existe), mas a CONTAGEM é escrita à mão — e essa separação é deliberada,
+## não descuido: a contagem é a única coisa deste arquivo que custa nó da
+## árvore, então quem a define é o orçamento, não uma regra de três.
 ##
-## Até os 120 m a regra era densidade constante: contagem pela ÁREA do anel
-## (28 props num anel de 4–27 m; 116 num de 8–55 m). Mantida a 350 m, a mesma
-## conta pediria ~990 aqui e ~1.190 no recife — mais de 2.100 nós de `.glb`
-## soltos, cada um um nó da árvore. O ROADMAP já lista `MultiMesh` como o
-## pré-requisito exatamente disso, e ele NÃO entra nesta rodada (decisão do
-## usuário): então a contagem sobe ~3x em vez de ~8,5x, e o mapa assume que
-## vai ler mais esparso que o de 120 m até o `MultiMesh` chegar.
+## A regra de referência é densidade constante, a do mapa de 120 m: contagem
+## pela ÁREA do anel (28 props num anel de 4–27 m; 116 num de 8–55 m). A 350 m
+## (2026-09-06) ela pedia ~990 aqui e ~1.190 no recife, sem `MultiMesh` para
+## segurar isso, e a contagem ficou sub-escalada (350/420) — o mapa leu mais
+## esparso que o de 120 m enquanto teve aquele tamanho.
 ##
-## Quando ele chegar, o número certo a restaurar é o da área — não este.
-const PZ01_SCATTER_COUNT := 350
+## No resize de 175 m (2026-09-16) a mesma conta pede ~250 aqui e ~300 no
+## recife, ABAIXO do que já rodava, então a densidade de 120 m voltou sem
+## custo nenhum. Manter 350/420 num quarto da área teria deixado o mapa 4x
+## mais denso de uma vez — mudança de leitura que não foi pedida junto com o
+## resize.
+const PZ01_SCATTER_COUNT := 250
 const PZ01_SCATTER_SEED := 20260824
 const SCATTER_RADIUS_MIN := 0.133333 * float(MapTerrain.SIZE) * 0.5
 const SCATTER_RADIUS_MAX := 0.916667 * float(MapTerrain.SIZE) * 0.5
@@ -220,11 +229,10 @@ const PZ01_REEF_SCATTER_POOL: Array = [
 	["Pastel_Tidepool_Treas", 0.7, 1.3],
 	["Terraced_Stone_Mounds", 0.65, 1.25],
 ]
-## Mesma sub-escalada da contagem geral acima (~3x em vez da área), pelo mesmo
-## motivo: sem `MultiMesh`, densidade de recife a 350 m viraria mais de mil nós
-## sozinha. O recife continua sendo o trecho MAIS cheio do mapa — só que a
-## régua do "cheio" desceu junto com a do resto.
-const PZ01_REEF_SCATTER_COUNT := 420
+## Mesma régua da contagem geral acima: a densidade de área do mapa de 120 m,
+## que a 175 m dá ~300 (era 420 sub-escalado a 350 m, ver lá). O recife
+## continua sendo o trecho MAIS cheio do mapa.
+const PZ01_REEF_SCATTER_COUNT := 300
 const PZ01_REEF_SCATTER_SEED := 20260902
 ## Bem mais apertado que `CLEAR_RADIUS` (3,5 m) de propósito — é o que faz o
 ## recife ler denso em vez de espalhado; peça pela metade do porte cabe em
@@ -364,11 +372,9 @@ static func _apply_pz01_ambience(root: Node3D) -> void:
 	env.background_color = PZ01_WATER_BG
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = PZ01_AMBIENT
-	# 1.35 → 1.6 em 2026-09-08, junto com o clareamento de `PZ01_AMBIENT`: é o
-	# lado sombreado do personagem (sem luz direta do sol) que depende só
-	# disto, e é o lado que mais destoava do visualizador de modelo em
-	# screenshot comparativo.
-	env.ambient_light_energy = 1.6
+	# Subiu a 1.6 em 2026-09-08 compensando textura escura (ver `PZ01_AMBIENT`)
+	# e voltou a 1.35 em 2026-09-09 com a textura corrigida.
+	env.ambient_light_energy = 1.35
 	env.fog_enabled = true
 	env.fog_light_color = PZ01_FOG
 	# Névoa de altura: densa abaixo da linha d'água, quase nada acima. O sinal
@@ -402,15 +408,16 @@ static func _apply_pz01_ambience(root: Node3D) -> void:
 	var key := root.get_node_or_null("KeyLight") as DirectionalLight3D
 	if key:
 		key.light_color = PZ01_SUN
-		# 1.35 → 1.6 em 2026-09-08, junto com `ambient_light_energy` — o lado
-		# lit do elenco também lia escuro perto do sol frio original.
-		key.light_energy = 1.6
+		# Mesma história de `ambient_light_energy`: 1.6 em 2026-09-08, de volta
+		# a 1.35 em 2026-09-09.
+		key.light_energy = 1.35
 		key.shadow_enabled = true
 
 	# O banho quente do trecho seco. Omnis largas sobre a vila da costa: quem
 	# sobe a rampa entra no alcance delas e "sai da água" também na luz.
-	for i in PZ01_COAST_LIGHT_SPOTS.size():
-		_add_fill_light(root, "CoastFill%d" % i, PZ01_COAST_LIGHT_SPOTS[i],
+	for i in PZ01_COAST_LIGHT_OFFSETS.size():
+		_add_fill_light(root, "CoastFill%d" % i,
+			WorldPopulator.MERCHANT_SPOT + PZ01_COAST_LIGHT_OFFSETS[i],
 			PZ01_COAST_LIGHT_RANGE)
 	_add_fill_light(root, "IslandFill", PZ01_ISLAND_LIGHT_SPOT, PZ01_ISLAND_LIGHT_RANGE)
 

@@ -30,8 +30,11 @@ const STABILITY_WINDOW := 30
 ## Quadros pra nadar do mar aberto, atravessar o ponto de acesso da ilha
 ## (`MapTerrain.ACCESS_RAMPS[2]`, a 20 m de distância) e assentar de vez no
 ## topo — não basta chegar na borda da rampa, tem de sobrar tempo pra
-## gravidade resolver o resto da subida via colisão real.
-const CROSS_FRAMES := 320
+## gravidade resolver o resto da subida via colisão real. Escala com
+## `PlayerController.WALK_SPEED`: eram 320 quadros a 5,2 m/s; desde
+## 2026-09-17, com a velocidade 40% mais baixa (3,12 m/s), a mesma distância
+## leva ~1,67× mais tempo — 550 dá folga sobre os 533 exatos.
+const CROSS_FRAMES := 550
 ## Quadros pro corpo assentar no leito raso ANTES de começar a andar — mesma
 ## queda livre de y=6 que `_step_settle_check` mede (~200 quadros de
 ## `_process` em headless, não os 60 que a proporção físico/processo ingênua
@@ -289,11 +292,16 @@ func _report() -> void:
 	_check_true("nao afundou no chao", absf(feet - ground) < 0.25,
 		"pes %.2f, chao %.2f" % [feet, ground])
 
-	# Velocidade de caminhada: 5.2 m/s (WALK_SPEED). A aceleração de 0.15 s
-	# puxa a média um pouco para baixo, então a faixa aceita começa em 3.9 m/s.
+	# Velocidade de caminhada: `PlayerController.WALK_SPEED` (3,12 m/s desde
+	# 2026-09-17, era 5,2 — ver o comentário de topo de `PlayerController`). A
+	# aceleração de 0.15 s puxa a média um pouco para baixo, então a faixa
+	# aceita é relativa ao alvo (-25% / +15%), não um literal medido numa
+	# velocidade que já mudou.
 	var seconds := float(_elapsed_physics) / Engine.physics_ticks_per_second
 	var speed := moved.length() / seconds
-	_check_true("velocidade proxima de andar (5.2 m/s)", speed > 3.9 and speed < 5.9,
+	var target := PlayerController.WALK_SPEED
+	_check_true("velocidade proxima de andar (%.2f m/s)" % target,
+		speed > target * 0.75 and speed < target * 1.15,
 		"%.2f m/s" % speed)
 
 	var cam_moved := _camera.global_position - _start_cam

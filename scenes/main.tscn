@@ -49,4 +49,4 @@ script = ExtResource("3_tbgi4")
 target_path = NodePath("../Player")
 
 [node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=853963808]
-transform = Transform3D(0.70710677, 0.5416752, -0.45451948, 0, 0.64278764, 0.76604444, 0.70710677, -0.5416752, 0.45451948, 0, 0, 0)
+transform = Transform3D(0.9961947, -0.06676517, 0.05602263, 0, 0.64278761, 0.76604444, -0.08715574, -0.76312941, 0.64034161, 0, 0, 0)

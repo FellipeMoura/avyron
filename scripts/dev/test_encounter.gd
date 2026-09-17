@@ -127,7 +127,10 @@ func _drive_population() -> void:
 
 	_walk_steps += 1
 	# Vaivém curto que não sai do mar raso: a perna é para +x/-x, longe da
-	# costa (-Z), da ilha (centro) e do platô glacial (que começa em x −52,5).
+	# costa (-Z), da ilha (centro), do platô glacial (x ≤ −0,3 do meio-lado) e
+	# do Mar Profundo (x ≥ +0,3). A 175 m (2026-09-16) essas duas fronteiras
+	# ficam em ∓26,25 m e o vaivém vai de x −20 a +20 — cabe, com 6 m de folga
+	# de cada lado. Encolher o mapa de novo pede rever estes pontos.
 	# O spawner consome todos os intervalos vencidos por quadro, então cada
 	# perna de 40 m já vale várias rolagens.
 	var leg := 40.0 * (1 if _walk_steps % 2 == 0 else -1)

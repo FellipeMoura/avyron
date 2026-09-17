@@ -53,8 +53,9 @@ const TRAIL_SPACING := 0.25
 ## Um controlador proporcional puro nunca zera o erro: em regime, a companheira
 ## fica parada no ponto em que a velocidade que o ganho pede iguala a do
 ## jogador. Isso **não** é defeito aqui — é o que faz a coleira esticar
-## enquanto ele anda e encolher quando ele para. Com 7.0, ela anda ~3,3 m
-## atrás ao caminhar (`WALK_SPEED` 5.2) e recolhe para ~2,3 m parada.
+## enquanto ele anda e encolher quando ele para. Com 7.0, ela anda ~3,0 m
+## atrás ao caminhar (`WALK_SPEED` 3,12, desde 2026-09-17; era ~3,3 m a 5,2)
+## e recolhe para ~2,6 m parada.
 const CATCH_UP_GAIN := 7.0
 
 ## Teto acima do passo do jogador — sem essa folga ela nunca recupera o
@@ -74,11 +75,31 @@ const TURN_SPEED := 7.0
 ## Abaixo disto ela conta como parada, e passa a encarar o domador.
 const IDLE_SPEED := 0.05
 
-## Marcha a partir da qual ela corre em vez de andar. Fração do passo do
-## jogador, e não um número solto, pelo mesmo motivo de `MAX_SPEED`: os dois
-## andam juntos, e um limiar independente divergiria no dia em que a
-## velocidade dele mudasse.
-const RUN_THRESHOLD := PlayerController.WALK_SPEED * 0.45
+## Quanto o corpo sobe acima do próprio pouso (`_base_y`) enquanto nada, em
+## metros — o equivalente de `GaitRig.swim_lift` para um corpo de criatura,
+## que não estende `GaitRig` (é `Node3D` sem física, ver o comentário de
+## classe). Sem isto o ator (que segue o leito por `_ground_y()` a cada
+## quadro) deixava boa parte da malha ABAIXO do chão durante o `Swim` — o
+## "afundado" reportado em 2026-09-17.
+##
+## Medido no CRT-002 (sonda descartável `probe_companion_swim.gd`, já
+## removida): o `Swim` retargetado da UAL, escalado pelo `motion_scale` deste
+## esqueleto (0,40) e pelo fator visual que normaliza toda criatura ao mesmo
+## `sizeMeters` (1,4 m, ver CLAUDE.md), deita o ponto mais baixo da malha a
+## 0,666 m abaixo do chão. Este número soma a mesma folga de 0,35 m que
+## `CharacterRig.SWIM_LIFT` dá aos NPCs sobre o leito. Como toda criatura hoje
+## normaliza para o MESMO `sizeMeters`, o valor medido num corpo só
+## generaliza para qualquer criatura ativa (a companheira troca de espécie em
+## `set_creature`); remedir se a padronização de tamanho mudar.
+const SWIM_LIFT := 1.02
+
+## O mesmo, para `Swim_Idle`. O boiador pende mais fundo (0,781 m abaixo do
+## chão) que o nadador em movimento — mesma folga de 0,35 m por cima.
+const SWIM_IDLE_LIFT := 1.13
+
+## Tempo de entrar e sair da flutuação do nado — mesma escolha de
+## `GaitRig.SWIM_BLEND_TIME`, casada com o crossfade de clipe (0,2 s).
+const SWIM_BLEND_TIME := 0.35
 
 
 ## Altura do chão SEM terreno — fallback para bancadas de teste que montam a
@@ -127,6 +148,7 @@ var _trail: Array[Vector3] = []
 var _speed := 0.0
 var _heading := Vector3.FORWARD
 var _bob_phase := 0.0
+var _swim_offset := 0.0
 
 
 ## Ponto de entrada. `db` é o Bestiary autoload; `code` é o CRT-XXX da
@@ -202,6 +224,7 @@ func _process(delta: float) -> void:
 	_face(delta)
 	_bob(delta)
 	_update_clip()
+	_advance_swim_lift(delta)
 
 	# Apoiada no chão, como qualquer criatura do mapa. O `_advance` já trabalha
 	# só no plano; isto é a garantia de que nada de fora empurrou o Y — e,
@@ -318,6 +341,26 @@ func _bob(delta: float) -> void:
 	_mesh_root.position.y = _base_y + sin(_bob_phase) * BOB_AMPLITUDE * (1.0 + motion * 1.5)
 
 
+## Sobe o corpo acima do próprio pouso (`_base_y`) enquanto nada, e o devolve
+## à altura normal quando ela sai da água — mesma ideia de
+## `GaitRig._advance_float`, repetida aqui porque a companheira não estende
+## `GaitRig` (é um corpo de criatura, não humano).
+##
+## Só se aplica a corpo COM rig (`_anim != null`): a cápsula de fallback não
+## tem clipe de nado, e `_bob` já escreve `_mesh_root.position.y` sozinho
+## nesse caso — as duas escritas brigariam pelo mesmo campo no mesmo quadro.
+func _advance_swim_lift(delta: float) -> void:
+	if _mesh_root == null or _anim == null:
+		return
+	var target := 0.0
+	if _submerged():
+		var floating := _anim.current_animation == "Swim_Idle"
+		target = SWIM_IDLE_LIFT if floating else SWIM_LIFT
+	var rate := maxf(SWIM_LIFT, SWIM_IDLE_LIFT) / SWIM_BLEND_TIME
+	_swim_offset = move_toward(_swim_offset, target, rate * delta)
+	_mesh_root.position.y = _base_y + _swim_offset
+
+
 # ---------------------------------------------------------------------------
 # corpo
 # ---------------------------------------------------------------------------
@@ -325,10 +368,15 @@ func _bob(delta: float) -> void:
 ## Escolhe o clipe pela marcha real, com o mesmo contrato do CreatureActor:
 ## sem clipe correspondente (cápsula, ou voador sem `Walk`), nada muda.
 ##
-## A escada tem `Run` porque ela acompanha um jogador que CORRE: em regime a
-## companheira viaja perto de `PlayerController.WALK_SPEED` (5,2 m/s, teto em
-## `MAX_SPEED`), e tocar `Walk` nessa marcha a faria deslizar ao lado dele
-## exatamente como ele deslizava antes de ganhar o `Run`.
+## Até 2026-09-17 a escada tinha `Run` acima de um limiar próprio, porque ela
+## acompanhava um jogador que CORRIA a `PlayerController.WALK_SPEED` (então
+## 5,2 m/s, teto em `MAX_SPEED`) e tocar `Walk` naquela marcha seria o mesmo
+## deslize que ele tinha antes de ganhar o `Run` (ver `GaitRig.update_motion`).
+## Nessa data as duas pontas mudaram juntas, por decisão de produto: a
+## velocidade do jogador caiu 40% (5,2 → 3,12) e a companheira passou a tocar
+## `Walk` sempre, nunca `Run` — o par faz sentido porque o `Walk` foi
+## calibrado perto de 4,0 m/s, marcha bem mais próxima da nova do que a
+## antiga.
 func _update_clip() -> void:
 	if _anim == null:
 		return
@@ -343,9 +391,10 @@ func _update_clip() -> void:
 ##
 ## Submersa, parada boia (`Swim_Idle`) e em movimento nada (`Swim`); corpo com
 ## `Swim` mas sem `Swim_Idle` dá braçada no lugar, e corpo sem nado nenhum cai
-## na escada seca. Cai para `Walk` quando o corpo não tem `Run` — os
-## placeholders variam, e silenciar aqui deixaria a criatura presa no clipe
-## anterior em vez de andar.
+## na escada seca. Em terra firme é sempre `Walk` desde 2026-09-17 (ver o
+## comentário de `_update_clip` sobre por que `Run` saiu da escada) — quem
+## barra o clipe ausente é `_update_clip`, que já checa `has_animation` antes
+## de tocar.
 func _clip_for_speed(speed: float) -> String:
 	if _submerged():
 		if speed < IDLE_SPEED and _anim.has_animation("Swim_Idle"):
@@ -354,8 +403,6 @@ func _clip_for_speed(speed: float) -> String:
 			return "Swim"
 	if speed < IDLE_SPEED:
 		return "Idle"
-	if speed >= RUN_THRESHOLD and _anim.has_animation("Run"):
-		return "Run"
 	return "Walk"
 
 

@@ -16,6 +16,11 @@ extends Node3D
 ## 120 m. A 350 m a mesma densidade pediria ~270 corpos rigados simultâneos, e
 ## o número não é questão de ajustar um campo — é o modelo que muda.
 ##
+## A volta do mapa para 175 m (2026-09-16) não trouxe o pool de volta: a mesma
+## densidade ainda pediria ~50 corpos rigados de uma vez, quase todos fora do
+## quadro de ~24 m, e a chance por bioma continua sendo o que faz um recife ler
+## diferente de um mar raso. Nada aqui dependia do tamanho do mapa.
+##
 ## Hoje o ciclo é outro, e tem duas pontas:
 ##
 ##   NASCE — a cada `SPAWN_CHECK_INTERVAL_METERS` que o jogador percorre, rola

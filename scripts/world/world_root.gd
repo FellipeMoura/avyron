@@ -37,7 +37,7 @@ extends Node3D
 
 ## Criatura com que o jogador começa. Vira o slot 0 do time; as capturas
 ## entram como reserva atrás dela.
-@export var starter_code := "CRT-013"
+@export var starter_code := "CRT-014"
 @export var encounter_level := 10
 
 ## Bioma de FALLBACK — o que vale quando a consulta por posição não responde.

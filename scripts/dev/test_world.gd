@@ -118,17 +118,12 @@ func _test_direction_math() -> void:
 	_check_true("direcao fica no plano do chao", absf(w_dir.y) < 0.0001)
 
 
-## O enquadramento é FIXO desde 2026-09-07.
-##
-## Esta função testava o contrário: o scroll do mouse, a faixa 0,5x–3,0x, o
-## travamento durante a batalha e o multiplicador sobrevivendo à transição.
-## Nada disso existe — o scroll era ferramenta para ESCOLHER o enquadramento,
-## e depois de escolhido (0,80 × 17,15 = 13,72) ele saiu junto com a leitura
-## de calibração da HUD.
-##
-## O que passa a ser cobrado é o inverso, e é o que dá para quebrar sem
-## perceber: que ninguém reintroduza um caminho de mudar `size` fora das
-## modulações de batalha.
+## O enquadramento FINAL é FIXO desde 2026-09-07 — `base_size` puro, decisão
+## de produto que não mudou. O scroll do mouse voltou em 2026-09-09 como
+## conveniência de DESENVOLVIMENTO (`dev_scroll_zoom_enabled`), mas por cima
+## do mesmo número travado, não em vez dele: abre em `base_size` (multiplicador
+## 1,0) e só sai dali por input de roda; desligar o toggle devolve a trava de
+## verdade, sem handler nenhum reagindo.
 func _test_locked_zoom() -> void:
 	print("zoom travado:")
 	var cam := IsoCamera.new()
@@ -141,22 +136,39 @@ func _test_locked_zoom() -> void:
 	_check_true("abre no base_size", absf(cam.size - cam.base_size) < 0.001,
 		"%.3f" % cam.size)
 
-	# A trava é a AUSÊNCIA do handler. Testar por `has_method` é o único jeito
-	# de prender isso: reintroduzir o scroll passaria despercebido em qualquer
-	# asserção sobre valores, porque um jogo com zoom livre também abre no
-	# `base_size`.
-	_check_true("nao ha handler de scroll", not cam.has_method("_unhandled_input"))
+	# Toggle desligado é a trava de verdade: scroll não move `size` nenhum.
+	cam.dev_scroll_zoom_enabled = false
+	var wheel := InputEventMouseButton.new()
+	wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	wheel.pressed = true
+	cam._unhandled_input(wheel)
+	_check_true("toggle desligado ignora o scroll", absf(cam.size - cam.base_size) < 0.001,
+		"%.3f" % cam.size)
+
+	# Ligado, o scroll de dev multiplica `base_size` — não substitui.
+	cam.dev_scroll_zoom_enabled = true
+	cam._unhandled_input(wheel)
+	_check_true("scroll de dev afasta a partir do base_size", cam.size > cam.base_size,
+		"%.3f" % cam.size)
+
+	cam.free()
+
+	# Segunda câmera, limpa, só para as proporções — não deve carregar estado
+	# do multiplicador da anterior.
+	var cam2 := IsoCamera.new()
+	root.add_child(cam2)
+	cam2._ready()
 
 	# As três molduras saem do MESMO número — é o que garante que retunar o
 	# enquadramento mova exploração, duelo e chefe juntos, em vez de deixar a
 	# batalha com vida própria.
 	_check_true("batalha e proporcao do base_size",
-		absf(cam.base_size * cam.battle_zoom_ratio - 12.005) < 0.01,
-		"%.3f" % (cam.base_size * cam.battle_zoom_ratio))
+		absf(cam2.base_size * cam2.battle_zoom_ratio - 12.005) < 0.01,
+		"%.3f" % (cam2.base_size * cam2.battle_zoom_ratio))
 	_check_true("chefe e proporcao do base_size",
-		cam.base_size * cam.boss_zoom_ratio > cam.base_size)
+		cam2.base_size * cam2.boss_zoom_ratio > cam2.base_size)
 
-	cam.free()
+	cam2.free()
 
 
 ## Onde o domador nada, e onde ele anda.

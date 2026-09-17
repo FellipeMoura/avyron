@@ -61,10 +61,18 @@ extends StaticBody3D
 
 ## ## O tamanho do mapa, e o que escala junto com ele
 ##
-## `SIZE` saiu de 60 para 120 m em 2026-08-28 e de 120 para 350 m em
-## 2026-09-06, fechando o alvo que o ROADMAP calculava: **30 s de travessia
-## por bioma** a 5,2 m/s dão 156 m por bioma, que com cinco biomas pedem um
-## mapa de 350 m.
+## `SIZE` saiu de 60 para 120 m em 2026-08-28, de 120 para 350 m em
+## 2026-09-06 e **voltou para 175 m em 2026-09-16** (lado pela metade, ¼ da
+## área). A regra dos 350 m era "30 s de travessia por bioma"; ela deu um mapa
+## em que cruzar levava 67 s e a ida e volta à vila ~52 s — tempo de
+## deslocamento vazio, que nem a fauna (que nasce ao redor do jogador) nem o
+## cenário enchiam. A regra de hoje é **cruzar o mapa de lado a lado em ~35 s**
+## a 5,2 m/s (175 m = 33,7 s), o que põe a ida e volta à vila abaixo de 30 s.
+##
+## O resize de 175 m foi o primeiro a ser, de fato, "uma linha": só `SIZE` e
+## as contagens de scatter do `MapDressing` (que não seguem a área, ver lá)
+## mudaram. Se o próximo pedir mais que isso, algo voltou a ser metro escrito
+## à mão.
 ##
 ## **As formas em planta são frações de `_HALF`, não metros literais.** Até o
 ## resize de 350 elas eram números absolutos recalibrados à mão a cada
@@ -84,8 +92,8 @@ extends StaticBody3D
 ## cápsula). Trocar uma constante de grupo por engano é o que quebra o mapa.
 ##
 ## Lado do mapa em metros (grade de 1 m — célula igual à do HeightMapShape3D,
-## que fixa o espaçamento em 1 unidade; a 350 m são 123.201 vértices).
-const SIZE := 350
+## que fixa o espaçamento em 1 unidade; a 175 m são 30.976 vértices).
+const SIZE := 175
 ## Meio-lado, em metros. As formas em planta abaixo são FRAÇÕES deste número,
 ## nunca metros escritos à mão — ver "O tamanho do mapa" no cabeçalho.
 const _HALF := float(SIZE) * 0.5
