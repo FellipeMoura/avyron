@@ -61,16 +61,18 @@ static func biome_probes() -> Array:
 	# que são precisamente os que nasceram sem região e ficaram inalcançáveis
 	# por semanas — sem nenhuma sonda que provasse que o mundo os alcança.
 	#
-	# A costa e o miolo saem das constantes do relevo, porque são geografia de
-	# código. Os outros três saem em FRAÇÃO do meio-lado, porque são decisão do
-	# desenho espacial e vivem no catálogo — escritos em metros, o próximo
-	# resize os deixaria apontando para o bioma errado calados.
+	# A costa, o miolo e o platô glacial saem das constantes do relevo, porque
+	# são geografia de código. Os outros dois saem em FRAÇÃO do meio-lado,
+	# porque são decisão do desenho espacial e vivem só no catálogo — escritos
+	# em metros, o próximo resize os deixaria apontando para o bioma errado
+	# calados.
 	return [
 		[Vector3(MapTerrain.COAST_CENTER_X, 6.0, MapTerrain.COAST_TOP - 5.0), "BIO-002", "o plato da costa"],
 		[Vector3(0.0, 6.0, 0.0), "BIO-003", "o miolo do mapa"],
 		[Vector3(half * 0.2, 6.0, -half * 0.3), "BIO-001", "o mar raso"],
 		[Vector3(half * 0.5, 6.0, half * 0.67), "BIO-004", "o mar profundo"],
-		[Vector3(-half * 0.67, 6.0, half * 0.83), "BIO-014", "a plataforma glacial"],
+		[Vector3(MapTerrain.GLACIAL_RECT_CENTER_X, 6.0, (MapTerrain.GLACIAL_RECT_Z + half) * 0.5),
+			"BIO-014", "a plataforma glacial"],
 	]
 
 var _scene: Node

@@ -18,6 +18,22 @@ const RADIUS := 0.30
 const COL_BODY := Color("#5A6472")
 const COL_SIGN := Color("#C6552F")
 
+## Barraca do comerciante — a estrutura é cenário; a pessoa, montada da
+## receita do bundle por `attach_npc`, fica diante dela (ver o comentário de
+## `InteractableActor.attach_npc`: de 2026-09-18 a 20 a barraca substituía o
+## humano, e a receita do catálogo tinha virado código morto).
+const MODEL_PATH := "res://models/village/comerciante.glb"
+## Aumento de 200% pedido pelo usuário em 2026-09-18 — o modelo lia pequeno
+## demais perto do jogador na primeira integração.
+const MODEL_SCALE := 3.0
+## Lado da porta em que o comerciante fica e a pose dele: braços cruzados,
+## esperando freguês. No arquivo da UAL2 o clipe chama `Idle_FoldArms_Loop`;
+## o importador glTF do Godot corta o sufixo `_Loop` (é a convenção dele para
+## marcar loop), e na biblioteca fundida ele vive como `Idle_FoldArms` — ver
+## `GaitRig.LOOPED_CLIPS`.
+const NPC_SIDE := 1.0
+const NPC_CLIP := "Idle_FoldArms"
+
 var merchant_code := ""
 
 ## Receita de aparência vinda do bundle (`merchants[].appearance`). Vazia =
@@ -39,13 +55,14 @@ static func create(data: Dictionary, at: Vector3) -> MerchantActor:
 func _ready() -> void:
 	body_height = HEIGHT
 
-	var rig := CharacterRig.create(appearance)
-	if rig != null:
-		# Pés na base da cápsula de colisão — a origem do ator é o centro dela
-		# (ver `ground_on_spot()` no fim).
-		rig.position.y = -HEIGHT * 0.5
-		add_child(rig)
-	else:
+	var model := _load_model(MODEL_PATH, MODEL_SCALE)
+	if model != null:
+		add_child(model)
+	# A pessoa entra com ou sem estrutura: sem o `.glb` ela É o comerciante,
+	# de pé no centro do ator (footprint zero → offset zero), como antes de
+	# 2026-09-18. Sem kit nem receita, sobra a cápsula.
+	var rig := attach_npc(appearance, NPC_SIDE, NPC_CLIP)
+	if model == null and rig == null:
 		var mesh := CapsuleMesh.new()
 		mesh.height = HEIGHT
 		mesh.radius = RADIUS
@@ -69,5 +86,6 @@ func _ready() -> void:
 	shape.height = HEIGHT
 	shape.radius = RADIUS
 	attach_collision(shape)
+	attach_npc_collision(rig)
 
 	ground_on_spot()

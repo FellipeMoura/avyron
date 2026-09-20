@@ -37,7 +37,7 @@ extends Node3D
 
 ## Criatura com que o jogador começa. Vira o slot 0 do time; as capturas
 ## entram como reserva atrás dela.
-@export var starter_code := "CRT-014"
+@export var starter_code := "CRT-005"
 @export var encounter_level := 10
 
 ## Bioma de FALLBACK — o que vale quando a consulta por posição não responde.
@@ -73,6 +73,9 @@ const DEFAULT_MAP := "PZ-01"
 ## lembrar do quadro anterior de qualquer jeito.
 var _map_biomes: MapBiomes
 var _biome_code := DEFAULT_BIOME
+## Luz e névoa por bioma. Só existe em mapa que o `MapDressing` veste — `null`
+## em qualquer outro, e `_update_biome` simplesmente não o avisa.
+var _ambience: BiomeAmbience
 
 var _camera: IsoCamera
 var _player: Node3D
@@ -312,6 +315,15 @@ func _ready() -> void:
 	# O cenário (ambiente + props de bioma) entra por último e é apresentação
 	# pura: nada dele emite sinal, entra em fórmula ou guarda estado.
 	MapDressing.apply(self, map_code, _terrain, _map_biomes)
+	# Instantâneo na abertura: o primeiro bioma não tem de onde vir. Pergunta
+	# `current_biome()` de novo em vez de usar `_biome_code` porque o cache
+	# foi preenchido lá em cima, e a posição do jogador pode ter sido
+	# assentada no relevo depois disso — se os dois discordassem, o primeiro
+	# `_update_biome` abriria o mapa com 2 s de correção de cor à toa.
+	_ambience = get_node_or_null("BiomeAmbience") as BiomeAmbience
+	if _ambience:
+		_biome_code = current_biome()
+		_ambience.set_biome(_biome_code, true)
 
 	# Ciclo de vida do duelo — engate, encenação, fechamento, drop/XP/glifo —
 	# vive em `EncounterDirector`. `_duel` continua espelhado aqui via
@@ -417,6 +429,8 @@ func _update_biome() -> void:
 	if now == _biome_code:
 		return
 	_biome_code = now
+	if _ambience:
+		_ambience.set_biome(now)
 	if _active_panel:
 		_active_panel.set_biome(now)
 	_on_roster_changed()
@@ -634,7 +648,7 @@ func toggle_set_window() -> void:
 	_set_window.toggle()
 	if _set_window.is_open():
 		_clear_selection()
-		_set_window.refresh(_db, _relic, _loadout)
+		_set_window.refresh(_db, _relic, _loadout, _inventory)
 
 
 ## Esconde/reexibe o painel de bolsa (tecla `V`) — puramente cosmético, não
@@ -710,7 +724,7 @@ func _on_roster_changed() -> void:
 	if _active_panel:
 		var i := _roster.active_index()
 		_active_panel.refresh(active, _roster.level_at(i), _roster.size(), _roster.capacity(),
-			_roster.hp_at(i), _roster.max_hp_at(i))
+			_roster.hp_at(i), _roster.max_hp_at(i), _roster.progress_at(i))
 	_refresh_roster_window()
 
 
@@ -917,7 +931,7 @@ func open_relic_station() -> void:
 	layer.add_child(_relic_screen)
 	add_child(layer)
 
-	_relic_screen.setup(_db, _roster, _relic)
+	_relic_screen.setup(_db, _roster, _relic, _inventory)
 	get_tree().paused = true
 
 
@@ -1036,7 +1050,7 @@ func _finish_craft(message: String) -> void:
 	if _crafting_screen:
 		_crafting_screen.refresh(message)
 	if _set_window and _set_window.is_open():
-		_set_window.refresh(_db, _relic, _loadout)
+		_set_window.refresh(_db, _relic, _loadout, _inventory)
 
 
 func _hide_world_hud() -> void:

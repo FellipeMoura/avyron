@@ -48,6 +48,9 @@ func _process(_delta: float) -> bool:
 			_test_regen()
 			_test_storage_and_capacity()
 			_test_progression()
+			_test_progress_reading()
+			_test_relic_progression()
+			_test_relic_station_paging()
 			_test_battle_party()
 			_test_replacement()
 			_test_persistence_round_trip()
@@ -302,6 +305,212 @@ func _test_progression() -> void:
 	_check_true("indice invalido nao sobe nada", not noop["leveled_up"])
 	var noop2 := r.grant_xp_at(0, 0, inv)
 	_check_true("xp zero nao faz nada", not noop2["leveled_up"] and not noop2["waiting_material"])
+
+
+# ---------------------------------------------------------------------------
+# leitura de progressão — o funil único que as telas consomem
+#
+# O que se prende aqui é que "pronta" na tela e "pronta" no gate são o MESMO
+# criterio, e que a frase (ProgressText) sai do mesmo dicionario — se um dia
+# divergirem, o jogador ve uma barra cheia que nao sobe, ou sobe sem aviso.
+# ---------------------------------------------------------------------------
+
+func _test_progress_reading() -> void:
+	print("leitura de progressao (progress_at):")
+	var xp_rules: Dictionary = _db.progression_rules().get("xp", {})
+	var cost_rules: Dictionary = _db.progression_rules().get("levelUpCost", {})
+	var r := _new_roster()
+	var p := r.progress_at(0)
+	_check("nivel bate", int(p["level"]), LEVEL)
+	_check("xp zero", int(p["xp"]), 0)
+	_check("xp_to_next bate com a formula", int(p["xp_to_next"]),
+		ProgressionMath.xp_to_next(float(xp_rules["curveBase"]), float(xp_rules["curveExponent"]), LEVEL))
+	_check("custo de material bate com a formula", int(p["material_cost"]),
+		ProgressionMath.material_cost(int(cost_rules["base"]), int(cost_rules["levelStep"]), LEVEL))
+	var class_code := str(_db.creature(STARTER).get("class", ""))
+	_check("material e o da classe da propria criatura", str(p["material"]),
+		_db.class_material_item(class_code))
+	_check_true("nao esta cheia nem no teto", not p["xp_full"] and not p["at_cap"])
+
+	# Trava sem material: `xp_full` acende — e o mesmo criterio do gate.
+	var inv := PlayerInventory.new()
+	var threshold := r.xp_to_next_at(0)
+	var res := r.grant_xp_at(0, threshold, inv)
+	_check_true("xp_full acende ao travar", r.progress_at(0)["xp_full"])
+	_check("o resultado diz qual material", str(res["material"]), str(p["material"]))
+	_check("e quantas unidades", int(res["units_needed"]), int(p["material_cost"]))
+
+	# A frase pra tela sai do mesmo dicionario.
+	var line := ProgressText.status_plain(_db, r.progress_at(0), inv)
+	_check_true("a frase diz que esta pronta", line.begins_with("pronta pra subir"), line)
+	_check_true("e quantas faltam", line.contains("falta %d×" % int(p["material_cost"])), line)
+	_check_true("e quantas tem", line.contains("(tem 0)"), line)
+
+	# Com o material na bolsa a frase muda antes mesmo de subir.
+	inv.add(str(p["material"]), int(p["material_cost"]))
+	line = ProgressText.status_plain(_db, r.progress_at(0), inv)
+	_check_true("com o item na bolsa avisa que sobe na proxima", line.contains("na bolsa"), line)
+	r.grant_xp_at(0, 1, inv)
+	_check_true("depois de subir xp_full apaga", not r.progress_at(0)["xp_full"])
+	_check("subiu", r.level_at(0), LEVEL + 1)
+
+	# Storage responde a mesma leitura.
+	r.add(RESERVE)
+	r.deposit(0)
+	var sp := r.storage_progress_at(0)
+	_check("a guardada leva o nivel dela", int(sp["level"]), LEVEL + 1)
+	_check("indice invalido no storage devolve leitura vazia",
+		int(r.storage_progress_at(9)["xp_to_next"]), 0)
+	_check("indice invalido no ativo idem", int(r.progress_at(9)["xp_to_next"]), 0)
+
+	# No teto: at_cap acende, xp_to_next zera, xp nao acumula.
+	var top := PlayerRoster.new()
+	top.setup(_db, _db.level_cap(), STARTER)
+	var tp := top.progress_at(0)
+	_check_true("no teto at_cap", tp["at_cap"])
+	_check("no teto nao ha proximo", int(tp["xp_to_next"]), 0)
+	var big := PlayerInventory.new()
+	big.add(str(p["material"]), 99)
+	var capped := top.grant_xp_at(0, 500, big)
+	_check_true("no teto nao sobe nem trava", not capped["leveled_up"] and not capped["waiting_material"])
+	_check("no teto xp nao acumula", top.xp_at(0), 0)
+	_check("a frase no teto", ProgressText.status_plain(_db, tp, big), "nivel maximo")
+
+	# Chegar ao teto zera o resto de XP — nada de "37/0" na tela.
+	var near := PlayerRoster.new()
+	near.setup(_db, _db.level_cap() - 1, STARTER)
+	near.grant_xp_at(0, near.xp_to_next_at(0) * 3, big)
+	_check("chegou ao teto", near.level_at(0), _db.level_cap())
+	_check("sem resto de xp no teto", near.xp_at(0), 0)
+
+
+# ---------------------------------------------------------------------------
+# progressao do relicario — a barra de captura, ate entao sem teste
+# ---------------------------------------------------------------------------
+
+func _test_relic_progression() -> void:
+	print("progressao do relicario:")
+	var rr := _db.relic_rules()
+	# Um modelo COM classe (sobe) e o starter neutro (nao sobe) — procurados
+	# no catalogo, nao fixados por codigo, como `pick_starter_relic` faz.
+	var classed := ""
+	var neutral := ""
+	for code in _db.relic_codes():
+		var d := _db.relic(code)
+		if BestiaryData.relic_class_code(d) == "":
+			if neutral == "":
+				neutral = code
+		elif classed == "":
+			classed = code
+	_check_true("catalogo tem um modelo com classe", classed != "", classed)
+	_check_true("e o starter neutro", neutral != "", neutral)
+
+	var relic := PlayerRelic.from_bestiary(_db, classed)
+	var inv := PlayerInventory.new()
+	_check_true("modelo com classe pode subir", relic.progress(_db)["can_level"])
+	_check("comeca no nivel 1", relic.level, 1)
+	var threshold := relic.xp_to_next(_db)
+	var per := int(rr["xpPerCapture"])
+	var res := relic.grant_capture_xp(_db, inv)
+	# Ou rendeu a captura inteira, ou ja encheu e travou no limiar.
+	_check("uma captura rende xpPerCapture (ou trava no limiar)", relic.xp, mini(per, threshold))
+	var guard := 0
+	while not res["waiting_material"] and guard < 100:
+		res = relic.grant_capture_xp(_db, inv)
+		guard += 1
+	_check_true("sem material trava", res["waiting_material"])
+	_check("xp trava no limiar", relic.xp, threshold)
+	_check("nivel nao mudou", relic.level, 1)
+	_check("o resultado diz o material", str(res["material"]), relic.material_item_code(_db))
+	_check("e o custo", int(res["units_needed"]), relic.material_cost(_db))
+	_check_true("progress diz xp_full", relic.progress(_db)["xp_full"])
+
+	var material := relic.material_item_code(_db)
+	inv.add(material, relic.material_cost(_db))
+	var before := inv.quantity(material)
+	res = relic.grant_capture_xp(_db, inv)
+	_check_true("com material sobe", res["leveled_up"])
+	_check("nivel 2", relic.level, 2)
+	_check("material consumido na quantidade certa", before - inv.quantity(material),
+		ProgressionMath.material_cost(int(rr["materialCostBase"]), int(rr["materialCostLevelStep"]), 1))
+	_check_true("xp_full apagou", not relic.progress(_db)["xp_full"])
+
+	# Starter neutro: enche e para, e a leitura diz por que.
+	var starter := PlayerRelic.from_bestiary(_db, neutral)
+	_check_true("starter nao pode subir", not starter.progress(_db)["can_level"])
+	var sres := starter.grant_capture_xp(_db, inv)
+	guard = 0
+	while not sres["waiting_material"] and guard < 100:
+		sres = starter.grant_capture_xp(_db, inv)
+		guard += 1
+	_check_true("starter trava com xp cheio", sres["waiting_material"])
+	_check("sem material a pedir", str(sres["material"]), "")
+	_check("starter continua no nivel 1", starter.level, 1)
+	_check("a frase explica o starter",
+		ProgressText.status_plain(_db, starter.progress(_db), inv, "captura"),
+		"sem classe: nao sobe de nivel")
+
+	# Teto do modelo: xp nao acumula.
+	var capped := PlayerRelic.from_bestiary(_db, classed)
+	capped.level = capped.max_level(_db)
+	var cres := capped.grant_capture_xp(_db, inv)
+	_check_true("no teto nao sobe nem trava", not cres["leveled_up"] and not cres["waiting_material"])
+	_check("no teto xp nao acumula", capped.xp, 0)
+	_check_true("progress no teto", capped.progress(_db)["at_cap"])
+
+
+# ---------------------------------------------------------------------------
+# posto do relicario paginado — a decima guardada existe na tela
+# ---------------------------------------------------------------------------
+
+func _test_relic_station_paging() -> void:
+	print("posto do relicario paginado:")
+	var r := _new_roster()
+	r.set_capacity(PlayerRoster.HARD_CEILING)
+	for _i in 11:
+		r.add(RESERVE)
+	for _i in 11:
+		r.deposit(1)  # guarda 11, sobra a inicial ativa
+	_check("storage com 11", r.storage_size(), 11)
+	_check("time com uma", r.size(), 1)
+
+	var screen := RelicStationScreen.new()
+	root.add_child(screen)
+	screen.setup(_db, r, null, PlayerInventory.new())
+	_check("info tem uma pagina", screen.page_count(), 1)
+	screen._cycle_mode()  # DEPOSIT — uma ativa so, lista vazia
+	screen._cycle_mode()  # WITHDRAW
+	_check("retirar tem duas paginas", screen.page_count(), 2)
+	_check("primeira pagina tem 9 linhas", screen._rows.size(), 9)
+	screen.next_page()
+	_check("segunda pagina", screen.page(), 1)
+	_check("com as 2 que sobraram", screen._rows.size(), 2)
+	_check("a primeira linha da pagina 2 e o indice 9", screen._rows[0], "9")
+	screen.next_page()
+	_check("nao passa da ultima", screen.page(), 1)
+
+	# Trocar de modo zera a pagina — a lista de outro modo e outra lista.
+	screen._cycle_mode()  # SWAP
+	_check("trocar de modo zera a pagina", screen.page(), 0)
+	screen._cycle_mode()  # INFO
+	screen._cycle_mode()  # DEPOSIT
+	screen._cycle_mode()  # WITHDRAW
+	screen.next_page()
+	_check("de volta a pagina 2", screen.page(), 1)
+
+	# Escolher na pagina 2 retira o indice certo, nao a linha 1 da pagina 1.
+	screen._choose(0)
+	_check("retirou uma", r.storage_size(), 10)
+	_check("time cresceu", r.size(), 2)
+	_check("pagina 2 agora tem 1 linha", screen._rows.size(), 1)
+	screen._choose(0)
+	_check("storage com 9", r.storage_size(), 9)
+	_check("a pagina 2 sumiu e caiu pra 1", screen.page(), 0)
+	_check("uma pagina so", screen.page_count(), 1)
+	_check("com 9 linhas", screen._rows.size(), 9)
+	screen.prev_page()
+	_check("nao volta antes da primeira", screen.page(), 0)
+	screen.free()
 
 
 # ---------------------------------------------------------------------------

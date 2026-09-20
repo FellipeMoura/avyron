@@ -164,6 +164,64 @@ const TRAINER_GAIN := 3.0
 const TRAINER_SPEED_MIN := 1.0
 const TRAINER_SPEED_MAX := PlayerController.WALK_SPEED
 
+## ## A investida (2026-09-18)
+##
+## Golpe de curta distância (básico e elementar) não sai mais do posto: o
+## atacante CORRE até o adversário, golpeia encostado e volta correndo. Mora
+## aqui, e não no `EncounterDirector`, pelo mesmo motivo de tudo acima — esta
+## encenação é a dona única da posição dos corpos durante o duelo. Movido por
+## fora, o atacante seria lido como "perto demais" pela correção simétrica, e
+## os DOIS seriam empurrados pra longe no mesmo quadro em que ele avança.
+##
+## São quatro fases, e quem dita o ritmo é quem chama: `charge()` parte (OUT),
+## `charge_arrived` avisa o contato e o corpo fica parado encostado (HOLD)
+## enquanto o golpe toca, `retreat()` manda voltar (BACK), e no posto o corpo
+## dá a meia-volta pra encarar o adversário de novo (TURN) antes de
+## `charge_returned` avisar o fim.
+##
+## A meia-volta é fase DA investida, e não trabalho deixado pra encenação
+## normal, por um motivo medido no jogo: o contra-ataque do adversário começa
+## no quadro seguinte ao retorno, e investida em curso suspende a encenação
+## normal — quem voltava ficava de costas o contra-ataque inteiro, levando o
+## golpe pelas costas, e só girava depois. Enquanto dura, a correção simétrica e o domador
+## ficam suspensos: o posto dele é derivado da criatura, e sem isso ele sairia
+## correndo atrás dela a cada golpe.
+
+## Avisam quem orquestra o turno. `charge_returned` também sai quando a
+## investida é abortada (um dos corpos sumiu) — quem espera nunca fica preso.
+signal charge_arrived
+signal charge_returned
+
+enum ChargePhase { NONE, OUT, HOLD, BACK, TURN }
+
+## Alinhamento (produto escalar entre a frente do corpo e o rumo do
+## adversário) a partir do qual a meia-volta conta como feita. O `lerp_angle`
+## só chega no alvo assintoticamente; esperar o 1,0 exato nunca terminaria.
+const CHARGE_FACING_DONE := 0.995
+
+## Ritmo da investida, em m/s. Apresentação pura: é o que faz a travessia de
+## ~5 m do vão de duelo caber em pouco mais de meio segundo por perna — mais
+## lento e o turno arrasta, mais rápido e o `Sprint` vira teleporte. Fica
+## acima do degrau de `Sprint` das duas escadas de marcha de propósito: é a
+## velocidade entregue ao `staged_gait` que escolhe o clipe, não um literal.
+const CHARGE_SPEED := 8.5
+
+## Ar entre as BORDAS dos dois corpos no instante do golpe. Zero leria como
+## um corpo dentro do outro em projeção ortográfica.
+const CHARGE_CONTACT_GAP := 0.3
+
+## Giro durante a investida — bem mais rápido que o `TURN_SPEED` do
+## posicionamento, porque a meia-volta da retirada acontece em plena corrida:
+## no ritmo normal o corpo correria de lado por um terço do caminho.
+const CHARGE_TURN_SPEED := 16.0
+
+var _charge_phase := ChargePhase.NONE
+var _charge_node: Node3D
+## Posto de onde o atacante saiu, no plano — é pra onde ele volta. Guardado, e
+## não recalculado do `standoff`, porque o par pode ter assentado dentro da
+## `TOLERANCE` e voltar pro ponto "ideal" deslocaria o encontro a cada golpe.
+var _charge_home := Vector3.ZERO
+
 var _a: Node3D
 var _b: Node3D
 var _size_a := 1.0
@@ -325,6 +383,9 @@ func _set_animating(enabled: bool) -> void:
 ## quadro a quadro por API é mais estável que esperar o motor chamar `_process`
 ## num tempo que o teste não controla.
 func step(delta: float) -> void:
+	if _charge_phase != ChargePhase.NONE:
+		_step_charge(delta)
+		return
 	if not _both_alive() or delta <= 0.0:
 		return
 
@@ -364,6 +425,116 @@ func step(delta: float) -> void:
 	# de onde a criatura dele **está**, então calculá-lo antes deixaria a marca
 	# sempre um quadro atrasada em relação a ela.
 	_stage_trainer(axis, delta)
+
+
+# ---------------------------------------------------------------------------
+# investida
+# ---------------------------------------------------------------------------
+
+## Manda `node` (um dos dois combatentes) correr até o adversário. Devolve
+## `false` sem fazer nada quando não dá — nó que não é do par, investida já
+## em curso, par incompleto —, e quem chama segue o turno sem a corrida.
+func charge(node: Node3D) -> bool:
+	if _charge_phase != ChargePhase.NONE or not _both_alive():
+		return false
+	if node != _a and node != _b:
+		return false
+	_charge_node = node
+	_charge_home = _flat(node.global_position)
+	_charge_phase = ChargePhase.OUT
+	return true
+
+
+## Manda o atacante de volta pro posto. Só faz sentido encostado (HOLD).
+func retreat() -> void:
+	if _charge_phase == ChargePhase.HOLD:
+		_charge_phase = ChargePhase.BACK
+
+
+func charge_phase() -> ChargePhase:
+	return _charge_phase
+
+
+## Distância entre os CENTROS no instante do golpe: os dois raios mais o ar.
+func contact_distance() -> float:
+	return CreatureActor.capsule_radius(_size_a) \
+		+ CreatureActor.capsule_radius(_size_b) + CHARGE_CONTACT_GAP
+
+
+func _step_charge(delta: float) -> void:
+	if not _both_alive():
+		# Um dos corpos sumiu no meio da corrida (captura, liberação). Não há
+		# pra onde correr nem de quem voltar — encerra e avisa.
+		_finish_charge()
+		return
+	if delta <= 0.0 or _charge_phase == ChargePhase.HOLD:
+		return
+
+	var node := _charge_node
+	var opponent := _b if node == _a else _a
+	var here := _flat(node.global_position)
+
+	if _charge_phase == ChargePhase.TURN:
+		var toward := _flat(opponent.global_position) - here
+		if toward.length_squared() < 0.0001:
+			_finish_charge()
+			return
+		toward = toward.normalized()
+		_turn(node, toward, CHARGE_TURN_SPEED, delta)
+		var forward := _flat(-node.global_transform.basis.z).normalized()
+		if forward.dot(toward) >= CHARGE_FACING_DONE:
+			_finish_charge()
+		return
+
+	var to_target: Vector3
+	var remaining: float
+	if _charge_phase == ChargePhase.OUT:
+		to_target = _flat(opponent.global_position) - here
+		remaining = to_target.length() - contact_distance()
+	else:
+		to_target = _charge_home - here
+		remaining = to_target.length()
+
+	if remaining <= 0.01:
+		_arrive(node)
+		return
+
+	var stride := minf(CHARGE_SPEED * delta, remaining)
+	var applied := _place(node, to_target.normalized() * stride)
+	if applied.length_squared() > 0.0:
+		_turn(node, applied, CHARGE_TURN_SPEED, delta)
+	# Direto no corpo, por fora da trava de marcha: a trava existe pra esta
+	# encenação não puxar `Idle` por cima do golpe, e aqui a corrida É a
+	# encenação — quem chamou trancou o par justamente pra este turno.
+	_force_gait(node, CHARGE_SPEED)
+
+	# Borda do mapa segurou o corpo: chegou onde dava pra chegar.
+	if applied.length() < stride * 0.1:
+		_arrive(node)
+
+
+## Fim de uma perna. A marcha zera ANTES do sinal: quem espera por ele retoma
+## no mesmo quadro e toca o clipe do golpe, e é a marcha zerada que devolve o
+## corpo submerso à altura "de pé" — atacar ainda na altura de nado foi o
+## "levanta ao atacar" que `CompanionActor._advance_swim_lift` documenta.
+func _arrive(node: Node3D) -> void:
+	_force_gait(node, 0.0)
+	if _charge_phase == ChargePhase.OUT:
+		_charge_phase = ChargePhase.HOLD
+		charge_arrived.emit()
+	else:
+		_charge_phase = ChargePhase.TURN
+
+
+func _finish_charge() -> void:
+	_charge_phase = ChargePhase.NONE
+	_charge_node = null
+	charge_returned.emit()
+
+
+func _force_gait(node: Node3D, speed: float) -> void:
+	if node.has_method("staged_gait"):
+		node.call("staged_gait", speed)
 
 
 ## Um corpo dando um passo da encenação: anda, apoia, encara e anima.
@@ -454,13 +625,17 @@ func _gait(node: Node3D, speed: float) -> void:
 ## Vira o nó para o rumo dado. Só mexe no yaw: a altura é assunto do `_place`,
 ## e escrever rotação em X/Z deitaria corpos que só sabem ficar de pé.
 func _face(node: Node3D, direction: Vector3, delta: float) -> void:
+	_turn(node, direction, TURN_SPEED, delta)
+
+
+func _turn(node: Node3D, direction: Vector3, turn_speed: float, delta: float) -> void:
 	if direction.length_squared() < 0.0001:
 		return
 	# A frente de um nó no Godot é -Z. Negar as duas componentes alinha o eixo
 	# certo; `atan2(x, z)` deixaria o corpo de costas para o adversário.
 	var target_yaw := atan2(-direction.x, -direction.z)
 	node.rotation.y = lerp_angle(
-		node.rotation.y, target_yaw, clampf(TURN_SPEED * delta, 0.0, 1.0))
+		node.rotation.y, target_yaw, clampf(turn_speed * delta, 0.0, 1.0))
 
 
 func _both_alive() -> bool:

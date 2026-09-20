@@ -1,6 +1,6 @@
 {
-  "dataVersion": "0.601",
-  "generatedAt": "2026-09-15T15:01:06.318Z",
+  "dataVersion": "0.626",
+  "generatedAt": "2026-09-18T18:35:09.781Z",
   "source": "http://localhost:5101",
   "rules": {
     "progression": {
@@ -232,10 +232,10 @@
           "biome": "BIO-002",
           "shape": "rect",
           "params": {
-            "x0": -0.8,
-            "x1": 0.85,
+            "x0": -0.171429,
+            "x1": 0.331429,
             "z0": -1,
-            "z1": -0.72
+            "z1": -0.697143
           }
         },
         {
@@ -243,8 +243,8 @@
           "biome": "BIO-002",
           "shape": "circle",
           "params": {
-            "r": 0.46,
-            "cx": -0.07,
+            "r": 0.068571,
+            "cx": 0.08,
             "cz": -1
           }
         },
@@ -263,10 +263,20 @@
           "biome": "BIO-014",
           "shape": "rect",
           "params": {
-            "x0": -1,
-            "x1": -0.3,
-            "z0": 0.22,
+            "x0": -0.331429,
+            "x1": 0.171429,
+            "z0": 0.697143,
             "z1": 1
+          }
+        },
+        {
+          "code": "RGN-008",
+          "biome": "BIO-014",
+          "shape": "circle",
+          "params": {
+            "r": 0.068571,
+            "cx": -0.08,
+            "cz": 1
           }
         },
         {
@@ -339,7 +349,7 @@
       "code": "BIO-001",
       "name": "Mar raso",
       "predominantElements": "Agua",
-      "spawnChance": 0.18
+      "spawnChance": 0.54
     },
     {
       "code": "BIO-002",
@@ -351,7 +361,7 @@
       "code": "BIO-003",
       "name": "Jardins Recifais",
       "predominantElements": "Agua + Natureza",
-      "spawnChance": 0.4
+      "spawnChance": 1
     },
     {
       "code": "BIO-004",
@@ -444,7 +454,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-002",
@@ -459,7 +470,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-003",
@@ -474,11 +486,12 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-004",
-      "name": "Jato",
+      "name": "Vagalhão",
       "element": "ELE-002",
       "type": "Ataque",
       "effect": "Dano elemental. Poder 40, precisao 100%.",
@@ -489,7 +502,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-005",
@@ -504,7 +518,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-006",
@@ -519,11 +534,12 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-007",
-      "name": "Esporo",
+      "name": "Espinho",
       "element": "ELE-003",
       "type": "Ataque",
       "effect": "Dano elemental. Poder 40, precisao 100%.",
@@ -534,7 +550,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-008",
@@ -549,7 +566,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-009",
@@ -564,11 +582,12 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-010",
-      "name": "Seixo",
+      "name": "Tremor",
       "element": "ELE-004",
       "type": "Ataque",
       "effect": "Dano elemental. Poder 40, precisao 100%.",
@@ -579,7 +598,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-011",
@@ -594,7 +614,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-012",
@@ -609,7 +630,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-013",
@@ -624,7 +646,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-014",
@@ -639,11 +662,12 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-015",
-      "name": "Tempestade Seca",
+      "name": "Eletrocussão",
       "element": "ELE-005",
       "type": "Ataque",
       "effect": "Dano elemental. Poder 90, precisao 90%.",
@@ -654,7 +678,8 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack2"
     },
     {
       "code": "HAB-019",
@@ -669,7 +694,8 @@
       "priority": 0,
       "effectCode": "buff_defense",
       "effectValue": 30,
-      "targetSelf": true
+      "targetSelf": true,
+      "attackVariant": "attack"
     },
     {
       "code": "HAB-020",
@@ -684,7 +710,8 @@
       "priority": 0,
       "effectCode": "buff_attack",
       "effectValue": 30,
-      "targetSelf": true
+      "targetSelf": true,
+      "attackVariant": "attack"
     },
     {
       "code": "HAB-021",
@@ -699,7 +726,8 @@
       "priority": 0,
       "effectCode": "debuff_attack",
       "effectValue": 25,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack"
     },
     {
       "code": "HAB-022",
@@ -714,7 +742,8 @@
       "priority": 0,
       "effectCode": "debuff_defense",
       "effectValue": 25,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack"
     },
     {
       "code": "HAB-023",
@@ -729,7 +758,8 @@
       "priority": 0,
       "effectCode": "heal",
       "effectValue": 30,
-      "targetSelf": true
+      "targetSelf": true,
+      "attackVariant": "attack"
     },
     {
       "code": "HAB-024",
@@ -744,7 +774,8 @@
       "priority": 1,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack"
     },
     {
       "code": "HAB-025",
@@ -759,11 +790,12 @@
       "priority": 0,
       "effectCode": "charge_gain",
       "effectValue": 25,
-      "targetSelf": true
+      "targetSelf": true,
+      "attackVariant": "attack"
     },
     {
       "code": "HAB-026",
-      "name": "Erupcao Ancestral",
+      "name": "Lança Ígnea Ancestral",
       "element": "ELE-001",
       "type": "Despertar",
       "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
@@ -774,11 +806,12 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack3"
     },
     {
       "code": "HAB-027",
-      "name": "Diluvio Ancestral",
+      "name": "Torrente Ancestral",
       "element": "ELE-002",
       "type": "Despertar",
       "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
@@ -789,11 +822,12 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack3"
     },
     {
       "code": "HAB-028",
-      "name": "Floresta Ancestral",
+      "name": "Feixe Vital Ancestral",
       "element": "ELE-003",
       "type": "Despertar",
       "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
@@ -804,11 +838,12 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack3"
     },
     {
       "code": "HAB-029",
-      "name": "Colapso Ancestral",
+      "name": "Lança Sísmica Ancestral",
       "element": "ELE-004",
       "type": "Despertar",
       "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
@@ -819,11 +854,12 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack3"
     },
     {
       "code": "HAB-030",
-      "name": "Trovao Ancestral",
+      "name": "Raio Ancestral",
       "element": "ELE-005",
       "type": "Despertar",
       "effect": "Golpe assinatura. Disponivel apenas enquanto o Despertar Ancestral esta ativo.",
@@ -834,7 +870,72 @@
       "priority": 0,
       "effectCode": "damage",
       "effectValue": 0,
-      "targetSelf": false
+      "targetSelf": false,
+      "attackVariant": "attack3"
+    },
+    {
+      "code": "HAB-031",
+      "name": "Pancada",
+      "element": null,
+      "type": "Ataque",
+      "effect": "Golpe rapido e fraco que sempre age primeiro.",
+      "awakeningOnly": false,
+      "power": 35,
+      "accuracy": 100,
+      "uses": 20,
+      "priority": 1,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false,
+      "attackVariant": "attack"
+    },
+    {
+      "code": "HAB-032",
+      "name": "Investida",
+      "element": null,
+      "type": "Ataque",
+      "effect": "Arremetida rapida e fraca que sempre age primeiro.",
+      "awakeningOnly": false,
+      "power": 35,
+      "accuracy": 100,
+      "uses": 20,
+      "priority": 1,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false,
+      "attackVariant": "attack"
+    },
+    {
+      "code": "HAB-033",
+      "name": "Golpe Direto",
+      "element": null,
+      "type": "Ataque",
+      "effect": "Golpe direto e fraco que sempre age primeiro.",
+      "awakeningOnly": false,
+      "power": 35,
+      "accuracy": 100,
+      "uses": 20,
+      "priority": 1,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false,
+      "attackVariant": "attack"
+    },
+    {
+      "code": "HAB-034",
+      "name": "Corte Rápido",
+      "element": null,
+      "type": "Ataque",
+      "effect": "Corte rápido e fraco que sempre age primeiro.",
+      "awakeningOnly": false,
+      "power": 35,
+      "accuracy": 100,
+      "uses": 20,
+      "priority": 1,
+      "effectCode": "damage",
+      "effectValue": 0,
+      "targetSelf": false,
+      "attackVariant": "attack"
     }
   ],
   "creatures": [
@@ -849,9 +950,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-001.glb",
       "cardPalette": {
-        "shadow": "#3d5659",
-        "mid": "#47b0cd",
-        "highlight": "#cdaa87"
+        "shadow": "#2c435d",
+        "mid": "#4097a8",
+        "highlight": "#89c4c9"
       },
       "stats": {
         "hp": 50,
@@ -867,6 +968,10 @@
         "catchRate": 200
       },
       "abilities": [
+        {
+          "code": "HAB-032",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -899,9 +1004,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-002.glb",
       "cardPalette": {
-        "shadow": "#554335",
-        "mid": "#1a5ba0",
-        "highlight": "#aec5a5"
+        "shadow": "#b75830",
+        "mid": "#3d90ac",
+        "highlight": "#bdc0b8"
       },
       "stats": {
         "hp": 65,
@@ -917,6 +1022,10 @@
         "catchRate": 90
       },
       "abilities": [
+        {
+          "code": "HAB-024",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -949,9 +1058,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-003.glb",
       "cardPalette": {
-        "shadow": "#5f4c63",
-        "mid": "#6ea9de",
-        "highlight": "#c2c8dc"
+        "shadow": "#6c6467",
+        "mid": "#31a3b6",
+        "highlight": "#91c5cb"
       },
       "stats": {
         "hp": 50,
@@ -967,6 +1076,10 @@
         "catchRate": 150
       },
       "abilities": [
+        {
+          "code": "HAB-033",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -999,9 +1112,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-004.glb",
       "cardPalette": {
-        "shadow": "#675a4b",
-        "mid": "#4ca8c5",
-        "highlight": "#c3bf97"
+        "shadow": "#646854",
+        "mid": "#3ea7ca",
+        "highlight": "#acbeb6"
       },
       "stats": {
         "hp": 60,
@@ -1017,6 +1130,10 @@
         "catchRate": 180
       },
       "abilities": [
+        {
+          "code": "HAB-032",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-010",
           "learnLevel": 1
@@ -1049,9 +1166,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-005.glb",
       "cardPalette": {
-        "shadow": "#59aede",
-        "mid": "#d7a622",
-        "highlight": "#ddd3bd"
+        "shadow": "#e37867",
+        "mid": "#71cdda",
+        "highlight": "#dae2d1"
       },
       "stats": {
         "hp": 45,
@@ -1067,6 +1184,10 @@
         "catchRate": 170
       },
       "abilities": [
+        {
+          "code": "HAB-032",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-007",
           "learnLevel": 1
@@ -1099,9 +1220,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-006.glb",
       "cardPalette": {
-        "shadow": "#5b5b67",
-        "mid": "#63adce",
-        "highlight": "#e4ba79"
+        "shadow": "#3c7aa1",
+        "mid": "#58cbe9",
+        "highlight": "#e4d197"
       },
       "stats": {
         "hp": 45,
@@ -1117,6 +1238,10 @@
         "catchRate": 150
       },
       "abilities": [
+        {
+          "code": "HAB-033",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -1149,9 +1274,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-007.glb",
       "cardPalette": {
-        "shadow": "#344561",
-        "mid": "#3177a5",
-        "highlight": "#d0aa82"
+        "shadow": "#8d4248",
+        "mid": "#59acb6",
+        "highlight": "#c7c6b5"
       },
       "stats": {
         "hp": 75,
@@ -1167,6 +1292,10 @@
         "catchRate": 55
       },
       "abilities": [
+        {
+          "code": "HAB-024",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -1199,9 +1328,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-008.glb",
       "cardPalette": {
-        "shadow": "#844b45",
-        "mid": "#29a2d5",
-        "highlight": "#d9cd9b"
+        "shadow": "#596f63",
+        "mid": "#53b3c4",
+        "highlight": "#adcbb2"
       },
       "stats": {
         "hp": 35,
@@ -1217,6 +1346,10 @@
         "catchRate": 200
       },
       "abilities": [
+        {
+          "code": "HAB-034",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -1249,9 +1382,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-009.glb",
       "cardPalette": {
-        "shadow": "#455a6f",
-        "mid": "#60a1b2",
-        "highlight": "#dfb593"
+        "shadow": "#946b68",
+        "mid": "#58bccc",
+        "highlight": "#e8bfa4"
       },
       "stats": {
         "hp": 40,
@@ -1267,6 +1400,10 @@
         "catchRate": 180
       },
       "abilities": [
+        {
+          "code": "HAB-034",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -1299,9 +1436,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-010.glb",
       "cardPalette": {
-        "shadow": "#6e6963",
-        "mid": "#35a8d0",
-        "highlight": "#d1b18b"
+        "shadow": "#468193",
+        "mid": "#6dcddf",
+        "highlight": "#c5d1c8"
       },
       "stats": {
         "hp": 45,
@@ -1317,6 +1454,10 @@
         "catchRate": 195
       },
       "abilities": [
+        {
+          "code": "HAB-033",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -1349,9 +1490,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-011.glb",
       "cardPalette": {
-        "shadow": "#5f4448",
-        "mid": "#4e9bb4",
-        "highlight": "#d9cdb1"
+        "shadow": "#625a68",
+        "mid": "#6ecbe8",
+        "highlight": "#cdd9ca"
       },
       "stats": {
         "hp": 95,
@@ -1367,6 +1508,10 @@
         "catchRate": 75
       },
       "abilities": [
+        {
+          "code": "HAB-031",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -1399,9 +1544,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-012.glb",
       "cardPalette": {
-        "shadow": "#716f6c",
-        "mid": "#3cb7d8",
-        "highlight": "#bfcbad"
+        "shadow": "#787a91",
+        "mid": "#5bcde7",
+        "highlight": "#ccb6be"
       },
       "stats": {
         "hp": 60,
@@ -1417,6 +1562,10 @@
         "catchRate": 200
       },
       "abilities": [
+        {
+          "code": "HAB-031",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -1449,9 +1598,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-013.glb",
       "cardPalette": {
-        "shadow": "#536052",
-        "mid": "#4ca5b9",
-        "highlight": "#cdb790"
+        "shadow": "#9a543e",
+        "mid": "#5dc3d8",
+        "highlight": "#d1cfb5"
       },
       "stats": {
         "hp": 70,
@@ -1467,6 +1616,10 @@
         "catchRate": 120
       },
       "abilities": [
+        {
+          "code": "HAB-031",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1
@@ -1499,9 +1652,9 @@
       "silhouetteNote": null,
       "modelUrl": "/models/CRT-014.glb",
       "cardPalette": {
-        "shadow": "#6e3b3b",
-        "mid": "#419fc8",
-        "highlight": "#c49885"
+        "shadow": "#546e86",
+        "mid": "#70bddf",
+        "highlight": "#b6d8da"
       },
       "stats": {
         "hp": 60,
@@ -1517,6 +1670,10 @@
         "catchRate": 130
       },
       "abilities": [
+        {
+          "code": "HAB-033",
+          "learnLevel": 1
+        },
         {
           "code": "HAB-004",
           "learnLevel": 1

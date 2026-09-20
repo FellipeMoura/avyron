@@ -26,34 +26,52 @@ extends RefCounted
 ## mar adentro, deixando os três pontos — escritos em metros absolutos — no
 ## meio do mar aberto. Mas escalar as posições em bloco teria espalhado a vila
 ## de 9 m de largura para 26 m, afastando prédio de prédio porque o oceano
-## cresceu. Então: a ÂNCORA é fração do meio-lado (acompanha a costa), e o
+## cresceu. Então: a ÂNCORA é fração do meio-lado em X (acompanha a costa), e o
 ## espaçamento entre os serviços é metro fixo (prédio tem tamanho próprio).
-const _VILLAGE_ANCHOR := Vector3(
+##
+## Em Z a âncora é recuo fixo a partir do topo da rampa (`MapTerrain.COAST_TOP`),
+## não fração: até 2026-09-20 era `-0.766667 × meio-lado` = -67,08 m, que
+## coincidia com `COAST_TOP` (-67) por acaso — e o warp da borda da costa
+## (`COAST_EDGE_NOISE_AMPLITUDE` + `_FINE_`, até 5,5 m) pode trazer a rampa
+## até z ≈ -72,5, então a frente das estruturas (que a 3× têm ~4,5 m de fundo)
+## e os NPCs em pé diante delas caíam na rampa. Com 8 m de recuo só a orla
+## frontal da praça, esmaecida de propósito, toca essa faixa; atrás sobra
+## platô até o rim (que só sobe em r = 82,5 m).
+const VILLAGE_SETBACK := 8.0
+const VILLAGE_ANCHOR := Vector3(
 	0.066667 * float(MapTerrain.SIZE) * 0.5,
 	0.0,
-	-0.766667 * float(MapTerrain.SIZE) * 0.5)
+	MapTerrain.COAST_TOP - VILLAGE_SETBACK)
 
 ## Distância entre um serviço e o vizinho, em metros — NÃO escala.
-const _VILLAGE_SPACING := 4.5
+##
+## 9,0 desde 2026-09-20: as estruturas `.glb` da vila, a 3× (`MODEL_SCALE`
+## dos atores), medem ~5,7 m de largura; com os 4,5 m antigos (calibrados
+## para cápsulas) elas se sobrepunham. Sobra um vão de ~3,3 m entre paredes.
+## Público porque o `MapDressing` planta a praça, as luzes e as lajes a partir
+## desta mesma medida.
+const VILLAGE_SPACING := 9.0
 
-const MERCHANT_SPOT := _VILLAGE_ANCHOR
+const MERCHANT_SPOT := VILLAGE_ANCHOR
 
 ## O posto do Relicário — depositar/retirar do storage e trocar de modelo só
 ## funcionam perto daqui (documento `relicario`: "exige estar em um ponto
 ## fixo"). Vizinho do comerciante na costa.
-const RELIC_STATION_SPOT := _VILLAGE_ANCHOR + Vector3(_VILLAGE_SPACING, 0.0, 0.0)
+const RELIC_STATION_SPOT := VILLAGE_ANCHOR + Vector3(VILLAGE_SPACING, 0.0, 0.0)
 
-## Ponto de início do jogador em PZ-01: na costa primordial, ao lado do posto
-## do Relicário, para a partida abrir em terreno seguro e em área de serviço,
-## sem nascer em cima do morro central. O offset é "ao lado do posto", medida
-## de corpo — não escala com o mapa, pelo mesmo motivo do espaçamento.
-const PLAYER_START_SPOT := RELIC_STATION_SPOT + Vector3(2.4, 0.0, 1.6)
+## Ponto de início do jogador em PZ-01: no adro da vila da costa, de frente
+## para os serviços, entre o atendente do comerciante e o do posto (2,5 m de
+## cada) e 4,5 m à frente da linha das fachadas — a partida abre em terreno
+## seguro, em área de serviço, sem nascer em cima do morro central. Offset em
+## metros, medida de corpo — não escala com o mapa, pelo mesmo motivo do
+## espaçamento.
+const PLAYER_START_SPOT := VILLAGE_ANCHOR + Vector3(VILLAGE_SPACING * 0.5, 0.0, 4.5)
 
 ## E a bancada, terceiro serviço da mesma vila de praia (documento
 ## `equipamentos`). Fica do outro lado do comerciante, não ao lado do posto:
 ## os dois pontos que **gastam** recurso do jogador — comprar e fabricar —
 ## ficam vizinhos, e o posto, que não cobra nada, na ponta.
-const CRAFTING_BENCH_SPOT := _VILLAGE_ANCHOR - Vector3(_VILLAGE_SPACING, 0.0, 0.0)
+const CRAFTING_BENCH_SPOT := VILLAGE_ANCHOR - Vector3(VILLAGE_SPACING, 0.0, 0.0)
 
 ## Idem, pra arena e pro guardião do portal (documento `glifos-e-portais`).
 ## Guardião fica mais longe dos outros pontos de interação — ele marca a

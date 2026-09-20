@@ -3,10 +3,9 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b0maw2jd63wsi"
-path.s3tc="res://.godot/imported/CRT-001_robotic+ant+3d+model_rm.jpg-0ce0eb7febdcac311ef519e47fd9e9d7.s3tc.ctex"
+path="res://.godot/imported/CRT-001_robotic+ant+3d+model_rm.jpg-0ce0eb7febdcac311ef519e47fd9e9d7.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
 "md5": "b2a2d661187e5890e94f27408467a3db"
@@ -15,11 +14,11 @@ generator_parameters={
 [deps]
 
 source_file="res://models/CRT-001_robotic+ant+3d+model_rm.jpg"
-dest_files=["res://.godot/imported/CRT-001_robotic+ant+3d+model_rm.jpg-0ce0eb7febdcac311ef519e47fd9e9d7.s3tc.ctex"]
+dest_files=["res://.godot/imported/CRT-001_robotic+ant+3d+model_rm.jpg-0ce0eb7febdcac311ef519e47fd9e9d7.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -41,4 +40,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=0
+detect_3d/compress_to=1

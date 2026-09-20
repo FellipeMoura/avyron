@@ -364,9 +364,14 @@ func _test_awakening_rules(db: BestiaryData) -> void:
 		"%d golpes: %s" % [signatures.size(), str(signatures.keys())])
 
 
-## PZ-01 (CRT-001..014) é o primeiro elenco a seguir o esquema padronizado de
-## 3 golpes: 1 básico (dano, não-awakening), 1 buff e 1 elemental exclusivo do
-## Despertar. Espelha a checagem que `export-game-data.mjs` já faz do lado do
+## PZ-01 (CRT-001..014) é o primeiro elenco a seguir o esquema padronizado:
+## 1 buff e 1 elemental exclusivo do Despertar, sempre — e 2 golpes de dano
+## fora do Despertar desde 2026-09 (antes era 1). O primeiro slot ganhou o
+## básico genérico da CLASSE (Bote/Pancada/Investida/Golpe Direto/Corte
+## Rápido, sempre sem elemento); o elemental da própria criatura que ocupava
+## aquele posto foi só empurrado, não substituído — as duas contam como
+## "básico" porque o critério é `effectCode == "damage"`, não a origem do
+## golpe. Espelha a checagem que `export-game-data.mjs` já faz do lado do
 ## bestiário — os dois guardas precisam concordar. Resto do elenco não entra
 ## aqui: ainda segue o padrão antigo de 5-6 golpes.
 func _test_pz01_attack_scheme(db: BestiaryData) -> void:
@@ -379,7 +384,7 @@ func _test_pz01_attack_scheme(db: BestiaryData) -> void:
 		if c.is_empty() or str(c.get("map", "")) != "PZ-01":
 			continue
 		var abilities: Array = c.get("abilities", [])
-		if abilities.size() != 3:
+		if abilities.size() != 4:
 			bad_count.append(code)
 			continue
 		var basic := 0
@@ -395,10 +400,10 @@ func _test_pz01_attack_scheme(db: BestiaryData) -> void:
 				basic += 1
 			elif str(ability.get("effectCode", "")).begins_with("buff_"):
 				buff += 1
-		if basic != 1 or buff != 1 or awaken != 1:
+		if basic != 2 or buff != 1 or awaken != 1:
 			bad_roles.append(code)
-	_check("criaturas do PZ-01 sem exatamente 3 golpes", bad_count.size(), 0)
-	_check("criaturas do PZ-01 sem 1 basico + 1 buff + 1 elemental do Despertar",
+	_check("criaturas do PZ-01 sem exatamente 4 golpes", bad_count.size(), 0)
+	_check("criaturas do PZ-01 sem 2 basicos + 1 buff + 1 elemental do Despertar",
 		bad_roles.size(), 0)
 
 

@@ -181,9 +181,9 @@ func _test_player_body() -> void:
 ## Nenhum clipe pode ANDAR sozinho: quem move este corpo é o `CharacterBody3D`,
 ## e um clipe com root motion o faria viajar em dobro — a malha escapando da
 ## cápsula durante o ciclo e voltando de um salto quando ele reinicia. O
-## `Attack3` da UAL chega assim (o quadril termina 40 cm à frente num humano)
-## e é corrigido na montagem da biblioteca; este teste é o que impede a
-## correção de se perder.
+## antigo `Attack3` da UAL (hoje `Sword_Dash`/`Attack2`) chegava assim (o
+## quadril terminava 40 cm à frente num humano) e é corrigido na montagem da
+## biblioteca; este teste é o que impede a correção de se perder.
 func _test_clips_in_place() -> void:
 	print("clipes in-place (sem root motion):")
 	if _staged == null:
@@ -339,6 +339,16 @@ func _test_npc_rigs() -> void:
 	_check("ao menos um NPC vestido no bundle", dressed > 0)
 	db.free()
 
+	# As duas receitas FIXAS do jogo (posto e bancada não são NPC de catálogo —
+	# ver `RelicStationActor.NPC_RECIPE`). Montam do mesmo kit, pela mesma
+	# porta; se uma peça sair do manifest, é aqui que aparece, não na vila.
+	for fixed in [["posto", RelicStationActor.NPC_RECIPE], ["bancada", CraftingBenchActor.NPC_RECIPE]]:
+		var fixed_rig := CharacterRig.create(fixed[1])
+		_check("receita fixa do %s montou" % fixed[0], fixed_rig != null)
+		if fixed_rig != null:
+			_check("%s: malhas no esqueleto" % fixed[0], _skeleton_meshes(fixed_rig).size() >= 7)
+			fixed_rig.free()
+
 
 # ---------------------------------------------------------------------------
 # biblioteca de animação: fusão UAL1+UAL2, loop e re-endereçamento
@@ -363,6 +373,12 @@ func _test_animation_library() -> void:
 	)
 	_check("Idle em loop", anim.get_animation("Idle").loop_mode == Animation.LOOP_LINEAR)
 	_check("Death sem loop", anim.get_animation("Death").loop_mode == Animation.LOOP_NONE)
+	# As poses dos NPCs da vila existem na biblioteca fundida e estão em loop —
+	# fora de `LOOPED_CLIPS` o clipe congela no último quadro (ver o comentário
+	# da constante).
+	for pose in [MerchantActor.NPC_CLIP, RelicStationActor.NPC_CLIP, CraftingBenchActor.NPC_CLIP]:
+		_check("%s existe e esta em loop" % pose,
+			anim.has_animation(pose) and anim.get_animation(pose).loop_mode == Animation.LOOP_LINEAR)
 
 	# Toda trilha precisa apontar para o esqueleto DESTE rig (osso via subname).
 	var idle := anim.get_animation("Idle")

@@ -240,6 +240,7 @@ func _spawn_one(data: Dictionary = {}) -> bool:
 		return false
 
 	var actor := CreatureActor.create(data, spot, _rng.randi())
+	actor.terrain = terrain
 	_seed_counter += 1
 	actor.name = "%s_%d" % [str(data["code"]), _seed_counter]
 	actor.engaged.connect(_on_engaged)

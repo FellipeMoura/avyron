@@ -25,6 +25,30 @@ const DEPTH := 0.8
 const COL_BODY := Color("#6B5A3E")
 const COL_SIGN := Color("#C6552F")
 
+## A bancada como estrutura de ferraria — cenário; o ferreiro fica diante
+## dela (ver `InteractableActor.attach_npc`).
+const MODEL_PATH := "res://models/village/ferreiro.glb"
+## Aumento de 200% pedido pelo usuário em 2026-09-18 — mesmo motivo do
+## comerciante (`merchant_actor.gd`).
+const MODEL_SCALE := 3.0
+
+## O ferreiro. Receita FIXA pelo mesmo motivo do posto (ver
+## `RelicStationActor.NPC_RECIPE`): a bancada não é NPC de catálogo. Camponês
+## de cabelo raspado e sem barba — o comerciante do bundle é o barbudo de
+## cabelo repartido. `Fixing_Kneeling`: ajoelhado consertando, laço de
+## trabalho da UAL1 (ver `GaitRig.LOOPED_CLIPS`).
+const NPC_RECIPE := {
+	"gender": "male",
+	"hair": "Hair_Buzzed",
+	"eyebrows": "Eyebrows_Regular",
+	"body": "Male_Peasant_Body",
+	"arms": "Male_Peasant_Arms",
+	"legs": "Male_Peasant_Legs",
+	"feet": "Male_Peasant_Feet",
+}
+const NPC_SIDE := 1.0
+const NPC_CLIP := "Fixing_Kneeling"
+
 
 static func create(at: Vector3) -> CraftingBenchActor:
 	var a := CraftingBenchActor.new()
@@ -38,18 +62,23 @@ static func create(at: Vector3) -> CraftingBenchActor:
 func _ready() -> void:
 	body_height = HEIGHT
 
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(WIDTH, HEIGHT, DEPTH)
+	var model := _load_model(MODEL_PATH, MODEL_SCALE)
+	if model != null:
+		add_child(model)
+	var rig := attach_npc(NPC_RECIPE, NPC_SIDE, NPC_CLIP)
+	if model == null and rig == null:
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(WIDTH, HEIGHT, DEPTH)
 
-	var material := StandardMaterial3D.new()
-	material.albedo_color = COL_BODY
-	material.roughness = 0.9
-	mesh.material = material
+		var material := StandardMaterial3D.new()
+		material.albedo_color = COL_BODY
+		material.roughness = 0.9
+		mesh.material = material
 
-	var body := MeshInstance3D.new()
-	body.name = "Mesh"
-	body.mesh = mesh
-	add_child(body)
+		var body := MeshInstance3D.new()
+		body.name = "Mesh"
+		body.mesh = mesh
+		add_child(body)
 
 	# Placa em prisma, na cor ember que a HUD já usa para custo e desperdício —
 	# a bancada é o lugar onde se gasta.
@@ -60,5 +89,6 @@ func _ready() -> void:
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(WIDTH, HEIGHT, DEPTH)
 	attach_collision(shape)
+	attach_npc_collision(rig)
 
 	ground_on_spot()

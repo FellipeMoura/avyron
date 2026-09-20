@@ -220,9 +220,9 @@ func _test_water_line() -> void:
 	_check_true("e o mar do outro lado e parede, sem rampa (%.2f)" % isle_wall_sea.y,
 		absf(isle_wall_sea.y - MapTerrain.SEA_HEIGHT) < 0.001)
 
-	# Os 3 pontos de acesso (2 platô glacial, 1 ilha — a costa é rampa na
-	# borda inteira, não precisa de ponto próprio): cada um é terra seca no
-	# próprio ponto, e o vão calibrado entre `ACCESS_RAMP_INNER` e `OUTER`
+	# O ponto de acesso (só a ilha, hoje — costa e platô glacial são rampa na
+	# borda inteira, não precisam de ponto próprio): é terra seca no próprio
+	# ponto, e o vão calibrado entre `ACCESS_RAMP_INNER` e `OUTER`
 	# garante rampa andável (≤45°) — a mesma conta de sempre, 1,5·altura/vão,
 	# contra a diferença entre os dois níveis.
 	var ramp_span := MapTerrain.ACCESS_RAMP_OUTER - MapTerrain.ACCESS_RAMP_INNER
@@ -259,15 +259,15 @@ func _test_water_line() -> void:
 	# regra "fora da terra firme é tudo mar" — BIO-014 tem fauna e minério
 	# próprios (ver `CLAUDE.md`, minério glacial exclusivo), então ler como
 	# leito de mar contradizia o resto do design.
-	# Derivado do retângulo, não escrito em metros: era `(-35, 35)` — o centro
-	# do platô a 120 m —, e o resize de 350 m (2026-09-06) deixou esse ponto
-	# em mar aberto, reprovando um relevo que estava certo. Coordenada de
-	# teste presa ao tamanho do mapa é a mesma armadilha que o resize tirou da
-	# produção; o meio do retângulo continua sendo o meio em qualquer tamanho.
+	# Derivado do retângulo, não escrito em metros — mesma armadilha que o
+	# resize de 350 m já tirou da produção uma vez. Desde 2026-09-18 o platô é
+	# uma banda perto da borda +Z (não mais um canto), então o ponto seguro
+	# fica a meio caminho entre a fronteira real (`GLACIAL_RECT_Z`) e a borda
+	# do mapa — bem dentro do topo plano, longe da rampa.
 	var glacial_core := Vector3(
-		(MapTerrain.GLACIAL_X0 + MapTerrain.GLACIAL_X1) * 0.5,
+		MapTerrain.GLACIAL_RECT_CENTER_X,
 		0,
-		(MapTerrain.GLACIAL_Z0 + MapTerrain.GLACIAL_Z1) * 0.5)
+		(MapTerrain.GLACIAL_RECT_Z + half) * 0.5)
 	glacial_core.y = terrain.height_at(glacial_core)
 	_check_true("o nucleo do plato glacial e LAND_HEIGHT (%.2f)" % glacial_core.y,
 		absf(glacial_core.y - MapTerrain.LAND_HEIGHT) < 0.001)

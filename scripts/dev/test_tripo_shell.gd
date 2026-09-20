@@ -23,7 +23,10 @@ extends SceneTree
 
 const DEFAULT_SHELL := "/models/dev/manequim-mestre.glb"
 var SHELL := DEFAULT_SHELL
-const EXPECTED_CLIPS := ["Idle", "Walk", "Run", "Attack", "Attack2", "Attack3", "HitReact", "Death", "Swim", "Swim_Idle"]
+const EXPECTED_CLIPS := [
+	"Idle", "Walk", "Run", "Attack", "Attack2", "HitReact", "Death", "Swim", "Swim_Idle",
+	"Dodge", "Cast_Enter", "Cast", "Cast_Exit",
+]
 const EXPECTED_BONES := 55
 
 var _failures := 0

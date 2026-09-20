@@ -107,7 +107,7 @@ Se pedir para escolher a Main Scene na primeira execução, aponte para `scenes/
 
 ### Graybox visual do PZ-01
 
-O primeiro passe aprovado do mapa segue a concept art de composição macro: mar raso central turquesa, bloco rochoso superior, queda para abismo no lado direito e massa glacial mais fria no setor inferior esquerdo. A leitura está implementada em `MapTerrain`/`MapDressing`, com placeholders explícitos para substituir por GLBs finais sem reconfigurar o layout.
+O primeiro passe aprovado do mapa seguia a concept art de composição macro: mar raso central turquesa, bloco rochoso superior, queda para abismo no lado direito e massa glacial mais fria no canto inferior esquerdo. Essa composição valeu até o platô glacial encolher ao tamanho da costa e se mudar para a borda +Z (2026-09-18) — hoje ele fica perto do centro dessa borda, não mais no canto. A leitura está implementada em `MapTerrain`/`MapDressing`, com placeholders explícitos para substituir por GLBs finais sem reconfigurar o layout.
 
 ### A marcha e o clipe
 
@@ -235,6 +235,8 @@ Os dois números que um designer quer mexer — com que frequência nasce, e o q
 
 Comerciante, arena, posto do Relicário e guardião do portal são **um sistema só**, `InteractableActor`. Mecanicamente fazem a mesma coisa: são `StaticBody3D` porque o clique do mundo é um raycast físico, têm o mesmo alcance de interação (4,5 m), uma placa flutuante que diz "dá para interagir" sem ícone de HUD, e emitem `engaged` — sem conhecer tela nenhuma. Quem escuta decide o que abrir.
 
+**Desde 2026-09-20 os três serviços da vila da costa são estrutura + pessoa.** A estrutura (`models/village/comerciante|posto|ferreiro.glb`, geradas no Tripo Studio, escala 3×) é cenário; quem "é" o serviço é um humano do kit de personagens (`CharacterRig`) montado por `InteractableActor.attach_npc` e posto diante da fachada, encarando o mar — a placa flutua sobre a cabeça dele e uma segunda cápsula de clique cobre o corpo dele. O comerciante veste a receita do bundle; posto e bancada, que não são NPC de catálogo, vestem uma receita fixa no ator (`NPC_RECIPE`, mesma classe de `PLAYER_RECIPE`). Entre 2026-09-18 e 20 a estrutura tinha substituído o humano, e a receita do catálogo era código morto. A vila fica sobre uma **praça pavimentada** (terceira camada de textura da costa, `village_mask_tex`, ver `MapDressing.plaza_profile`) com lajes soltas do MegaKit cruzando a orla; as três estruturas ficam a `WorldPopulator.VILLAGE_SPACING` (9 m) uma da outra, 8 m para dentro do topo da rampa (`VILLAGE_SETBACK`).
+
 O que cada subclasse traz é só o que a distingue:
 
 | | corpo | placa | estado próprio |
@@ -295,17 +297,19 @@ Três guardas, em três alturas:
 
 A separação entre as duas suítes é deliberada: `test_data` prova que a geometria das regiões está certa; `test_playable` prova que o `WorldRoot` está de fato perguntando. Um `current_biome()` correto com um cache que nunca acompanha passaria na primeira e deixaria a mineração presa no bioma da abertura — que era exatamente o estado anterior, e ele passava em tudo.
 
-**A partição do PZ-01 está fechada** desde 2026-08-28: cinco biomas, **sete regiões**, cobertura total e nenhum bioma inalcançável. Sete e não cinco porque duas formas do desenho não cabem numa primitiva — o lobo da costa é retângulo ∪ círculo (círculo com centro preso ao mapa não faz "largo e raso") e o mar profundo é um L. **Várias regiões apontando para o mesmo bioma** já era permitido pelo modelo; foi aqui que precisou.
+**A partição do PZ-01 está fechada** desde 2026-08-28: cinco biomas, **oito regiões**, cobertura total e nenhum bioma inalcançável. Mais que cinco porque três formas do desenho não cabem numa primitiva só — a costa e o platô glacial são cada um um retângulo ∪ círculo (círculo com centro preso ao mapa não faz "largo e raso") e o mar profundo é um L. **Várias regiões apontando para o mesmo bioma** já era permitido pelo modelo; foi aqui que precisou.
+
+Percentuais medidos por sonda (`biome_at` numa grade fina), não somados à mão nas regiões — a tabela ficou parada duas vezes seguidas depois que a costa cortou 90% da própria área (2026-09-17) e não foi atualizada. Nunca confie nela cegamente; ela mesma já provou que envelhece calada.
 
 | bioma | do plano |
 |---|---|
-| Mar raso (catch-all) | 37,2% |
+| Mar raso (catch-all) | 47,1% |
 | Mar Profundo | 28,0% |
 | Jardins Recifais | 17,4% |
-| Costa Primordial | 12,5% |
-| Plataforma Glacial | 4,9% |
+| Costa Primordial | 3,8% |
+| Plataforma Glacial | 3,8% |
 
-A ordem de avaliação é o desenho: o glacial vem **antes** do mar profundo e é ele que recorta a faixa dele, e é assim que os dois lugares vazios do mapa ficam emendados nos cantos de baixo em vez de disputarem o mesmo chão.
+A costa e o platô glacial têm hoje a MESMA forma e o MESMO tamanho — retângulo arredondado ∪ lobo, espelhados entre as bordas -Z e +Z do mapa (pedido do usuário, 2026-09-18: "os dois idênticos, exceto assets/NPCs/texturas"; ver `map_terrain.gd`, `_edge_band_profile`). O platô ocupava um canto inteiro (-X/+Z) até encolher para este tamanho; o território que ele liberou não ganhou região nova — cai no recife onde geometricamente se sobrepõe e no catch-all Mar Raso no resto, e é a maior parte do salto de 37,2% para 47,1% deste último.
 
 **Time** (`T`) — a janela lista a ativa e as reservas com status (HP atual, ATQ/DEF/VEL e perfil de mineração). Clique numa reserva, ou `1`–`6`, para mandá-la à frente. É a única peça de HUD do mapa que aceita clique — todo o resto usa `MOUSE_FILTER_IGNORE` para não roubar o clique de seleção de criatura. Não pausa o jogo.
 
@@ -351,7 +355,15 @@ parcela_i = xpTotal/participantes × 0.2 + (xpTotal × 0.8) × contribuição_i 
 
 `ProgressionMath.distribute_xp` calcula as parcelas (piso por arredondamento de maior resto, soma sempre bate com `xpTotal` exatamente) — um participante só leva tudo; contribuição total zero (ninguém causou nem sofreu dano) reparte igual entre quem participou. O `0.2`/`0.8` é **placeholder de tuning** (`ProgressionMath.XP_BASE_SHARE_RATIO`), não decisão final. Cada participante passa individualmente por `PlayerRoster.grant_xp_at` — mesmo gate de sempre, ver abaixo — e a mensagem final lista uma linha por criatura (`Nome +X XP`).
 
-Subir de nível pede as duas condições ao mesmo tempo, igual ao Relicário: **XP cheio e o material da própria classe da criatura** que sobe (um item `material` por classe, ligado por `items.class_id` — `BestiaryData.class_material_item` resolve) — o material vem de **drops** de combate, não do comerciante. Sem o material na bolsa, a barra trava no teto em vez de estourar; o próximo ganho de XP (a próxima vitória) resolve sozinho assim que o jogador tiver o item. `PlayerRoster.grant_xp_at` e `PlayerRelic.grant_capture_xp` compartilham a mesma curva (`ProgressionMath`), extraída quando o segundo consumidor apareceu.
+Subir de nível pede as duas condições ao mesmo tempo, igual ao Relicário: **XP cheio e o material da própria classe da criatura** que sobe (um item `material` por classe, ligado por `items.class_id` — `BestiaryData.class_material_item` resolve) — o material vem de **drops** de combate, não do comerciante. Sem o material na bolsa, a barra trava no teto em vez de estourar; o próximo ganho de XP (a próxima vitória) resolve sozinho assim que o jogador tiver o item. `PlayerRoster.grant_xp_at` e `PlayerRelic.grant_capture_xp` compartilham a mesma curva (`ProgressionMath`), extraída quando o segundo consumidor apareceu. No teto de nível (`combat_rules.levelMax`) o XP **não acumula** — não há próximo nível, e uma barra que crescesse ali não teria para onde ir.
+
+**Onde o jogador vê isso** (desde 2026-09-17 — antes, a única pista era a mensagem transitória pós-luta):
+
+- **Janela do time (`T`)** — terceira linha de cada criatura: barra de XP, `xp 12/47` e o que falta para subir com a quantidade em bolsa (`sobe com 1× Arambita (tem 3)`). Barra cheia sem o item vira `pronta pra subir · falta 1× Arambita (tem 0)`, em ember — é o único estado em que a próxima vitória sozinha não resolve, e por isso o único que ganha acento. Com o item já na bolsa a frase avisa que sobe na próxima vitória; no teto, `nivel maximo`.
+- **Painel da ativa** — a mesma barra de XP com `xp a/b` (sem a frase de material — o "o que falta" é uma tecla `T` de distância), `pronta pra subir` em ember quando cheia esperando material, `nivel maximo` no teto.
+- **Mensagem pós-luta** — `Nome +12 XP (pronta pra subir · falta 1× Arambita (tem 0))`: a quantidade que falta, não só o nome do item.
+
+Tudo lê o mesmo dicionário — `PlayerRoster.progress_at` (e `storage_progress_at` para quem está no posto), `PlayerRelic.progress` para o relicário — e a mesma frase (`ProgressText`, `scripts/ui/progress_text.gd`). O `xp_full` desse dicionário é o **mesmo critério** que o gate usa para tentar subir; se as telas refizessem a conta, "pronta" na tela e "pronta" no gate acabariam divergindo. `test_team.gd` (`_test_progress_reading`) prende isso.
 
 **Drops** — criatura derrotada em combate (não capturada — capturar não a mata) rola cada entrada de `creature.drops` **independentemente** (`LootTable.roll`): zero, um ou vários itens na mesma vitória, sem relação entre as chances. O material de subida de nível é só mais um item nessa lista, com a classe do **derrotado** decidindo qual material cai — nunca a de quem venceu. `WorldRoot._grant_drops` joga o que caiu direto na bolsa e mostra uma mensagem; nada cai se o roll não der em nada, e a HUD fica quieta.
 
@@ -373,7 +385,7 @@ A fórmula vive em `scripts/data/mining_table.gd`; `BestiaryData` só indexa o b
 
 `scripts/data/ore_table.gd` — que carregava cinco minérios inventados em constante — foi removida quando o export passou a trazer o bloco `mining`.
 
-**Painéis** — bolsa e inventário no canto superior esquerdo, criatura ativa no superior direito (status + perfil de mineração + os três minerais mais prováveis para ela ali). Todos somem durante o combate e a negociação, e voltam ao fechar — exceto a bolsa se o jogador pediu para escondê-la com `V`: essa escolha é dele, não do overlay, e sobrevive ao fechar loja/posto/duelo (`WorldRoot._inventory_hidden`).
+**Painéis** — bolsa e inventário no canto superior esquerdo, criatura ativa no superior direito (card, nome/nível/classe/elemento, HP, barra de XP, perfil de mineração e três botões de texto para bolsa/set/time). Desde 2026-09-17 é uma janela simples na mesma linguagem das outras (`PanelContainer` + bbcode) — a versão anterior era montada sobre ~30 PNGs próprios (moldura, retrato circular por shader, barra de HP em imagem, selo de nível, botões em quatro estados) num canvas de 1536×320, e era a única peça de HUD com layout próprio: cada linha nova virava sondagem de pixel em cima de arte. Da arte sobrou só o card da criatura (`res://cards/`), que é conteúdo, não moldura. Todos somem durante o combate e a negociação, e voltam ao fechar — exceto a bolsa se o jogador pediu para escondê-la com `V`: essa escolha é dele, não do overlay, e sobrevive ao fechar loja/posto/duelo (`WorldRoot._inventory_hidden`).
 
 **Set do jogador** (`E`, `player_set_window.gd`) — janela central somente-leitura com o que está equipado. Três seções: o Relicário (nome, nível, XP, afinidade — "—" quando neutra, slots, taxa de captura), o Amplificador e o Encantador (modelo, tier e o efeito em uma frase). O plano de crescer por **seção** e não por janela nova foi o que se cumpriu quando o set saiu de uma peça para três. Slot vazio diz *onde se resolve* ("fabrique na bancada"), não só que está vazio — sem isso a peça fica invisível até o jogador topar com o ponto no mapa. Diferente do posto do relicário: o posto (`Tab`, ponto fixo do mapa) é onde o equipamento se *gerencia* (depositar/retirar/trocar de modelo); esta janela é só a *visão* dele, de qualquer lugar. Fecha com `Esc`, mutuamente exclusiva com a janela do time (`T`) — as duas são overlays centrais e se sobreporiam.
 
@@ -424,11 +436,13 @@ final% = clamp(base%
          , captureFloorPct, captureCeilPct)
 ```
 
-**Progressão** — uma barra de XP própria, alimentada só por captura bem-sucedida (tentativa fracassada não gera XP). Ao encher, o level-up consome uma unidade do **material da própria classe do relicário** (`ITM-019`/`020`/`021`, o mesmo material que a subida de nível de criatura usa) — sem o material na bolsa, a barra trava exatamente no teto até o jogador conseguir o item, em vez de estourar em silêncio. Sobe mais de um nível numa chamada só se a XP e o material derem.
+**Progressão** — uma barra de XP própria, alimentada só por captura bem-sucedida (tentativa fracassada não gera XP). Ao encher, o level-up consome uma unidade do **material da própria classe do relicário** (`ITM-019`/`020`/`021`, o mesmo material que a subida de nível de criatura usa) — sem o material na bolsa, a barra trava exatamente no teto até o jogador conseguir o item, em vez de estourar em silêncio. Sobe mais de um nível numa chamada só se a XP e o material derem. A janela do set (`E`) e o INFO do posto mostram a mesma linha de progressão da janela do time (barra, `sobe com 1× Kairita (tem 2)`, `pronta pra subir`). O **starter neutro não sobe de nível** — sem classe não há material que destrave, e a barra dele enche e para de propósito (documento `relicario`); a tela diz `sem classe: nao sobe de nivel` em vez de pedir um item que não existe, e a captura não repete o aviso (até 2026-09-17 cada captura mostrava "XP cheio, falta ." com o nome vazio). `test_team.gd` (`_test_relic_progression`) prende a barra de captura, que até então não tinha teste.
 
 **Buff de combate — removido.** O Relicário não concede mais bônus de ataque nem qualquer outro status direto em batalha; `DuelScreen._apply_relic_buff` e o uso de `Combatant.attack_modifier` pelo relicário saíram do duelo. As colunas `relic-stats.combatBuffBase`/`combatBuffPerLevel` **saíram do catálogo** em 2026-08 (migration `0014`). Elas ficaram um tempo como curva vestigial — desligadas mas cadastradas — e a consequência foi pior que a duplicação: o posto do Relicário exibia "buff 6.2" para um número que nenhuma peça do combate lia, e três dos quatro modelos guardavam `5`/`0.3` em vez do `0` que a própria regra mandava. Coluna sem consumidor não fica neutra: vira promessa na tela. Buffs de combate, quando existirem, são peça de outro slot do set do jogador — não do Relicário.
 
-**Posto do relicário** — ponto fixo no mapa (`RelicStationActor`, mesmo padrão de clique-para-interagir do comerciante), com quatro modos (`Tab` circula): status do equipado, depositar um ativo no storage, retirar um guardado, e trocar de modelo — só habilitado com o time ativo **vazio**, forçando "esvaziar os slots antes de trocar" como o design exige. Sem sistema de posse ainda, a troca deixa escolher qualquer modelo do catálogo — o mesmo furo que a aquisição já é, só tornado visível aqui.
+**Posto do relicário** — ponto fixo no mapa (`RelicStationActor`, mesmo padrão de clique-para-interagir do comerciante), com quatro modos (`Tab` circula): status do equipado, depositar um ativo no storage, retirar um guardado, e trocar de modelo — só habilitado com o time ativo **vazio**, forçando "esvaziar os slots antes de trocar" como o design exige. Sem sistema de posse ainda, a troca deixa escolher qualquer modelo do catálogo — o mesmo furo que a aquisição já é, só tornado visível aqui. (Na prática a troca hoje é **inalcançável**: `deposit` recusa deixar zero ativa, então o time nunca fica vazio — ver ROADMAP, item 6.)
+
+As listas de depositar e retirar são **paginadas** em blocos de 9 (`←/→` ou `PgUp/PgDn`, `pag 2/3` no rodapé): o storage não tem teto, e até 2026-09-17 a décima guardada simplesmente não aparecia — sem erro, só inacessível até alguém retirar outra. Cada linha traz nome, `Lv`, `HP x/y` e `xp a/b`, com `pronta pra subir` em ember — os dois sentidos decidem pelas mesmas três coisas, e antes DEPOSITAR mostrava só o nome e RETIRAR só o HP. `test_team.gd` (`_test_relic_station_paging`) prende a paginação.
 
 `PlayerRoster` tem três níveis por causa disso: **ativo** (limitado por `slotCapacity`, via `set_capacity()`), **storage** (sem limite de código, só acessível no posto) e o HP/regeneração que já valiam para os dois. Time cheio na hora da captura continua fazendo a captura escapar, exatamente como antes — só que "cheio" agora depende do relicário equipado, não de um teto fixo de seis.
 
@@ -453,7 +467,7 @@ As duas se vestem ao mesmo tempo — são slots diferentes, não alternativas. O
 
 #### A bancada, e a posse
 
-`CraftingBenchActor` — ponto fixo na vila da costa, mesma família de `InteractableActor` do comerciante e do posto, silhueta de prisma baixo e largo (de longe tem de ler como mesa, não como pessoa).
+`CraftingBenchActor` — ponto fixo na vila da costa, mesma família de `InteractableActor` do comerciante e do posto. Desde 2026-09-20 é a forja (`ferreiro.glb`) com o ferreiro ajoelhado diante dela (`Fixing_Kneeling`); a caixa de colisão baixa e larga do prisma antigo continua sendo o corpo de clique da estrutura.
 
 | Tecla | |
 |---|---|
@@ -571,7 +585,10 @@ $godot = "$env:LOCALAPPDATA\Programs\Godot\Godot_v4.7.1-stable_win64_console.exe
 & $godot --headless --script res://scripts/dev/test_creature_bodies.gd # contrato do corpo de criatura (base + casca), escada de nado, clipes in-place
 & $godot --headless --script res://scripts/dev/test_tripo_shell.gd -- --shell /models/CRT-XXX.glb   # um corpo específico: esqueleto, retarget, altura
 & $godot --headless --script res://scripts/dev/test_equipment.gd    # set: exclusividade glacial, bancada, passivo
+& $godot --headless --script res://scripts/dev/test_biome_dressing.gd  # ambiência por bioma, balanço de corrente, manchas de espécie + cobertura de tela
 ```
+
+`test_biome_dressing.gd` confere material e parâmetro do balanço, mas **não compila shader**: o headless usa renderizador dummy. Mexeu em `shaders/prop_sway.gdshader`? Confira numa execução com janela (andaime `shot_*.gd`, ver `CLAUDE.md`) — erro de compilação só aparece lá.
 
 `test_playable.gd` é o único que sobe a árvore de cena com física ativa e injeta input. Responde "dá para jogar?" em vez de "as contas fecham?" — e foi ele que pegou o corpo andando de costas, que nenhum teste de lógica isolada veria.
 
@@ -658,7 +675,9 @@ Entre 2026-09-07 e 2026-09-17 o jogador teve um corpo próprio — `PlayerRig`, 
 `scripts/world/element_palette.gd` não recolore mais corpo nenhum (ver acima). O que sobra são dois efeitos de COMBATE, não de identidade do corpo, e os dois usam uma rampa **neutra fixa** (`NEUTRAL_MID`/`NEUTRAL_SHADOW`/`NEUTRAL_HIGHLIGHT`/`NEUTRAL_AURA`) em vez de uma por elemento:
 
 - **A aura do Despertar Ancestral** é do duelo e só do duelo: o efeito de área do pack BinbunVFX "Elemental Magic FX" (CC0, `assets/BinbunVFX_Vol2/`) ancorado no chão, mais um burst de "cast" de um só disparo no instante em que liga, mais uma `OmniLight3D` que ilumina o chão em volta — na câmera isométrica com névoa é a luz que se lê de longe. Nenhum dos três depende de malha, então até a cápsula (criatura sem `.glb`) desperta visível. Quem acende é `EncounterDirector`, ligado ao sinal `rendered` da `DuelScreen`, e o estado é **espelhado** da batalha, não acumulado a partir do log — despertar, reverter por tempo, cair em combate e trocar de criatura são quatro caminhos que apagam a aura.
-- **Golpe e status** (swing/claw pra dano, shield pra buff/debuff/cura, charge pra ganho de carga) vêm do pack BinbunVFX "Battle FX", despachados por `EncounterDirector._animate_round_events` a cada evento novo do log da batalha.
+- **Investida.** Golpe básico e elementar (`attackVariant` `attack`/`attack2`) são de curta distância: o atacante dispara até o adversário (`Sprint` em seco, `Swim` submerso), golpeia encostado e volta correndo ao posto. Quem move é a `BattleStaging` (`charge`/`retreat`); o `EncounterDirector` só pede e espera. O golpe do Despertar (`attack3`) segue à distância: no `Cast` o atacante dispara um **feixe de energia na cor do elemento** (pack BinbunVFX "Beam VFX" Free, `assets/BinbunVFX/beam_vfx/`) até o peito do alvo, que só reage quando o feixe chega.
+- **Golpe elementar** (`attackVariant: attack2`): no contato, o corte sai na cor do elemento da habilidade e vem junto um estouro de impacto do pack BinbunVFX "Stylized Hit FX" (Free), também na cor, com luz própria tingindo chão e alvo. O golpe básico segue com o corte neutro.
+- **Golpe e status** (swing/claw pra dano, shield pra debuff/cura, charge pra ganho de carga) vêm do pack BinbunVFX "Battle FX"; o buff é a aura `Shatter` do "Status FX" (Free), o único efeito que sai na cor do elemento de quem usou (`elements[].palette` do bundle). Todos despachados por `EncounterDirector._animate_round_events` a cada evento novo do log da batalha.
 
 Os dois recebem `element_code` por parâmetro (mantido pra não quebrar a assinatura de quem chama), mas o valor é ignorado — sempre a mesma cor, qualquer elemento.
 

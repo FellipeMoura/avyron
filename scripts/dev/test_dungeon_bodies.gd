@@ -21,7 +21,12 @@ const IMP := "/models/placeholders/dungeon/Imp.glb"
 
 ## Vocabulário completo esperado — o ganho real do retarget sobre os
 ## placeholders bakeados, que nunca têm os golpes de combate completos.
-const EXPECTED_CLIPS := ["Idle", "Walk", "Run", "Attack", "Attack2", "HitReact", "Death", "Swim"]
+## `Dodge`/`Cast_Enter`/`Cast`/`Cast_Exit` entraram em 2026-09 (miss, captura
+## falha e a encenação de `Attack3`, ver `EncounterDirector`).
+const EXPECTED_CLIPS := [
+	"Idle", "Walk", "Run", "Attack", "Attack2", "HitReact", "Death", "Swim",
+	"Dodge", "Cast_Enter", "Cast", "Cast_Exit",
+]
 
 var _failures := 0
 var _checks := 0

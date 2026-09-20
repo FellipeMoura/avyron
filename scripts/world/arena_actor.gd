@@ -26,6 +26,14 @@ const RADIUS := 0.32
 const COL_BODY := Color("#4A3038")
 const COL_SIGN := Color("#C6402F")
 
+## A arena como estrutura — substitui o `CharacterRig` do duelista, mesma
+## escolha visual que os outros três serviços da vila já fazem (comerciante/
+## posto/bancada).
+const MODEL_PATH := "res://models/village/arena.glb"
+## Aumento de 200% pedido pelo usuário em 2026-09-18 — mesmo motivo dos outros
+## três (`merchant_actor.gd`).
+const MODEL_SCALE := 3.0
+
 var duelist_code := ""
 
 ## Quem o jogador enfrenta e em que nível — o "conteúdo" desta arena.
@@ -59,25 +67,29 @@ static func create(data: Dictionary, at: Vector3, opponent: String, level: int, 
 func _ready() -> void:
 	body_height = HEIGHT
 
-	var rig := CharacterRig.create(appearance)
-	if rig != null:
-		# Pés na base da cápsula de colisão — a origem do ator é o centro dela.
-		rig.position.y = -HEIGHT * 0.5
-		add_child(rig)
+	var model := _load_model(MODEL_PATH, MODEL_SCALE)
+	if model != null:
+		add_child(model)
 	else:
-		var mesh := CapsuleMesh.new()
-		mesh.height = HEIGHT
-		mesh.radius = RADIUS
+		var rig := CharacterRig.create(appearance)
+		if rig != null:
+			# Pés na base da cápsula de colisão — a origem do ator é o centro dela.
+			rig.position.y = -HEIGHT * 0.5
+			add_child(rig)
+		else:
+			var mesh := CapsuleMesh.new()
+			mesh.height = HEIGHT
+			mesh.radius = RADIUS
 
-		var material := StandardMaterial3D.new()
-		material.albedo_color = COL_BODY
-		material.roughness = 0.85
-		mesh.material = material
+			var material := StandardMaterial3D.new()
+			material.albedo_color = COL_BODY
+			material.roughness = 0.85
+			mesh.material = material
 
-		var body := MeshInstance3D.new()
-		body.name = "Mesh"
-		body.mesh = mesh
-		add_child(body)
+			var body := MeshInstance3D.new()
+			body.name = "Mesh"
+			body.mesh = mesh
+			add_child(body)
 
 	# Vermelho-ember: mesma linguagem de "dá para interagir" que a placa âmbar
 	# do comerciante estabelece, cor diferente para não ler como loja de longe.

@@ -38,10 +38,11 @@ const COL_MOSS  := "#7A8C6B"
 const COL_SLATE := "#6B7280"
 const COL_EMBER := "#C6552F"
 
-## Linha ocupada tem duas: identificação em cima, status embaixo. Slot vazio
-## tem uma só, e dar a mesma altura aos dois abria um vão de ar entre as
-## reservas e o rodapé maior que a própria lista.
-const ROW_HEIGHT := 46
+## Linha ocupada tem três: identificação em cima, status no meio, progressão
+## de nível embaixo (barra de XP + o que falta pra subir). Slot vazio tem uma
+## só, e dar a mesma altura aos dois abria um vão de ar entre as reservas e o
+## rodapé maior que a própria lista.
+const ROW_HEIGHT := 62
 const ROW_HEIGHT_EMPTY := 24
 
 enum Mode { LIST, PICK_TARGET, PICK_ITEM }
@@ -412,6 +413,21 @@ func _row_text(slot: int, picking: bool) -> String:
 		var separator := "   ·   " if detail != "" else ""
 		detail += "%s[color=%s]%s ×%.1f[/color]" \
 			% [separator, COL_MOSS, role, MiningTable.speed_modifier(_db, class_code)]
+
+	# Terceira linha: onde a criatura está na curva e o que falta pra subir.
+	# É a única informação de progressão que o jogador tem fora da mensagem
+	# transitória pós-luta — e "pronta pra subir esperando material" é o
+	# estado que a próxima vitória sozinha não resolve, então precisa de um
+	# lugar permanente. O mesmo funil (`progress_at`) que o gate usa, a mesma
+	# frase (`ProgressText`) que o posto e a HUD usam.
+	var progress := _roster.progress_at(slot)
+	var status := ProgressText.status_line(_db, progress, _inventory)
+	if status != "":
+		var xp_line := ProgressText.bar(progress)
+		# No teto o rótulo e o status dizem a mesma coisa; uma vez basta.
+		if not bool(progress.get("at_cap", false)):
+			xp_line += "  " + ProgressText.xp_label(progress)
+		detail += "\n" + xp_line + "   " + status
 
 	return head + "\n" + detail
 

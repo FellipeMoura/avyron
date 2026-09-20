@@ -559,3 +559,280 @@ profundidade própria.
 
 ---
 - [ ] Repete para o próximo até fechar os 5 biomas do PZ-01.
+
+---
+
+## Corte de 90% da Costa Primordial (2026-09-17)
+
+Fora da sequência de fases acima — pedido do usuário, não parte do
+refinamento visual: encolher BIO-002 em 90% e empurrar os NPCs (vila da
+costa) para o que restar dela, distribuindo o espaço liberado para os
+biomas vizinhos.
+
+- [x] **👤 Você** decidiu, via pergunta direta: o espaço liberado pode virar
+      Mar Raso (BIO-001, catch-all) em vez de eu redistribuir manualmente
+      entre Recife/Platô Glacial/Mar Profundo — nenhum dos três tem
+      geometria que alcance essa faixa perto da borda -Z de qualquer forma.
+      E aceitar ~89% de corte (não 90% cravado) para não apertar o
+      espaçamento da vila (`_VILLAGE_SPACING`, `PLAYER_START_SPOT`).
+- [x] **🤖 Eu** reautorei `RGN-001`/`RGN-006` via API do bestiário para um
+      retângulo justo em volta da vila (`_VILLAGE_ANCHOR` e derivados, que já
+      nasciam dentro dele sem precisar mover) e um círculo pequeno contido
+      nele — `dataVersion` 0.604→0.607, `pnpm game:export` rodado. Mirrorei
+      os mesmos valores em `map_terrain.gd` (`COAST_CENTER_X`,
+      `COAST_LOBE_R`, `COAST_RECT_*`) e corrigi `COAST_RAMP_START` (que
+      assumia o círculo sempre vencendo o alcance máximo — deixou de ser
+      verdade com o círculo encolhido).
+- [x] **🤖 Eu** medi contra `test_biome_dressing.gd` antes de declarar pronto
+      e achei que a primeira tentativa (retângulo de ~13 m de meia-largura,
+      ~87,5% de corte) quebrava dois invariantes que a folga de
+      `CLEAR_RADIUS` sozinha não cobria: a largura livre de rampa
+      (`half_w - COAST_RAMP_WIDTH`) precisa caber o gradiente úmido/seco
+      (`PZ01_COAST_WET_WIDTH` = 7 m) e ficar acima de `COAST_RAMP_WIDTH · 2`
+      (12 m) para o platô nunca ler como "beira d'água". Larguei o corte
+      para ~72,5% (retângulo de 44 × 26,5 m, `COAST_RECT_HALF_W` = 22 m) —
+      o mínimo medido que respeita os dois, em vez dos ~89% aprovados. Não
+      cravei mais fundo porque o resto do orçamento (matacões, seixos,
+      scatter geral) já fechava neste tamanho sem precisar reduzir
+      contagem nenhuma.
+- [x] **🤖 Eu** ajustei um teto fixo (`range(1, 21)`) em
+      `test_biome_dressing.gd` para um teto derivado da geometria
+      (`COAST_RECT_HALF_W - COAST_RAMP_WIDTH - EDGE_NOISE_AMPLITUDE`): acima
+      dele a célula não-platô mais próxima na linha de centro deixa de ser a
+      rampa e passa a ser a borda LATERAL do retângulo, e a distância parar
+      de crescer com `k` é geometria correta, não regressão — só ficou
+      invisível enquanto a costa era larga o bastante para nunca bater nesse
+      teto dentro dos 20 m testados.
+- [x] **🤖 Eu** rodei as 17 suítes headless (stderr visível) — 0 falhas,
+      incluindo as que tocam a vila (`test_merchant`, `test_staging`) e a
+      partição de bioma (`test_data`).
+- [ ] **👤 Você**: se ~72,5% de corte (em vez dos ~90% originais) não servir,
+      as alavancas que sobraram são: comprimir `_VILLAGE_SPACING`/o offset do
+      `PLAYER_START_SPOT` (encolhe a vila em si, não só o retalho ao redor
+      dela), ou reduzir `COAST_RAMP_WIDTH`/reescrever `coast_inland_at` — os
+      dois fora do escopo de um corte de proporção, avaliar com calma se
+      vier a valer a pena.
+
+---
+
+## Cantos arredondados + irregularidade de borda (2026-09-18)
+
+Pedido do usuário: a costa e o platô glacial liam "quadrados" — arredondar a
+forma e acrescentar irregularidade na borda dos dois.
+
+- [x] **🤖 Eu** troquei a construção por eixo (`band * side` na costa, `fx *
+      fz` no glacial — cada uma desenhava uma faixa 1D por eixo e só
+      ANTI-ALIASAVA o canto onde elas se cruzavam, nunca arredondava de
+      verdade) por um SDF de retângulo com canto arredondado
+      (`_rounded_rect_sdf`, técnica padrão de Inigo Quilez) — `COAST_CORNER_RADIUS`
+      = 8 m, `GLACIAL_CORNER_RADIUS` = 15 m.
+- [x] **🤖 Eu** achei, rodando `test_biome_dressing.gd` (quebrou já na
+      primeira amostra), um bug real na primeira versão: um SDF de retângulo
+      pede bordas simétricas nos dois lados de cada eixo, mas a costa (e o
+      glacial) só têm fronteira de UM lado — o outro sempre foi aberto
+      (mar/rim, sem limite). Espelhar isso ingenuamente fechava um canto
+      exatamente na borda visível do mapa, e a costa "acabava" no primeiro
+      metro. `_OFFSCREEN_PAD` (50 m) empurra o lado que não importa bem além
+      da malha antes de calcular centro/meia-largura, sem tocar no lado que
+      de fato desenha a fronteira real.
+- [x] **🤖 Eu** dei à costa e ao platô glacial uma amplitude de `_warp`
+      PRÓPRIA, maior que a da ilha (`EDGE_NOISE_AMPLITUDE` = 2 m, calibrada
+      pro raio pequeno da ilha e mantida como padrão só pra ela) — costa
+      4 m + uma segunda oitava mais fina de 1,5 m, glacial 5 m + 2 m. A
+      oitava fina reaproveita o mesmo `FastNoiseLite` amostrado numa escala
+      maior (~7×) em vez de um segundo recurso, deslocada em domínio pra não
+      repetir a quebra da oitava larga no mesmo lugar.
+- [x] **🤖 Eu** troquei a costa (`terrain_ground.gdshader`) de 6 uniforms
+      recalculados em GLSL (`coast_center_x`/`coast_lobe_r`/`coast_rect_*`)
+      para uma máscara BAKEADA (`coast_mask_tex`), mesma técnica que
+      `glacial_mask_tex` já usava — reproduzir o SDF arredondado E as duas
+      oitavas de ruído em GLSL duplicaria a geometria em dois lugares, e o
+      shader antigo dependia de um gate (`coast_lobe_r > 0.0`) que já tinha
+      causado um susto na rodada do corte de 90%. Ganho colateral: o gate
+      sai de vez, a máscara nunca pode ficar "desligada por engano".
+- [x] **🤖 Eu** rodei as 19 suítes headless (stderr visível) — 0 falhas,
+      depois do fix do `_OFFSCREEN_PAD`.
+- [x] **👤 Você** abriu o editor: a costa ficou perfeita. O platô glacial
+      não — uma pequena ilha quase encostada, com o platô contornando ela.
+
+---
+
+## Ilha órfã do platô glacial + lobo (2026-09-18, mesmo dia)
+
+- [x] **🤖 Eu** achei a causa raiz por sonda direta (`probe_glacial_island.gd`,
+      descartada): não era o arredondamento em si. `ACCESS_RAMPS[1]`
+      (-58,33, 23,33, a rampa da borda SUL do platô) sempre esteve DENTRO do
+      círculo do recife (`RGN-002`) — `biome_at` sempre respondeu BIO-003
+      ali, e o filtro de `_glacial_profile` (evita geografia/bioma
+      discordarem) sempre zerou o platô nesse ponto exato, mesmo antes de
+      qualquer mudança desta sessão. O que mudou foi o vão: o platô "cru" de
+      antes chegava perto o bastante da rampa pra ler como reentrância; o
+      corte de área e o arredondamento abriram espaço suficiente pra o
+      círculo PRÓPRIO da rampa (`_access_ramp_profile`, independente da forma
+      do platô) sobrar isolado, "quase encostado".
+- [x] **🤖 Eu** reautorei `ACCESS_RAMPS[1]` para (-80, 23) — mesma margem de
+      ~4 m da borda que o ponto original tinha, só numa coluna fora do
+      alcance do recife (distância ao centro dele ≥ 50 m contra um raio de
+      41 m). Mecânico: Camera A, não toca no catálogo (`ACCESS_RAMPS` não
+      está na tabela de interface congelada).
+- [x] **🤖 Eu** dei ao platô glacial um LOBO (`GLACIAL_LOBE_R` = 95 m,
+      círculo no canto do mapa `(GLACIAL_X0, GLACIAL_Z1)`, unido ao
+      retângulo por `maxf` — mesma construção de `_coast_profile`), pedido
+      explícito do usuário ("modifique o formato dela para algo similar à
+      costa"). Maior que a largura E a altura do retângulo, pra criar uma
+      barriga que passa das bordas retas dele.
+- [x] **🤖 Eu** verifiquei por sonda que o lobo (mesmo maior que a diagonal
+      do retângulo até o canto visível) não reabre conflito com o recife em
+      nenhum ponto amostrado — a lente de sobreposição dos dois círculos cai
+      fora da área que qualquer sistema de jogo consulta.
+- [x] **🤖 Eu** rodei as 19 suítes headless (stderr visível) — 0 falhas.
+- [x] **👤 Você** confirmou a ilha órfã resolvida e trouxe um print: o
+      arredondamento leu bem (curva de verdade, sem ângulo de 90°), mas a
+      irregularidade da borda estava fraca — o contorno lia como uma curva
+      quase lisa contra a água, a serrilhada visível vinha só da textura do
+      gelo (blocos hexagonais facetados), não da FORMA do platô.
+- [x] **🤖 Eu** subi `GLACIAL_EDGE_NOISE_AMPLITUDE`/`_FINE` de 5/2 para
+      11/5 — mais que o dobro do deslocamento combinado (7 m → 16 m). Como
+      o platô usa degrau reto (`other_hard` em `_land_profile`, sem
+      esmaecimento na altura), o warp maior se traduz direto em quanto a
+      borda desvia, sem precisar mexer em `GLACIAL_FEATHER`/corner
+      radius/lobo.
+- [x] **🤖 Eu** rodei as 19 suítes headless de novo (o ponto de acesso
+      reautorado, `test_world.gd`, é o mais sensível a isto) — 0 falhas.
+- [ ] **👤 Você**: novo print pra confirmar se 11/5 quebra o contorno o
+      bastante, ou se precisa subir mais.
+
+---
+
+## Bordas do platô glacial virando rampa, como a costa (2026-09-18)
+
+Pedido do usuário: em vez de degrau reto (andável só nos dois pontos de
+`ACCESS_RAMPS`), a borda inteira do platô glacial vira rampa andável — o
+mesmo tratamento que a costa já tinha.
+
+- [x] **🤖 Eu** parei de "endurecer" `_glacial_profile` em `_land_profile`
+      (o `other_hard` que arredondava pra 0/1 antes de levantar a altura) —
+      o glacial passou a entrar direto, como a costa. A ILHA continua
+      hardenada (pedido original de 2026-09-01, não incluído neste pedido).
+- [x] **🤖 Eu** removi os dois pontos do platô glacial de `ACCESS_RAMPS`
+      (inclusive o (-80, 23) reautorado horas antes) — perderam a função
+      agora que a borda inteira já é andável. Só o ponto da ilha ficou.
+- [x] **🤖 Eu** não precisei mexer em `GLACIAL_FEATHER` (10 m): pela mesma
+      conta de inclinação do `COAST_RAMP_WIDTH` (`1,5 · diferença / vão`,
+      diferença de 2,0 m entre os níveis), 10 m de vão já dá folga maior
+      ainda que os 6 m da costa.
+- [x] **🤖 Eu** rodei as 19 suítes headless — 0 falhas (`test_world.gd` foi
+      de 53 para 51 verificações, esperado: dois checks por ponto de
+      `ACCESS_RAMPS` que não existem mais, não uma regressão).
+- [ ] **👤 Você**: confirmar no editor que a borda inteira do platô lê como
+      rampa (não parede) fora do miolo.
+
+---
+
+## Rampa do platô ainda parede — causa raiz era o filtro do recife (2026-09-18)
+
+Você voltou de uma sessão anterior reportando exatamente o item em aberto
+acima: a borda do platô continuava parede, sem rampa.
+
+- [x] **🤖 Eu** achei a causa por sonda (`probe_glacial_ramp.gd`, descartada):
+      o filtro que zera `_glacial_profile` onde `biome_at` não é BIO-014
+      (escrito em 2026-09-02, antes do arredondamento/lobo/warp existirem)
+      apagava TUDO que a forma orgânica desenha fora do retângulo reto do
+      catálogo — exatamente onde a rampa, o lobo e o warp têm de existir.
+      Resultado medido: 2 m de queda em 2 m de distância bem na borda reta
+      (x=-27→h=1,60, x=-25→h=-0,40) — parede, não rampa.
+- [x] **🤖 Eu** estreitei o filtro pra só zerar onde o RECIFE (BIO-003)
+      realmente reivindica o ponto (`biome_at == "BIO-003"`, não
+      `!= "BIO-014"`) — fora do retângulo e fora do recife cai no catch-all
+      Mar Raso, sem concorrência nenhuma pra justificar zerar.
+- [x] **🤖 Eu** confirmei por sonda: a mesma travessia agora desce suave de
+      1,60 a -0,28 ao longo de ~7 m.
+- [x] **🤖 Eu** rodei as suítes relevantes (dados, mundo, ambientação,
+      equipamento, staging) — 0 falhas.
+
+---
+
+## Platô glacial encolhido ao tamanho da costa e replicado dela (2026-09-18)
+
+Pedido do usuário: reduzir a área do platô ao mesmo tamanho da costa,
+transformar o território liberado nos biomas vizinhos, e replicar a
+geometria da costa no platô — os dois idênticos exceto assets/NPCs/texturas.
+
+- [x] **🤖 Eu** encolhi e movi `RGN-004` via API do bestiário (`PATCH
+      /map-biome-regions/RGN-004`): de um retângulo de canto (-X/+Z, ~13,65%
+      do mapa) para uma banda na borda +Z espelhando `RGN-001` (44 m × 26,5
+      m, mesmo tamanho da costa, centro espelhado em x). Criei `RGN-008`
+      (círculo, `POST /map-biome-regions`) espelhando `RGN-006`, mesma dupla
+      retângulo+círculo que a costa usa. `pnpm game:export` rodado
+      (dataVersion 0.611). O território liberado não precisou de região
+      nova: cai em `RGN-002` (recife) ou no catch-all `RGN-003` (Mar Raso)
+      pela própria ordem de avaliação — confirmado sem sobreposição nova com
+      o recife (distância mínima 0,70 contra raio 0,47, normalizado).
+- [x] **🤖 Eu** reescrevi a geometria em `map_terrain.gd`: extraí
+      `_edge_band_profile` (retângulo arredondado + lobo + warp de duas
+      oitavas) como núcleo ÚNICO usado por `_coast_profile` e
+      `_glacial_profile` — antes cada bioma tinha a própria cópia da fórmula
+      e foi assim que o platô acumulou constantes de warp/canto próprias
+      (11/5, 15 m) sem decisão explícita. As constantes do platô
+      (`GLACIAL_CENTER_X`, `GLACIAL_RECT_*`, `GLACIAL_CORNER_RADIUS`,
+      `GLACIAL_RAMP_WIDTH`) são literalmente as da costa com o sinal de Z
+      invertido — não cópias com o mesmo valor.
+- [x] **🤖 Eu** medi por sonda (`probe_glacial_final.gd`, descartada): área
+      do platô 1.783 m² contra 1.775 m² da costa (razão 1,0045 — mesmo
+      tamanho), e rampa suave confirmada na borda real nova.
+- [x] **🤖 Eu** achei e consertei uma consequência: a área elegível do passe
+      geral de scatter (mar raso + recife) cresceu ~13,5% com o território
+      liberado, e `PZ01_SCATTER_COUNT` fixo em 250 deixou o mar raso mais
+      esparso que o teto permite (`test_biome_dressing.gd` acusou: 12,3%
+      contra teto de 12%). Subi para 284 (mesma proporção, medida por sonda
+      descartada) — mesmo padrão já registrado no corte de 90% da costa.
+- [x] **🤖 Eu** atualizei os pontos de sonda fixos que assumiam a posição
+      antiga do platô (`test_world.gd`, `test_playable.gd`) para derivar da
+      nova geometria em vez de fração escrita à mão.
+- [x] **🤖 Eu** rodei as 20 suítes headless — 0 falhas.
+- [ ] **👤 Você**: abrir o editor e conferir visualmente — o platô deve
+      estar no canto oposto de antes (borda +Z, perto do centro em X) e ler
+      como a costa espelhada (mesmo tamanho, mesma irregularidade de borda).
+      Assets/textura de gelo continuam os mesmos; só a forma e o tamanho
+      mudaram.
+
+## Mini vila da costa: praça, espaçamento e pessoas (2026-09-20)
+
+Pedido do usuário depois de jogar com as três estruturas `.glb` de 18/09: elas
+colavam umas nas outras (4,5 m de espaçamento para prédios de 5,7 m), sentavam
+na beira da rampa (âncora em `COAST_TOP` por coincidência) e a vila não lia como
+lugar habitado — a receita de aparência do comerciante tinha virado código
+morto. Decisões dele: pessoa só nos três da costa (arena fica), receita fixa
+no jogo para posto e bancada, pavimento como camada de shader + lajes do
+MegaKit, e como prop novo só a cerca baixa de pedra e corda.
+
+- [x] **🤖 Eu** — `WorldPopulator`: `VILLAGE_SPACING` 4,5 → 9 m, `VILLAGE_ANCHOR.z`
+      = `COAST_TOP - VILLAGE_SETBACK` (8 m; o warp da costa chega a 5,5 m),
+      spawn no centro do adro. Sonda de planura (descartada): 0 células fora de
+      `LAND_HEIGHT` em x ∈ [-10, 20], z ∈ [-82, -66]. Luzes nos dois vãos.
+- [x] **🤖 Eu** — `InteractableActor.attach_npc`: `CharacterRig` filho do MESMO
+      ator, diante da fachada (`fundo/2 + 0,8 m`, 35% do meio-lado para o lado
+      da porta), encarando +Z; placa sobre a cabeça (`_sign_anchor`,
+      `_sign_rest_height` a partir dos pés); segunda cápsula de clique. Poses:
+      `Idle_FoldArms` (comerciante), `Cast_Idle` (posto), `Fixing_Kneeling`
+      (ferreiro). Achado real: o importador glTF do Godot corta o sufixo
+      `_Loop` — o clipe do manifest `Idle_FoldArms_Loop` só existe como
+      `Idle_FoldArms` na biblioteca (medido por sonda depois de o teste
+      acusar "clipe inexistente").
+- [x] **🤖 Eu** — praça: Stone Wall 1 (a 5 tem capim; planta terrestre
+      contradiz a época) convertida por `Image.load` do BMP → PNG (diffuse
+      RGB8, altura L8, `.import` com mipmaps copiado do par `mud_*`);
+      `MapTerrain.bake_mask`/`set_ground_uniform`/`edge_warp`/`rounded_rect_sdf`
+      expostos; `MapDressing.plaza_profile` é a fonte única (máscara, keep-out
+      do scatter acima de 0,6, posição das lajes); shader `village_paving`
+      mistura por altura na orla e converge para laje pura no miolo; 10 lajes
+      `RockPath_*` tingidas (`#D8C2A2`) na orla, em `Dressing/Village`.
+- [ ] **👤 Você** — gerar `cerca_corda.glb` no Tripo Studio (segmento reto ~2 m,
+      ~0,9 m de altura, cobble cinza + corda, sem planta) e copiar para
+      `avyron/models/village/props/`; as três entradas da tabela já esperam o
+      arquivo (altura em metros, pivô no centro auto-calibrado).
+- [ ] **👤 Você** — jogar e julgar: tom `PZ01_PAVED_TINT`, escala das lajes,
+      orla, posição/pose das pessoas, e se a frente das três estruturas encara
+      o mar (se alguma encarar -Z, é `rotation.y = PI` no modelo daquele ator).
+- Suítes: `test_merchant` (92), `test_characters` (135), `test_biome_dressing`,
+  `test_world` (51), `test_playable` (24), `test_staging` (92), `test_data`.

@@ -21,10 +21,20 @@ extends Node3D
 ## `Throw`, `Attack` e `Death` ficam de fora de propósito: são gesto único, e
 ## quem precisar repetir um deles relança o clipe explicitamente (ver
 ## `_advance_mining_loop`).
+##
+## `Idle_FoldArms` e `Fixing_Kneeling` entraram em 2026-09-20 como poses de
+## espera dos NPCs da vila (comerciante e ferreiro): o primeiro é loop de
+## autoria da UAL2 (no arquivo chama `Idle_FoldArms_Loop`; o importador glTF
+## do Godot CORTA o sufixo `_Loop`, que é a convenção dele para loop — o nome
+## aqui é o que a biblioteca fundida tem, medido por sonda, não o do
+## manifest), o segundo é laço de trabalho — mesma classe de `Sit`/`Push`.
+## Fora desta lista o clipe congelaria no último quadro e `current_animation`
+## viraria `""` (a lição do `HitReact`, no CLAUDE.md).
 const LOOPED_CLIPS := [
 	"Idle", "Walk", "Run", "Sprint", "Talk", "Sit", "Sit_Talk",
 	"Crouch", "Crouch_Walk", "Swim", "Swim_Idle", "Jump_Idle",
 	"Cast_Idle", "Push", "Walk_Carry", "Dance",
+	"Idle_FoldArms", "Fixing_Kneeling",
 ]
 
 ## Marcha a partir da qual o corpo corre em vez de andar, em m/s. Constante de
@@ -38,6 +48,19 @@ const RUN_THRESHOLD := 2.2
 ## "parado"; um segundo `0.05` escrito à mão em outro arquivo divergiria no
 ## dia em que só um dos dois fosse ajustado.
 const IDLE_THRESHOLD := 0.05
+
+## Cadência do ciclo de `Walk` (`speed_scale` do `AnimationPlayer`), separada
+## do clipe e da velocidade real do corpo — exatamente o ajuste que o
+## comentário de `PlayerController.WALK_SPEED` reserva para quando sobrar
+## deslize depois de clipe e velocidade corrigidos. `1.0` tocava o ciclo no
+## ritmo em que ele foi autorado, mais lento que o pé precisa varrer o chão na
+## marcha atual do jogo — o pé plantado parece arrastar para trás enquanto o
+## corpo avança. Constante de apresentação (ver `CLAUDE.md`, "velocidade de
+## giro da câmera" é a mesma classe de exceção): não descreve nada físico, só
+## calibra o clipe contra a marcha do jogo, e é candidata a reajuste por
+## olho — não por medição — se a próxima rodada de playtest ainda achar pouco
+## ou demais.
+const WALK_CADENCE := 1.3
 
 ## Clipe de mineração. Fica de FORA de `LOOPED_CLIPS` de propósito: aquela
 ## lista é o contrato de loop de TODO corpo humano, e marcar loop nela vazaria
@@ -126,6 +149,7 @@ func update_motion(
 	# detectar movimento antes de este método ser chamado de novo), então não
 	# precisa entrar como mais um ramo dentro da escada de marcha.
 	if mining and has_clip(MINE_CLIP):
+		_reset_cadence()
 		play_clip(MINE_CLIP)
 		return
 
@@ -143,22 +167,38 @@ func update_motion(
 		# Corpo sem `Swim_Idle` continua dando braçada no lugar, que é o que um
 		# submerso faz; corpo sem `Swim` nenhum cai para a escada seca.
 		if speed < idle_threshold and has_clip("Swim_Idle"):
+			_reset_cadence()
 			play_clip("Swim_Idle")
 			return
 		if has_clip("Swim"):
+			_reset_cadence()
 			play_clip("Swim")
 			return
 
 	if speed < idle_threshold:
+		_reset_cadence()
 		play_clip("Idle")
 		return
 	# `has_clip` antes de pedir `Run`: `play_clip` silencia no clipe ausente,
 	# e silenciar aqui deixaria o corpo preso no clipe anterior em vez de cair
 	# para o `Walk`, que todo corpo humano do jogo tem.
 	if allow_run and speed >= RUN_THRESHOLD and has_clip("Run"):
+		_reset_cadence()
 		play_clip("Run")
 		return
+	if _anim != null:
+		_anim.speed_scale = WALK_CADENCE
 	play_clip("Walk")
+
+
+## Devolve o `AnimationPlayer` ao ritmo autorado. Todo ramo que NÃO é `Walk`
+## passa por aqui antes de tocar o próprio clipe — sem isto, `WALK_CADENCE`
+## vazaria para `Idle`/`Run`/`Swim`/`Harvest` na primeira vez que o corpo
+## andasse e ficaria acelerado para sempre, porque `speed_scale` é do
+## `AnimationPlayer` inteiro, não do clipe.
+func _reset_cadence() -> void:
+	if _anim != null:
+		_anim.speed_scale = 1.0
 
 
 ## Deixa este corpo animar mesmo com a árvore pausada.

@@ -101,6 +101,25 @@ const SWIM_IDLE_LIFT := 1.13
 ## `GaitRig.SWIM_BLEND_TIME`, casada com o crossfade de clipe (0,2 s).
 const SWIM_BLEND_TIME := 0.35
 
+## Diferença entre o topo do esqueleto "de pé" (`Idle`/`Attack`/`Attack2`/
+## `HitReact`/`Death` — todos dentro de 4 cm um do outro) e o topo de
+## `Swim_Idle` (agachado/flutuando), em metros. Medida nos 14 corpos do PZ-01
+## por uma sonda descartável (`probe_attack_height.gd`, removida depois):
+## 0,465–0,503 m, quase idêntica entre espécies porque todas normalizam para
+## o mesmo `sizeMeters` sobre o mesmo esqueleto retargetado da UAL — 0,49 m é
+## a média.
+const SUBMERGED_STANDING_DELTA := 0.49
+
+## Levantamento para QUALQUER clipe "de pé" tocado com o corpo parado e
+## submerso — o caso de um golpe de duelo no leito do mar (`Attack`,
+## `Attack2`, `HitReact`, `Death`; `Idle` só cai aqui num duelo, porque fora
+## dele a escada já escolhe `Swim_Idle`). Usar `SWIM_IDLE_LIFT` nesses clipes
+## fazia o corpo "levantar" visivelmente a cada golpe, relatado em
+## 2026-09-18: aquele número foi calibrado para o esqueleto AGACHADO de
+## `Swim_Idle`, `SUBMERGED_STANDING_DELTA` mais baixo que o esqueleto "de pé"
+## que golpe e reação realmente usam.
+const SUBMERGED_STANDING_LIFT := SWIM_IDLE_LIFT - SUBMERGED_STANDING_DELTA
+
 
 ## Altura do chão SEM terreno — fallback para bancadas de teste que montam a
 ## companheira sem mundo. Com o relevo, `WorldRoot` injeta `terrain` e o Y
@@ -149,6 +168,11 @@ var _speed := 0.0
 var _heading := Vector3.FORWARD
 var _bob_phase := 0.0
 var _swim_offset := 0.0
+## Corpo emprestado à `BattleStaging` — ver o contrato de encenação mais
+## abaixo. Só existe para `_process` saber que seguir o rastro e apoiar no
+## chão não são assunto dela agora; a altura de nado continua sendo, e por
+## isso continua rodando.
+var _staged := false
 
 
 ## Ponto de entrada. `db` é o Bestiary autoload; `code` é o CRT-XXX da
@@ -216,6 +240,14 @@ func _seed_trail(behind: Vector3) -> void:
 
 
 func _process(delta: float) -> void:
+	# Emprestada à `BattleStaging`: ela é dona de posição, rotação e marcha
+	# agora (ver o contrato de encenação abaixo), mas a altura de nado
+	# continua sendo assunto deste script — só ela some do `_process` comum,
+	# o resto do método inteiro (inclusive reapoiar no chão) é dela.
+	if _staged:
+		_advance_swim_lift(delta)
+		return
+
 	if _player == null:
 		return
 
@@ -349,13 +381,46 @@ func _bob(delta: float) -> void:
 ## Só se aplica a corpo COM rig (`_anim != null`): a cápsula de fallback não
 ## tem clipe de nado, e `_bob` já escreve `_mesh_root.position.y` sozinho
 ## nesse caso — as duas escritas brigariam pelo mesmo campo no mesmo quadro.
+##
+## Decide primeiro por `_speed` (a intenção de marcha), não pelo nome do
+## clipe — `Attack`/`HitReact`/`Death` tocam por fora da escada
+## (`play_battle_clip`, com a marcha travada por `BattleStaging._gait_locked`)
+## e não são `Swim`/`Swim_Idle`; decidir por movimento em vez de nome é o que
+## sobrevive a esses três tocando por cima. `_speed` continua correto durante
+## o travamento porque é `staged_gait` quem o grava, e ele só para de ser
+## chamado depois de a dupla já estar parada nos postos.
+##
+## Parada e submersa, ainda falta separar DUAS formas de "parada": boiando
+## (`Swim_Idle`, esqueleto agachado) ou tocando um golpe de duelo (`Attack`,
+## `HitReact`, `Death`, esqueleto DE PÉ — ver `SUBMERGED_STANDING_LIFT`). Isso
+## sim é por nome, porque a escolha é sobre a FORMA do esqueleto corrente, não
+## sobre intenção de movimento — as duas coisas erram por motivos diferentes,
+## e foi confundi-las (decidir a forma pela intenção) que produziu o "levanta
+## ao atacar" relatado em 2026-09-18.
+##
+## `_staged` força SEMPRE a altura "de pé", mesmo enquanto o clipe corrente
+## ainda é `Swim_Idle` (a dupla assentada no posto, antes do primeiro golpe).
+## As duas alturas foram calibradas para o TOPO do esqueleto bater igual —
+## `SUBMERGED_STANDING_LIFT = SWIM_IDLE_LIFT - SUBMERGED_STANDING_DELTA` —, mas
+## os pés continuam em cotas ligeiramente diferentes nas duas poses (agachada
+## vs. de pé), e por isso alternar entre elas ainda lia como um levantar
+## pequeno a cada golpe (relatado de novo em 2026-09-18, depois da primeira
+## correção). Duelo inteiro numa altura só elimina a alternância em vez de só
+## encolhê-la; fora do duelo `Swim_Idle` continua na própria altura (mais alta
+## de propósito, para só a cabeça ficar de fora — ver `SWIM_IDLE_LIFT`).
 func _advance_swim_lift(delta: float) -> void:
 	if _mesh_root == null or _anim == null:
 		return
 	var target := 0.0
 	if _submerged():
-		var floating := _anim.current_animation == "Swim_Idle"
-		target = SWIM_IDLE_LIFT if floating else SWIM_LIFT
+		if _speed >= IDLE_SPEED:
+			target = SWIM_LIFT
+		elif _staged:
+			target = SUBMERGED_STANDING_LIFT
+		elif _anim.current_animation == "Swim_Idle":
+			target = SWIM_IDLE_LIFT
+		else:
+			target = SUBMERGED_STANDING_LIFT
 	var rate := maxf(SWIM_LIFT, SWIM_IDLE_LIFT) / SWIM_BLEND_TIME
 	_swim_offset = move_toward(_swim_offset, target, rate * delta)
 	_mesh_root.position.y = _base_y + _swim_offset
@@ -381,6 +446,13 @@ func _update_clip() -> void:
 	if _anim == null:
 		return
 	var clip := _clip_for_speed(_speed)
+	# Mesma cadência do jogador (`GaitRig.WALK_CADENCE`) e pelo mesmo motivo:
+	# o ciclo de `Walk` toca no ritmo em que foi autorado, mais lento que o pé
+	# precisa varrer o chão nesta marcha, e sem acelerar só o `Walk` o pé
+	# plantado arrasta para trás enquanto o corpo avança. Selvagem NÃO entra
+	# aqui — anda mais devagar que a companheira (ver `CreatureActor._gait`) e
+	# não relatou o mesmo deslize; escopo é só a criatura ativa do jogador.
+	_anim.speed_scale = GaitRig.WALK_CADENCE if clip == "Walk" else 1.0
 	if _anim.has_animation(clip) and _anim.current_animation != clip:
 		_anim.play(clip, 0.2)
 
@@ -403,6 +475,11 @@ func _clip_for_speed(speed: float) -> String:
 			return "Swim"
 	if speed < IDLE_SPEED:
 		return "Idle"
+	# Só a investida do duelo chega aqui (`BattleStaging.CHARGE_SPEED`): seguindo
+	# o jogador ela nunca passa de `MAX_SPEED`, bem abaixo do limiar. É o mesmo
+	# degrau — e o mesmo número — de `CreatureActor._gait`.
+	if speed >= CreatureActor.SPRINT_THRESHOLD and _anim.has_animation("Sprint"):
+		return "Sprint"
 	return "Walk"
 
 
@@ -430,9 +507,11 @@ func play_battle_clip(clip: String) -> void:
 # contrato de encenação (BattleStaging)
 # ---------------------------------------------------------------------------
 #
-# Durante o duelo o mundo está pausado e o `_process` daqui não roda: quem move
-# e anima este corpo é a `BattleStaging`. Ver o mesmo par em `CreatureActor`
-# sobre por que os métodos são chamados por nome e não por tipo.
+# Durante o duelo o mundo está pausado: quem move, gira e escolhe a marcha
+# deste corpo é a `BattleStaging`, por isso `_process` cede tudo exceto a
+# altura de nado (`_advance_swim_lift`) enquanto `_staged` — ver o comentário
+# do campo. Ver o mesmo par em `CreatureActor` sobre por que os métodos são
+# chamados por nome e não por tipo.
 
 ## Ela já vive apoiada no chão — a origem do nó É o chão, e o corpo sobe pelo
 ## `position.y` do mesh filho. Zero, portanto, e não meia altura: somar aqui a
@@ -451,9 +530,17 @@ func staged_gait(speed: float) -> void:
 
 ## Mesmo motivo do `CreatureActor`: nó pausado não anima, e sem isto o corpo
 ## dela atravessa a cena congelado no quadro em que o duelo abriu.
+##
+## Também liga `_staged` e o `process_mode` do PRÓPRIO corpo (não só do
+## `AnimationPlayer`) — mesmo truque de `GaitRig.animate_while_paused`,
+## necessário porque a altura de nado mora no `_process` deste script, e nó
+## pausado não processa. Sem isto ela congelava no valor que tinha quando o
+## mundo pausou e ficava presa ali a luta inteira.
 func staged_animating(enabled: bool) -> void:
 	if _anim != null:
 		_anim.process_mode = Node.PROCESS_MODE_ALWAYS if enabled else Node.PROCESS_MODE_INHERIT
+	_staged = enabled
+	process_mode = Node.PROCESS_MODE_ALWAYS if enabled else Node.PROCESS_MODE_INHERIT
 
 
 ## Aura do Despertar Ancestral — o mesmo contrato por nome de `CreatureActor`,
@@ -501,8 +588,25 @@ func is_awakened() -> bool:
 ## Efeito de golpe/status, mesmo contrato por nome de `CreatureActor`. `self`
 ## já está no chão (`position.y = _ground_y()` a cada quadro — diferente do
 ## `CreatureActor`, que sobe meia cápsula), então o offset de apoio é `0.0`.
-func play_battle_effect(kind: String, _element_code: String, variant_seed: String, _source_creature_code: String = "") -> void:
-	ElementPalette.play_battle_effect(self, 0.0, size_meters, kind, variant_seed)
+func play_battle_effect(kind: String, effect_element: String, variant_seed: String, _source_creature_code: String = "") -> void:
+	ElementPalette.play_battle_effect(self, 0.0, size_meters, kind, variant_seed, effect_element)
+
+
+## Altura do peito no espaço LOCAL — mesmo contrato de
+## `CreatureActor.battle_effect_height`. A origem dela já é o chão, então só
+## entram meia altura e a flutuação de nado.
+func battle_effect_height() -> float:
+	return size_meters * 0.5 + _swim_offset
+
+
+## Feixe do golpe do Despertar — mesmo contrato por nome de `CreatureActor`.
+func play_battle_beam(target: Node3D, effect_element: String, duration: float) -> void:
+	var target_height := 0.0
+	if target != null and is_instance_valid(target) and target.has_method("battle_effect_height"):
+		target_height = float(target.call("battle_effect_height"))
+	ElementPalette.play_battle_beam(
+		self, battle_effect_height(), CreatureActor.capsule_radius(size_meters),
+		target, target_height, effect_element, duration)
 
 
 

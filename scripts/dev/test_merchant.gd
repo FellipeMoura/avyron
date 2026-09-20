@@ -46,6 +46,11 @@ func _process(_delta: float) -> bool:
 			_test_economy_math()
 			_test_purse()
 			_test_shop_screen()
+			# Antes de `_test_world_wiring`, que teleporta comerciante e posto
+			# para perto do jogador: o layout tem de ser medido onde o
+			# `WorldPopulator` os pôs.
+			_test_village_layout()
+			_test_npc_rigs_in_world()
 			_test_world_wiring()
 			_test_modal_guard()
 			_test_actor_grounding()
@@ -394,6 +399,109 @@ func _test_actor_grounding() -> void:
 	for a in [merchant, station, arena, guardian, flat]:
 		a.queue_free()
 
+
+## A vila da costa (2026-09-20): três estruturas que não se sobrepõem, todas
+## em chão plano do platô, dentro do bioma da costa — com o spawn do jogador
+## junto.
+##
+## A sobreposição é medida contra a estrutura REAL na árvore
+## (`model_footprint`, a AABB escalada do `.glb`), não contra um número
+## escrito aqui: foi a largura de 5,7 m das estruturas a 3× que o espaçamento
+## antigo (4,5 m, calibrado para cápsulas) não sabia. O chão plano e o bioma
+## importam porque a âncora deixou de coincidir com `COAST_TOP` por acaso e
+## passou a ser um recuo declarado — se alguém encolher o recuo até a rampa,
+## ou alargar o espaçamento até sair de `RGN-001`, é aqui que aparece.
+func _test_village_layout() -> void:
+	print("layout da vila:")
+	var terrain := _world.get("_terrain") as MapTerrain
+	var biomes := _world.get("_map_biomes") as MapBiomes
+	var actors := _village_actors()
+	_check_true("os tres servicos da vila nasceram", actors.size() == 3, "%d" % actors.size())
+
+	var spots := [
+		WorldPopulator.CRAFTING_BENCH_SPOT, WorldPopulator.MERCHANT_SPOT,
+		WorldPopulator.RELIC_STATION_SPOT, WorldPopulator.PLAYER_START_SPOT]
+	var off_plateau: Array = []
+	var off_biome: Array = []
+	for s in spots:
+		var p: Vector3 = s
+		if absf(terrain.height_at(p) - MapTerrain.LAND_HEIGHT) > 0.01 or not terrain.on_coast(p):
+			off_plateau.append("%s h=%.2f" % [p, terrain.height_at(p)])
+		if biomes and biomes.biome_at(p) != "BIO-002":
+			off_biome.append("%s -> %s" % [p, biomes.biome_at(p)])
+	_check_true("servicos e spawn em chao plano da costa", off_plateau.is_empty(), str(off_plateau))
+	_check_true("servicos e spawn dentro do bioma da costa (RGN-001)", off_biome.is_empty(), str(off_biome))
+
+	# Vizinho a vizinho, ao longo da linha da vila: o vão entre paredes tem de
+	# ser positivo — pelo menos 1 m, para a pessoa de um não encostar no outro.
+	actors.sort_custom(func(a: InteractableActor, b: InteractableActor) -> bool:
+		return a.global_position.x < b.global_position.x)
+	var overlaps: Array = []
+	for i in range(1, actors.size()):
+		var left := actors[i - 1] as InteractableActor
+		var right := actors[i] as InteractableActor
+		var gap := (right.global_position.x - left.global_position.x) \
+			- (left.model_footprint.x + right.model_footprint.x) * 0.5
+		if gap < 1.0:
+			overlaps.append("%s|%s vao=%.2f" % [left.name, right.name, gap])
+	_check_true("estruturas vizinhas nao se sobrepoem (vao >= 1 m)", overlaps.is_empty(), str(overlaps))
+	_check_true("as estruturas foram medidas (footprint > 0)",
+		actors.all(func(a: InteractableActor) -> bool: return a.model_footprint.x > 0.0))
+
+
+## Cada serviço da vila tem uma pessoa diante da estrutura: rig do kit, pés
+## no chão, encarando o mar, na pose combinada e em loop, com a placa sobre
+## a cabeça e uma cápsula de clique própria. É o contrato de
+## `InteractableActor.attach_npc` — sem ele, a receita do bundle volta a ser
+## código morto sem ninguém notar (foi assim entre 2026-09-18 e 20).
+func _test_npc_rigs_in_world() -> void:
+	print("pessoas da vila:")
+	var terrain := _world.get("_terrain") as MapTerrain
+	var expected := {
+		"Merchant_NPC-001": MerchantActor.NPC_CLIP,
+		"RelicStation": RelicStationActor.NPC_CLIP,
+		"CraftingBench": CraftingBenchActor.NPC_CLIP,
+	}
+	for actor in _village_actors():
+		var a := actor as InteractableActor
+		var npc := a.get_node_or_null("Npc") as CharacterRig
+		_check_true("%s tem uma pessoa (CharacterRig)" % a.name, npc != null)
+		if npc == null:
+			continue
+		var ground := terrain.height_at(a.global_position)
+		_check_true("%s: pes no chao" % a.name, absf(npc.global_position.y - ground) < 0.02,
+			"%.2f vs %.2f" % [npc.global_position.y, ground])
+		_check_true("%s: pes na base do corpo do ator" % a.name,
+			is_equal_approx(npc.position.y, -a.body_height * 0.5), "%.2f" % npc.position.y)
+		_check_true("%s: diante da fachada" % a.name, npc.position.z > a.model_footprint.y * 0.5,
+			"z=%.2f, fundo/2=%.2f" % [npc.position.z, a.model_footprint.y * 0.5])
+		_check_true("%s: encara o mar (+Z)" % a.name, absf(wrapf(npc.rotation.y, -PI, PI)) > PI - 0.01,
+			"%.2f" % npc.rotation.y)
+		var clip: String = expected.get(String(a.name), "")
+		var anim := npc.get("_anim") as AnimationPlayer
+		_check_true("%s: toca %s" % [a.name, clip], anim != null and anim.current_animation == clip,
+			anim.current_animation if anim else "sem AnimationPlayer")
+		_check_true("%s: a pose e loop" % a.name,
+			anim != null and anim.has_animation(clip)
+			and anim.get_animation(clip).loop_mode == Animation.LOOP_LINEAR)
+		var sign := a.get_node_or_null("Sign") as MeshInstance3D
+		_check_true("%s: a placa flutua sobre a cabeca da pessoa" % a.name,
+			sign != null and Vector2(sign.position.x - npc.position.x, sign.position.z - npc.position.z).length() < 0.01
+			and sign.position.y - npc.position.y > 1.8,
+			"placa y=%.2f, pes y=%.2f" % [sign.position.y if sign else 0.0, npc.position.y])
+		_check_true("%s: a pessoa tem capsula de clique" % a.name,
+			a.get_node_or_null("NpcCollision") is CollisionShape3D)
+
+
+## Só os que o `WorldPopulator` nomeou — os atores avulsos que outros testes
+## desta suíte criam ficam de fora.
+func _village_actors() -> Array:
+	var out: Array = []
+	for child in _world.get_children():
+		var n := String(child.name)
+		if n.begins_with("Merchant_") or n == "RelicStation" or n == "CraftingBench":
+			out.append(child)
+	return out
 
 
 # ---------------------------------------------------------------------------

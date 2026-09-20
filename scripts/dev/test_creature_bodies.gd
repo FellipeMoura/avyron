@@ -25,16 +25,25 @@ extends SceneTree
 const MAP := "PZ-01"
 
 ## Vocabulário que o jogo toca em criatura — `_gait`, `play_battle_clip` e o
-## `EncounterDirector`. `Dodge` não está: nenhum script o toca e a UAL não o
-## tem. `Death` está: `EncounterDirector` o toca no falecimento.
-const EXPECTED_CLIPS := ["Idle", "Walk", "Run", "Swim", "Swim_Idle", "Attack", "Attack2", "Attack3", "HitReact", "Death"]
+## `EncounterDirector`. `Attack3` não é mais um clipe único: virou a
+## encenação `Cast_Enter`→`Cast`→`Cast_Exit` (`EncounterDirector.
+## _play_attack3_sequence`). `Dodge` entrou em 2026-09 (miss e captura
+## falha, `EncounterDirector`). `Death` está: `EncounterDirector` o toca no
+## falecimento.
+const EXPECTED_CLIPS := [
+	"Idle", "Walk", "Run", "Swim", "Swim_Idle", "Attack", "Attack2", "HitReact", "Death",
+	"Dodge", "Cast_Enter", "Cast", "Cast_Exit",
+]
 
 ## Deriva horizontal tolerada num ciclo inteiro, em metros — o mesmo número de
 ## `test_characters.gd`. Um clipe in-place fecha onde abriu.
 const DRIFT_TOLERANCE := 0.05
 ## Clipes medidos pela regra "fecha onde abriu": os loops de marcha e nado e
 ## os golpes que voltam ao Idle. `Death` fica de fora porque termina deitado.
-const DRIFT_CHECKED_CLIPS := ["Idle", "Walk", "Run", "Swim", "Swim_Idle", "Attack", "Attack2", "Attack3", "HitReact"]
+const DRIFT_CHECKED_CLIPS := [
+	"Idle", "Walk", "Run", "Swim", "Swim_Idle", "Attack", "Attack2", "HitReact",
+	"Dodge", "Cast_Enter", "Cast", "Cast_Exit",
+]
 
 var _failures := 0
 var _checks := 0

@@ -116,6 +116,7 @@ func _process(_delta: float) -> bool:
 			_test_degenerate()
 			_test_animating()
 			_test_gait_lock()
+			_test_charge()
 			_test_terrain()
 			_test_world_wiring()
 			_phase = "settling"
@@ -460,6 +461,113 @@ func _test_gait_lock() -> void:
 	s.step(STEP)
 	_check_true("destrancado, a marcha volta a chegar",
 		not is_equal_approx(a.last_gait, -99.0), "%.2f" % a.last_gait)
+
+
+## A investida do golpe de curta distância (2026-09-18): o atacante corre até
+## o adversário, fica encostado enquanto o golpe toca e volta pro posto. O que
+## esta seção prende é o que quebraria em silêncio: a correção simétrica
+## empurrando o par pra longe no meio da corrida, o defensor saindo do lugar,
+## o domador correndo atrás da própria criatura, e o posto de volta derivando
+## a cada golpe.
+func _test_charge() -> void:
+	print("investida ate o adversario e volta ao posto:")
+	var bench := _bench(Vector3(-6.0, 0.0, 0.0), Vector3(6.0, 0.0, 0.0))
+	var a: StagedBody = bench["a"]
+	var b: StagedBody = bench["b"]
+	var t: StagedBody = bench["trainer"]
+	var s: BattleStaging = bench["staging"]
+	_settle(s)
+	for i in 120:
+		s.step(STEP) # o domador assenta depois do par
+
+	var arrived := [0]
+	var returned := [0]
+	s.charge_arrived.connect(func() -> void: arrived[0] += 1)
+	s.charge_returned.connect(func() -> void: returned[0] += 1)
+
+	var home_a := a.global_position
+	var home_b := b.global_position
+	var home_t := t.global_position
+
+	_check_true("no que nao e do par nao investe", not s.charge(t))
+	# O turno tranca a marcha do par antes de animar (`EncounterDirector.
+	# _animate_round_events`) — a investida tem de animar MESMO assim.
+	s.lock_gait(a, true)
+	s.lock_gait(b, true)
+	_check_true("investida aceita", s.charge(a))
+	_check_true("segunda investida recusada enquanto a primeira dura", not s.charge(b))
+
+	var top_gait := 0.0
+	var out_steps := 0
+	while s.charge_phase() == BattleStaging.ChargePhase.OUT and out_steps < MAX_STEPS:
+		s.step(STEP)
+		top_gait = maxf(top_gait, a.last_gait)
+		out_steps += 1
+	_check("chegou: fase HOLD", s.charge_phase(), BattleStaging.ChargePhase.HOLD)
+	_check("charge_arrived saiu uma vez", arrived[0], 1)
+	_check_true("parou na distancia de contato",
+		absf(s.current_distance() - s.contact_distance()) < 0.05,
+		"%.2f vs %.2f" % [s.current_distance(), s.contact_distance()])
+	_check_true("correu acima do degrau de Sprint, mesmo com a marcha trancada",
+		top_gait >= CreatureActor.SPRINT_THRESHOLD, "%.1f m/s" % top_gait)
+	_check_true("marcha zerada no contato (corpo submerso volta a altura de pe)",
+		is_zero_approx(a.last_gait), "%.2f" % a.last_gait)
+	_check_true("o defensor nao saiu do lugar", b.global_position.is_equal_approx(home_b))
+	_check_true("o domador nao correu atras da criatura", t.global_position.is_equal_approx(home_t))
+	var toward_b := BattleStaging._flat(b.global_position - a.global_position).normalized()
+	var forward_a := -a.global_transform.basis.z
+	_check_true("chegou encarando o adversario", forward_a.dot(toward_b) > 0.95,
+		"dot %.3f" % forward_a.dot(toward_b))
+
+	# Encostado, nada anda — nem a correção simétrica, que leria "perto demais".
+	for i in 30:
+		s.step(STEP)
+	_check_true("encostado, a encenacao nao afasta o par",
+		absf(s.current_distance() - s.contact_distance()) < 0.05)
+
+	s.retreat()
+	var back_steps := 0
+	while s.charge_phase() == BattleStaging.ChargePhase.BACK and back_steps < MAX_STEPS:
+		s.step(STEP)
+		back_steps += 1
+	# No posto, mas ainda de costas: a meia-volta é fase da investida. Deixada
+	# pra encenação normal ela não acontecia — o contra-ataque começa no quadro
+	# seguinte e suspende essa encenação, e o corpo apanhava de costas.
+	_check("no posto: fase TURN, a investida ainda nao acabou",
+		s.charge_phase(), BattleStaging.ChargePhase.TURN)
+	_check("charge_returned ainda nao saiu", returned[0], 0)
+	_check_true("nova investida recusada durante a meia-volta", not s.charge(b))
+	var turn_steps := 0
+	while s.charge_phase() == BattleStaging.ChargePhase.TURN and turn_steps < MAX_STEPS:
+		s.step(STEP)
+		turn_steps += 1
+	_check("voltou: fase NONE", s.charge_phase(), BattleStaging.ChargePhase.NONE)
+	forward_a = -a.global_transform.basis.z
+	_check_true("a investida TERMINA encarando o adversario, sem depender da encenacao normal",
+		forward_a.dot(toward_b) > 0.99, "dot %.3f em %d quadros" % [forward_a.dot(toward_b), turn_steps])
+	_check_true("a meia-volta nao andou o corpo",
+		BattleStaging._flat(a.global_position - home_a).length() < 0.02)
+	_check("charge_returned saiu uma vez", returned[0], 1)
+	_check_true("voltou ao MESMO posto de onde saiu",
+		BattleStaging._flat(a.global_position - home_a).length() < 0.02,
+		"%.3f m" % BattleStaging._flat(a.global_position - home_a).length())
+
+	# De volta à encenação normal, o corpo gira de novo pro adversário.
+	s.lock_gait(a, false)
+	s.lock_gait(b, false)
+	for i in 90:
+		s.step(STEP)
+	forward_a = -a.global_transform.basis.z
+	_check_true("no posto, volta a encarar o adversario", forward_a.dot(toward_b) > 0.95,
+		"dot %.3f" % forward_a.dot(toward_b))
+
+	# Corpo que some no meio da corrida não pode prender quem espera.
+	_check_true("nova investida aceita", s.charge(a))
+	s.step(STEP)
+	b.free()
+	s.step(STEP)
+	_check("adversario sumiu: investida encerra", s.charge_phase(), BattleStaging.ChargePhase.NONE)
+	_check("e avisa por charge_returned", returned[0], 2)
 
 
 # ---------------------------------------------------------------------------

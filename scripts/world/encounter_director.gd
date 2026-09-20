@@ -71,8 +71,18 @@ var _active_relic: PlayerRelic
 ## paralelo). Reusa os MESMOS números do VFX (`ElementPalette.BATTLE_*_LIFETIME`)
 ## pra golpe/status — corpo e partícula terminam juntos, de propósito. Só
 ## `DEATH_BEAT` é novo: não existe VFX de desmaio, então não há lifetime
-## nenhum pra herdar.
+## nenhum pra herdar. `ATTACK3_ENTER_BEAT`/`ATTACK3_EXIT_BEAT` também são
+## novos, só pro combo de `Attack3` (`Cast_Enter`→`Cast`→`Cast_Exit`): o
+## meio do combo já reusa `BATTLE_ATTACK_LIFETIME`, mas entrada e saída não
+## têm VFX equivalente pra herdar tempo.
 const DEATH_BEAT := 0.9
+
+## Teto de espera por perna da investida, em segundos. A corrida é da
+## `BattleStaging` e normalmente leva ~0,6 s; isto só existe pra um turno
+## nunca ficar preso esperando um corpo que não consegue chegar.
+const CHARGE_TIMEOUT := 3.0
+const ATTACK3_ENTER_BEAT := 0.35
+const ATTACK3_EXIT_BEAT := 0.35
 
 
 func setup(
@@ -378,10 +388,12 @@ func _release_gait_if_alive(is_player_side: bool, battle: Battle) -> void:
 ## (buff/debuff/heal/charge) não tem elemento próprio no catálogo — usa
 ## sempre o de quem usou, mesmo quando aplicado no oponente (debuff).
 ##
-## Só dano/miss mexem no CORPO (`Attack`/`HitReact`/`Death`) — status
-## (buff/debuff/heal/charge) continua só efeito visual, sem clipe: não existe
-## gesto de "usar golpe de suporte" no vocabulário das criaturas, e forçar
-## `Attack2` pra isso seria custom por categoria, não sistemático.
+## Só dano/miss mexem no CORPO (`Attack`/`Attack2`/`Attack3`/`HitReact`/
+## `Dodge`/`Death`) — status (buff/debuff/heal/charge) continua só efeito
+## visual, sem clipe: não existe gesto de "usar golpe de suporte" no
+## vocabulário das criaturas. Qual das três variantes de ataque toca vem do
+## bestiário (`ability.attackVariant`, ver `_attack_clip_for`) — decisão de
+## conteúdo, não sorteio nem categoria hardcoded aqui.
 func _animate_one_event(battle: Battle, event: Dictionary) -> void:
 	var is_player := bool(event.get("is_player", false))
 	var type := str(event.get("type", ""))
@@ -395,14 +407,59 @@ func _animate_one_event(battle: Battle, event: Dictionary) -> void:
 			var element_code := BestiaryData.ability_element(ability)
 			if element_code == "" and actor != null:
 				element_code = actor.element
-			# Dano acontece no ALVO — o lado oposto de quem agiu.
-			_dispatch_battle_effect(not is_player, "damage", element_code, ability_code, actor_code)
-			_play_body_clip(is_player, "Attack")
-			_play_body_clip(not is_player, "HitReact")
-			await _wait(ElementPalette.BATTLE_ATTACK_LIFETIME)
+			var variant := _attack_clip_for(ability)
+			if variant == "Attack3":
+				# Golpe do Despertar: o impacto É o feixe (a bola e as faíscas
+				# da ponta dele). O swing/claw do corpo a corpo não entra —
+				# um corte de garra no fim de um raio contaria duas histórias.
+				await _play_attack3_sequence(is_player, true, element_code)
+			else:
+				# Curta distância: corre, e o efeito só nasce no CONTATO —
+				# disparado antes, a partícula estouraria no alvo com o
+				# atacante ainda do outro lado do vão.
+				var charged := await _charge_out(is_player)
+				if variant == "Attack2":
+					# Golpe ELEMENTAR: o mesmo corte do básico, mas na cor do
+					# elemento, mais o estouro de impacto. O básico (`Attack`)
+					# segue com o corte neutro e sem estouro — é a diferença
+					# visível entre os dois golpes de curta distância.
+					_dispatch_battle_effect(not is_player, "damage_elemental", element_code, ability_code, actor_code)
+					_dispatch_battle_effect(not is_player, "impact", element_code, ability_code, actor_code)
+				else:
+					_dispatch_battle_effect(not is_player, "damage", element_code, ability_code, actor_code)
+				_play_body_clip(is_player, variant)
+				_play_body_clip(not is_player, "HitReact")
+				await _wait(ElementPalette.BATTLE_ATTACK_LIFETIME)
+				if charged:
+					_rest_body(not is_player)
+					await _charge_back()
 		"miss":
-			# Golpe saiu, ninguém reage — só quem atacou anima.
-			_play_body_clip(is_player, "Attack")
+			# Golpe saiu, o alvo escapa dele — `Dodge` é de quem apanharia,
+			# nunca de quem atacou.
+			var ability_code := str(event.get("ability", ""))
+			var ability := actor.ability_by_code(ability_code) if actor != null else {}
+			var variant := _attack_clip_for(ability)
+			if variant == "Attack3":
+				var miss_element := BestiaryData.ability_element(ability)
+				if miss_element == "" and actor != null:
+					miss_element = actor.element
+				await _play_attack3_sequence(is_player, false, miss_element)
+				_play_body_clip(not is_player, "Dodge")
+				await _wait(ElementPalette.BATTLE_ATTACK_LIFETIME)
+			else:
+				# Errar também custa a corrida: o golpe saiu, só não pegou.
+				var charged := await _charge_out(is_player)
+				_play_body_clip(is_player, variant)
+				_play_body_clip(not is_player, "Dodge")
+				await _wait(ElementPalette.BATTLE_ATTACK_LIFETIME)
+				if charged:
+					_rest_body(not is_player)
+					await _charge_back()
+		"capture_failed":
+			# `Battle._do_capture` loga este evento com `actor` = a própria
+			# criatura selvagem (não quem tentou capturar) — `is_player` já é
+			# o lado de quem escapou, direto, mesmo padrão de `"faint"`.
+			_play_body_clip(is_player, "Dodge")
 			await _wait(ElementPalette.BATTLE_ATTACK_LIFETIME)
 		"buff", "heal", "charge":
 			_dispatch_battle_effect(is_player, type, actor.element if actor != null else "", "", actor_code)
@@ -417,6 +474,69 @@ func _animate_one_event(battle: Battle, event: Dictionary) -> void:
 			await _wait(DEATH_BEAT)
 
 
+## Investida do golpe de curta distância: manda o corpo do lado que AGIU
+## correr até o adversário e espera o contato. Quem anda o corpo é a
+## `BattleStaging` (dona única da posição em duelo — ver "A investida" lá);
+## aqui só se pede e se espera. Devolve `false` quando não houve corrida — sem
+## encenação (bancada de teste), corpo ausente — e o turno segue do posto,
+## como era antes de 2026-09-18.
+##
+## Quais golpes investem sai do dado: `attackVariant` `attack` (básico) e
+## `attack2` (elementar) são corpo a corpo; `attack3` (Despertar) é
+## conjuração à distância e não passa por aqui.
+func _charge_out(player_side: bool) -> bool:
+	var body: Node3D = _companion if player_side else _engaged_actor
+	if _staging == null or not is_instance_valid(_staging) or body == null or not is_instance_valid(body):
+		return false
+	if not _staging.charge(body):
+		return false
+	await _until_charge_leaves(BattleStaging.ChargePhase.OUT)
+	return _staging != null and is_instance_valid(_staging) \
+		and _staging.charge_phase() == BattleStaging.ChargePhase.HOLD
+
+
+## Devolve um corpo ao repouso da própria escada de marcha (`Idle`, ou
+## `Swim_Idle` submerso) — por NOME, como o resto do contrato de encenação.
+##
+## Existe por causa da retirada: `HitReact`/`Dodge` são mais curtos que o
+## compasso do golpe e terminam sozinhos, e um `AnimationPlayer` que chega ao
+## fim só para de escrever — o corpo fica no último quadro. Antes da investida
+## isso durava um instante (a marcha destrancava logo em seguida); com a volta
+## do atacante no meio, quem apanhou ficaria meio segundo congelado de
+## guarda torta vendo o outro correr. A marcha segue trancada: isto é um
+## pedido único, não a encenação retomando o corpo.
+func _rest_body(player_side: bool) -> void:
+	var body: Node = _companion if player_side else _engaged_actor
+	if body != null and is_instance_valid(body) and body.has_method("staged_gait"):
+		body.call("staged_gait", 0.0)
+
+
+func _charge_back() -> void:
+	if _staging == null or not is_instance_valid(_staging):
+		return
+	_staging.retreat()
+	await _until_charge_leaves(BattleStaging.ChargePhase.BACK)
+	# A meia-volta no posto ainda é investida: seguir antes dela acabar faria
+	# o `charge()` do contra-ataque ser recusado (uma por vez), e o adversário
+	# golpearia do posto, sem correr.
+	await _until_charge_leaves(BattleStaging.ChargePhase.TURN)
+
+
+## Espera quadro a quadro, e não pelos sinais da encenação, de propósito: o
+## duelo pode fechar no meio da corrida (ESC continua saindo durante a
+## resolução do turno) e a encenação morre junto — um `await` num sinal de nó
+## liberado não retoma nunca, e o turno ficaria preso com as teclas travadas.
+func _until_charge_leaves(phase: BattleStaging.ChargePhase) -> void:
+	var loop := Engine.get_main_loop() as SceneTree
+	if loop == null:
+		return
+	var deadline := Time.get_ticks_msec() + int(CHARGE_TIMEOUT * 1000.0)
+	while _staging != null and is_instance_valid(_staging) and _staging.charge_phase() == phase:
+		if Time.get_ticks_msec() > deadline:
+			return
+		await loop.process_frame
+
+
 ## `Engine.get_main_loop()`, não `_parent.get_tree()`: uma bancada de teste
 ## pode montar o `EncounterDirector` sem `setup()` nenhum (só os campos que o
 ## próprio teste precisa, via reflexão), e `_parent` ficaria null nesse caso.
@@ -424,6 +544,16 @@ func _wait(seconds: float) -> void:
 	var loop := Engine.get_main_loop()
 	if loop is SceneTree:
 		await (loop as SceneTree).create_timer(seconds).timeout
+
+
+## Feixe do lado que AGIU até o corpo do lado oposto — por nome, como o resto.
+func _dispatch_battle_beam(player_side: bool, element_code: String, duration: float) -> void:
+	var source: Node = _companion if player_side else _engaged_actor
+	var target: Node = _engaged_actor if player_side else _companion
+	if source == null or not is_instance_valid(source) or target == null or not is_instance_valid(target):
+		return
+	if source.has_method("play_battle_beam"):
+		source.call("play_battle_beam", target, element_code, duration)
 
 
 ## `player_side` true = companheira, false = criatura selvagem/duelista —
@@ -450,6 +580,46 @@ func _play_body_clip(player_side: bool, clip: String) -> void:
 		return
 	if body.has_method("play_battle_clip"):
 		body.call("play_battle_clip", clip)
+
+
+## Qual clipe de ataque uma habilidade toca — dado do bestiário
+## (`ability_stats.attack_variant`, exportado como `attackVariant`), nunca
+## sorteio nem categoria hardcoded aqui. Valor ausente ou desconhecido cai em
+## `"Attack"`, mesmo padrão de fallback silencioso de `BestiaryData.
+## ability_element`.
+func _attack_clip_for(ability: Dictionary) -> String:
+	match str(ability.get("attackVariant", "attack")):
+		"attack2":
+			return "Attack2"
+		"attack3":
+			return "Attack3"
+		_:
+			return "Attack"
+
+
+## `Attack3` não é mais um clipe único no vocabulário — é a encenação de três
+## clipes já existentes na UAL (`Cast_Enter`/`Cast`/`Cast_Exit`, vindos de
+## Spell_Simple_Enter/Shoot/Exit). `hit_target` decide se o alvo reage no
+## meio da sequência (dano) ou não (miss) — o "Shoot" é o instante do
+## impacto, por isso o `HitReact` do lado oposto entra ali, não no fim.
+##
+## Desde 2026-09-18 o "Shoot" dispara o FEIXE de energia na cor do elemento
+## (`ElementPalette.play_battle_beam`), que vive exatamente o compasso do
+## `Cast`. O alvo só reage depois de `BATTLE_BEAM_OPEN_TIME` — o tempo do
+## feixe atravessar o vão; reagir no quadro do disparo leria como o alvo
+## apanhando de um raio que ainda não chegou. No erro o feixe sai do mesmo
+## jeito: o golpe foi dado, só não pegou.
+func _play_attack3_sequence(is_player: bool, hit_target: bool, element_code: String = "") -> void:
+	_play_body_clip(is_player, "Cast_Enter")
+	await _wait(ATTACK3_ENTER_BEAT)
+	_play_body_clip(is_player, "Cast")
+	_dispatch_battle_beam(is_player, element_code, ElementPalette.BATTLE_ATTACK_LIFETIME)
+	await _wait(ElementPalette.BATTLE_BEAM_OPEN_TIME)
+	if hit_target:
+		_play_body_clip(not is_player, "HitReact")
+	await _wait(ElementPalette.BATTLE_ATTACK_LIFETIME - ElementPalette.BATTLE_BEAM_OPEN_TIME)
+	_play_body_clip(is_player, "Cast_Exit")
+	await _wait(ATTACK3_EXIT_BEAT)
 
 
 func _on_duel_closed(outcome: int) -> void:
@@ -611,8 +781,10 @@ func _grant_creature_xp(fought: Battle) -> String:
 		if result["leveled_up"]:
 			line += " (subiu para o nivel %d!)" % int(result["new_level"])
 		elif result["waiting_material"]:
-			var cls := str(_db.creature(_roster.code_at(idx)).get("class", ""))
-			line += " (XP cheio, falta %s)" % _db.item_name(_db.class_material_item(cls))
+			# A mesma frase da janela do time — com a QUANTIDADE que falta, que
+			# é o item 5 do documento `progressao`: "faltam 2 unidades" é a
+			# mensagem útil, "não pode subir" não é.
+			line += " (%s)" % ProgressText.status_plain(_db, _roster.progress_at(idx), _inventory)
 		lines.append(line)
 
 	return "  ·  ".join(lines)
@@ -629,9 +801,14 @@ func _grant_capture_xp() -> void:
 	if result["leveled_up"]:
 		_show_message.call("%s subiu para o nivel %d!"
 			% [_active_relic.display_name(_db), int(result["new_level"])])
-	elif result["waiting_material"]:
-		_show_message.call("%s: XP cheio, falta %s."
-			% [_active_relic.display_name(_db), _db.item_name(_active_relic.material_item_code(_db))])
+	elif result["waiting_material"] and str(result["material"]) != "":
+		# Relicário sem classe (o starter) trava com a barra cheia de
+		# propósito e não tem material que destrave — avisar "falta ." a cada
+		# captura, como acontecia, era pedir um item que não existe. A janela
+		# do set é quem explica esse estado; aqui só o que tem solução.
+		_show_message.call("%s: %s." % [
+			_active_relic.display_name(_db),
+			ProgressText.status_plain(_db, _active_relic.progress(_db), _inventory, "captura")])
 
 
 func _creature_name(code: String) -> String:

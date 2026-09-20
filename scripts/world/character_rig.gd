@@ -58,13 +58,25 @@ const SWIM_LIFT := 0.9
 ## leito. É medida do clipe, e por isso constante e não derivada da pose viva —
 ## mesma razão de `SWIM_LIFT`.
 ##
-## Levantado assim, o boiador ocupa de +0,37 a +2,1 m sobre os pés, mais do
-## que a coluna d'água do PZ-01 (1,65 m) comporta — foi por isso que a escada
-## tocava `Swim` também parado até o corpo do jogador trazer um `Swim_Idle` de
-## pé. Nenhum NPC nada hoje (`update_motion` só recebe `swimming` do
-## `PlayerController`); o número existe para a escada que este corpo divide
-## com o jogador continuar correta nele em vez de ganhar um caso especial.
-const SWIM_IDLE_LIFT := SWIM_LIFT + 0.88
+## Levantado assim (0,88 m puros), o boiador ocupava de +0,37 a +2,1 m sobre
+## os pés, mais do que a coluna d'água do PZ-01 (1,65 m) comporta — foi por
+## isso que a escada tocava `Swim` também parado até o corpo do jogador trazer
+## um `Swim_Idle` de pé. Nenhum NPC nada hoje (`update_motion` só recebe
+## `swimming` do `PlayerController`); o número existe para a escada que este
+## corpo divide com o jogador continuar correta nele em vez de ganhar um caso
+## especial.
+##
+## Em 2026-09-17 o resultado ainda ficava alto demais por decisão de produto —
+## ombro e peito de fora, não só a cabeça (ver a screenshot que motivou o
+## ajuste). `HEAD_CLEARANCE` afunda o corpo até sobrar só 0,20 m do osso `Head`
+## (o ponto mais alto do ciclo, medido pela sonda descartável
+## `probe_player_swim_idle.gd`) acima da lâmina d'água — abaixo disso é o
+## pescoço que fica de fora, não a cabeça. Medido: sem esta folga o topo
+## chegava a 2,11 m sobre os pés contra 1,65 m de água; com ela cai para
+## 1,85 m.
+const SWIM_IDLE_HEAD_TOP := 0.330
+const HEAD_CLEARANCE := 0.20
+const SWIM_IDLE_LIFT := MapDressing.PZ01_WATER_LINE - MapTerrain.SEA_HEIGHT + HEAD_CLEARANCE - SWIM_IDLE_HEAD_TOP
 
 const KIT_DIR := "res://models/characters"
 const MANIFEST_PATH := KIT_DIR + "/manifest.json"
@@ -227,9 +239,10 @@ static func _build_library(skeleton_path: String) -> AnimationLibrary:
 					NodePath("%s:%s" % [skeleton_path, path.get_concatenated_subnames()]),
 				)
 				# Todo clipe do jogo é in-place: quem move é o ator. A UAL não é
-				# 100% assim — `Attack3` desloca o `pelvis` 0,15 m (em escala
-				# chibi; 0,4 m num humano) e termina lá, e o corpo pula de
-				# volta quando o Idle entra. Medido em 2026-09-16 por
+				# 100% assim — o antigo `Attack3` (hoje `Sword_Dash`/`Attack2`)
+				# desloca o `pelvis` 0,15 m (em escala chibi; 0,4 m num humano)
+				# e termina lá, e o corpo pula de volta quando o Idle entra.
+				# Medido em 2026-09-16 por
 				# `test_meshy_bodies.gd` no primeiro corpo retargetado com
 				# `modelUrl`. Mesma correção que `scripts/lib/root-motion.mjs`
 				# aplica aos clipes Meshy no bestiário, só que aqui, na

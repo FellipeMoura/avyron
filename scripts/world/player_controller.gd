@@ -21,8 +21,13 @@ extends CharacterBody3D
 ## Reverter é mexer no `allow_run`, não introduzir um literal `"Walk"` em
 ## outro lugar — a escada continua sendo a única dona da escolha de clipe.
 ##
-## Se ainda restar deslize, o ajuste seguinte é a CADÊNCIA (`speed_scale` do
-## AnimationPlayer), não o clipe nem a velocidade.
+## Mesmo assim sobrou deslize: o ciclo de `Walk` tocava no ritmo em que foi
+## autorado, mais lento que o pé precisa varrer o chão nesta marcha, e o pé
+## plantado parecia arrastar para trás enquanto o corpo avançava. Em
+## 2026-09-17 o ajuste seguinte foi CADÊNCIA, não clipe nem velocidade —
+## `GaitRig.WALK_CADENCE` acelera só o `speed_scale` do `AnimationPlayer`
+## enquanto `Walk` toca, e é candidata a reajuste por olho na próxima rodada
+## de playtest.
 ##
 ## Especificação: documento `movimento-e-controles` no bestiário.
 

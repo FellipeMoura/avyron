@@ -288,15 +288,69 @@ func xp_at(index: int) -> int:
 
 
 ## XP necessário pra `index` passar do nível atual ao seguinte. Zero se o
-## bundle não tem o bloco `progression` (bundle anterior a este sistema).
+## bundle não tem o bloco `progression` (bundle anterior a este sistema) ou
+## se a criatura já está no teto — no teto não existe "próximo".
 func xp_to_next_at(index: int) -> int:
-	if index < 0 or index >= _members.size() or _db == null:
+	if index < 0 or index >= _members.size():
 		return 0
+	return int(_progress_of(_members[index])["xp_to_next"])
+
+
+## A leitura de progressão de um membro ativo, pronta pra tela. Ver
+## `_progress_of` — este é só o acesso por índice, como `hp_at`.
+func progress_at(index: int) -> Dictionary:
+	if index < 0 or index >= _members.size():
+		return _progress_of({})
+	return _progress_of(_members[index])
+
+
+## Idem pra um membro guardado no posto — a lista de retirada mostra a mesma
+## coisa que a janela do time, senão o jogador teria de retirar pra descobrir
+## se a criatura está pronta pra subir.
+func storage_progress_at(index: int) -> Dictionary:
+	if index < 0 or index >= _storage.size():
+		return _progress_of({})
+	return _progress_of(_storage[index])
+
+
+## O funil único de leitura da curva de nível — janela do time, painel da
+## ativa, posto e mensagens pós-luta olham TODOS por aqui. Existe pra nenhuma
+## tela refazer a conta de "quanto falta" com uma regra e outra tela com
+## outra: `xp_full` aqui é o MESMO critério que `grant_xp_at` usa pra tentar
+## subir, então o que a tela chama de "pronta" é o que o gate chama de pronta.
+##
+##     {level, xp, xp_to_next, at_cap, xp_full, material, material_cost}
+##
+## `xp_full` é a barra cheia esperando material — o único estado em que a
+## próxima vitória sozinha não resolve, e por isso o que o jogador mais
+## precisa ver. No teto (`at_cap`) não há próximo nível: `xp_to_next` e
+## `material_cost` saem zero e `xp_full` é falso, porque barra cheia no teto
+## não espera nada. Bundle sem `progression` devolve tudo zerado.
+func _progress_of(member: Dictionary) -> Dictionary:
+	var level := int(member.get("level", 1))
+	var out := {
+		"level": level, "xp": int(member.get("xp", 0)), "xp_to_next": 0,
+		"at_cap": false, "xp_full": false, "material": "", "material_cost": 0,
+	}
+	if _db == null or member.is_empty():
+		return out
 	var xp_rules: Dictionary = _db.progression_rules().get("xp", {})
-	if xp_rules.is_empty():
-		return 0
-	return ProgressionMath.xp_to_next(
-		float(xp_rules.get("curveBase", 14)), float(xp_rules.get("curveExponent", 1.7)), level_at(index))
+	var cost_rules: Dictionary = _db.progression_rules().get("levelUpCost", {})
+	if xp_rules.is_empty() or cost_rules.is_empty():
+		return out
+
+	out["at_cap"] = level >= _db.level_cap()
+	if out["at_cap"]:
+		return out
+
+	out["xp_to_next"] = ProgressionMath.xp_to_next(
+		float(xp_rules.get("curveBase", 0)), float(xp_rules.get("curveExponent", 0)), level)
+	out["xp_full"] = int(out["xp"]) >= int(out["xp_to_next"])
+	var class_code := str(_db.creature(str(member.get("code", ""))).get("class", ""))
+	out["material"] = _db.class_material_item(class_code)
+	out["material_cost"] = ProgressionMath.material_cost(
+		int(cost_rules.get("base", 0)), int(cost_rules.get("levelStep", 0)), level)
+	return out
 
 
 func hp_ratio_at(index: int) -> float:
@@ -431,37 +485,55 @@ func _regenerate_array(arr: Array[Dictionary], rate: float, delta: float) -> boo
 
 ## Concede XP a um membro ativo e sobe de nível enquanto der — XP cheio e
 ## material disponível na bolsa, no mesmo golpe. Devolve
-## `{leveled_up, new_level, waiting_material}`, mesmo formato de
-## `PlayerRelic.grant_capture_xp`.
+## `{leveled_up, new_level, waiting_material, material, units_needed}`,
+## mesmo formato de `PlayerRelic.grant_capture_xp`. `material`/`units_needed`
+## só são preenchidos quando travou esperando: é o que deixa a mensagem
+## pós-luta dizer "falta 1× Arambita" sem refazer a conta do lado de lá.
+##
+## No teto o XP **não** acumula (documento `progressao`: "no teto não há
+## próximo nível, então não há XP a acumular") — antes somava sem parar e a
+## barra de uma criatura no máximo crescia sem ter onde ir.
 func grant_xp_at(index: int, amount: int, inventory: PlayerInventory) -> Dictionary:
-	var result := {"leveled_up": false, "new_level": level_at(index), "waiting_material": false}
+	var result := {
+		"leveled_up": false, "new_level": level_at(index), "waiting_material": false,
+		"material": "", "units_needed": 0,
+	}
 	if index < 0 or index >= _members.size() or _db == null or inventory == null or amount <= 0:
 		return result
 
-	var xp_rules: Dictionary = _db.progression_rules().get("xp", {})
-	var cost_rules: Dictionary = _db.progression_rules().get("levelUpCost", {})
-	if xp_rules.is_empty() or cost_rules.is_empty():
+	var progress := _progress_of(_members[index])
+	# `xp_to_next` zero fora do teto é bundle sem `progression`: sem curva não
+	# há o que subir, e entrar no laço abaixo com limiar zero seria subir
+	# de graça até o teto.
+	if bool(progress["at_cap"]) or int(progress["xp_to_next"]) <= 0:
 		return result
 
-	_members[index]["xp"] = int(_members[index]["xp"]) + amount
-	var cap := _db.level_cap()
+	_members[index]["xp"] = xp_at(index) + amount
 
-	while level_at(index) < cap and xp_at(index) >= xp_to_next_at(index):
-		var threshold := xp_to_next_at(index)
-		var class_code := str(_db.creature(str(_members[index]["code"])).get("class", ""))
-		var material := _db.class_material_item(class_code)
-		var units := ProgressionMath.material_cost(
-			int(cost_rules.get("base", 1)), int(cost_rules.get("levelStep", 20)), level_at(index))
+	while true:
+		progress = _progress_of(_members[index])
+		if bool(progress["at_cap"]) or not bool(progress["xp_full"]):
+			break
+		var threshold := int(progress["xp_to_next"])
+		var material := str(progress["material"])
+		var units := int(progress["material_cost"])
 
 		if material == "" or not inventory.remove(material, units):
 			_members[index]["xp"] = threshold  # trava no teto — ver cabeçalho da seção
 			result["waiting_material"] = true
+			result["material"] = material
+			result["units_needed"] = units
 			break
 
 		_members[index]["xp"] = xp_at(index) - threshold
 		_members[index]["level"] = level_at(index) + 1
 		result["leveled_up"] = true
 		result["new_level"] = level_at(index)
+
+	# Chegou ao teto neste laço: o resto de XP não tem pra onde ir e ficaria
+	# aparecendo como "37/0" em qualquer tela que o mostrasse.
+	if bool(_progress_of(_members[index])["at_cap"]):
+		_members[index]["xp"] = 0
 
 	changed.emit()
 	return result

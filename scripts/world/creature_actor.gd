@@ -33,6 +33,14 @@ const PATROL_SPEED := 1.2
 const RUN_THRESHOLD := 2.0
 const IDLE_SPEED := 0.05
 
+## Degrau de cima da escada seca: a partir daqui o corpo dispara (`Sprint`) em
+## vez de correr. Só a investida do duelo chega lá
+## (`BattleStaging.CHARGE_SPEED`) — o posicionamento da encenação tem teto em
+## 4 m/s e a patrulha anda a 1,2. Apresentação, como os outros dois limiares.
+## `CompanionActor` usa ESTE valor em vez de repetir o número: os dois lados
+## do duelo têm de trocar de clipe na mesma marcha.
+const SPRINT_THRESHOLD := 6.0
+
 const IDLE_MIN := 1.5
 const IDLE_MAX := 4.0
 const PATROL_RADIUS := 6.0
@@ -70,6 +78,32 @@ var _patrol_target := Vector3.ZERO
 var _timer := 0.0
 var _rng := RandomNumberGenerator.new()
 var _engaged_once := false
+
+## Quanto levantar a malha visual enquanto `Swim`/`Swim_Idle` tocam — mesma
+## medida de `CompanionActor.SWIM_LIFT`/`SWIM_IDLE_LIFT`, e não uma segunda
+## constante, porque os dois consomem o MESMO `build_visual()` (mesmo
+## esqueleto UAL, mesma normalização de `sizeMeters`): remedir aqui duplicaria
+## a mesma medida do mesmo corpo e as duas divergiriam no dia em que uma
+## mudasse. Sem levantamento nenhum a criatura selvagem ficava "enterrada" —
+## a malha nunca tinha ganho a compensação que `GaitRig`/`CompanionActor`
+## sempre tiveram, porque `submerged()` nunca respondia sim antes do spawner
+## injetar `terrain` (ver o comentário de `terrain` acima): o nado só passou a
+## realmente tocar em criatura selvagem quando esse fio foi ligado, e foi aí
+## que a falta desta compensação virou visível.
+var _swim_offset := 0.0
+## Último "está se deslocando?" visto por `_gait`, para `_advance_swim_lift`
+## separar Swim (nadando) do resto por INTENÇÃO de marcha, não pelo nome do
+## clipe corrente — `Attack`/`HitReact`/`Death` tocam por fora da escada
+## (`play_battle_clip`, com a marcha TRAVADA por `BattleStaging._gait_locked`)
+## e não são `Swim`/`Swim_Idle`. `_swim_moving` continua correto durante o
+## travamento porque é `_gait` (chamado por `staged_gait`) quem o grava, e ele
+## só para de ser chamado depois de a dupla já estar parada nos postos.
+var _swim_moving := false
+## Corpo emprestado à `BattleStaging` — ver o contrato de encenação mais
+## abaixo. Só existe para `_physics_process` saber que a própria máquina de
+## estados e `move_and_slide` não são donos do corpo agora; a altura de nado
+## continua sendo assunto deste script, e por isso continua rodando.
+var _staged := false
 
 var _mesh: Node3D
 var _collision: CollisionShape3D
@@ -472,6 +506,14 @@ static func build_capsule_visual(size_meters: float, _element_code: String = "",
 
 
 func _physics_process(delta: float) -> void:
+	# Emprestado à `BattleStaging`: ela é dona de posição, rotação e marcha
+	# agora (ver o contrato de encenação abaixo), mas a altura de nado
+	# continua sendo assunto deste script — só ela some do `_physics_process`
+	# comum, o resto do método inteiro é dela.
+	if _staged:
+		_advance_swim_lift(delta)
+		return
+
 	match state:
 		State.IDLE:
 			_timer -= delta
@@ -501,6 +543,52 @@ func _physics_process(delta: float) -> void:
 	# `_submerged` sobre por que não é a cada quadro.
 	if submerged() != _submerged:
 		_gait(Vector2(velocity.x, velocity.z).length())
+
+	_advance_swim_lift(delta)
+
+
+## Sobe a malha (nunca a cápsula de colisão, que continua apoiada no chão)
+## enquanto o corpo nada, e devolve para a origem local fora d'água — mesma
+## ideia de `GaitRig._advance_float`/`CompanionActor._advance_swim_lift`,
+## repetida aqui porque este corpo não estende nenhum dos dois. A altura
+## persegue a cota do clipe corrente (`Swim_Idle` boia mais alto que `Swim`
+## nada) à velocidade que cruza a maior das duas em `SWIM_BLEND_TIME`, casada
+## com o crossfade de clipe (0,2 s).
+## Parada e submersa, ainda falta separar DUAS formas de "parada": boiando
+## (`Swim_Idle`, esqueleto agachado) ou tocando um golpe de duelo (`Attack`,
+## `HitReact`, `Death`, esqueleto DE PÉ — ver
+## `CompanionActor.SUBMERGED_STANDING_LIFT`). Essa segunda escolha É por nome
+## do clipe, porque é sobre a FORMA do esqueleto corrente, não sobre
+## intenção de movimento — confundir as duas (decidir a forma pela
+## intenção, como a primeira versão fazia) produziu o "levanta ao atacar"
+## relatado em 2026-09-18.
+##
+## `_staged` força SEMPRE a altura "de pé", mesmo enquanto o clipe corrente
+## ainda é `Swim_Idle` (a dupla assentada no posto, antes do primeiro golpe).
+## As duas alturas foram calibradas para o TOPO do esqueleto bater igual —
+## `SUBMERGED_STANDING_LIFT = SWIM_IDLE_LIFT - SUBMERGED_STANDING_DELTA` —, mas
+## os pés continuam em cotas ligeiramente diferentes nas duas poses (agachada
+## vs. de pé), e por isso alternar entre elas ainda lia como um levantar
+## pequeno a cada golpe (relatado de novo em 2026-09-18, depois da primeira
+## correção). Duelo inteiro numa altura só elimina a alternância em vez de só
+## encolhê-la; fora do duelo `Swim_Idle` continua na própria altura (mais alta
+## de propósito, para só a cabeça ficar de fora — ver `SWIM_IDLE_LIFT`).
+func _advance_swim_lift(delta: float) -> void:
+	if _mesh == null or _anim == null:
+		return
+	var target := 0.0
+	if _submerged:
+		if _swim_moving:
+			target = CompanionActor.SWIM_LIFT
+		elif _staged:
+			target = CompanionActor.SUBMERGED_STANDING_LIFT
+		elif _anim.current_animation == "Swim_Idle":
+			target = CompanionActor.SWIM_IDLE_LIFT
+		else:
+			target = CompanionActor.SUBMERGED_STANDING_LIFT
+	var rate := maxf(CompanionActor.SWIM_LIFT, CompanionActor.SWIM_IDLE_LIFT) / CompanionActor.SWIM_BLEND_TIME
+	_swim_offset = move_toward(_swim_offset, target, rate * delta)
+	_mesh.position.y = _swim_offset
 
 
 func _enter_idle() -> void:
@@ -609,9 +697,12 @@ func submerged() -> bool:
 ##
 ## `Run` só quando o corpo tem o clipe: os placeholders variam, e `_play_clip`
 ## silencia no clipe ausente — pedir `Run` a quem não tem deixaria a criatura
-## atravessar a cena parada.
+## atravessar a cena parada. `Sprint` (investida do duelo, desde 2026-09-18)
+## segue a mesma regra e cai em `Run` quando falta. Submerso não há degrau
+## novo: a investida debaixo d'água é `Swim`, que é o que 87% do PZ-01 vê.
 func _gait(speed: float) -> void:
 	_submerged = submerged()
+	_swim_moving = speed >= IDLE_SPEED
 	if _submerged:
 		if speed < IDLE_SPEED and _has_clip("Swim_Idle"):
 			_play_clip("Swim_Idle")
@@ -621,6 +712,8 @@ func _gait(speed: float) -> void:
 			return
 	if speed < IDLE_SPEED:
 		_play_clip("Idle")
+	elif speed >= SPRINT_THRESHOLD and _has_clip("Sprint"):
+		_play_clip("Sprint")
 	elif speed >= RUN_THRESHOLD and _has_clip("Run"):
 		_play_clip("Run")
 	else:
@@ -639,11 +732,13 @@ func play_battle_clip(clip: String) -> void:
 # contrato de encenação (BattleStaging)
 # ---------------------------------------------------------------------------
 #
-# Durante o duelo o mundo está pausado e o `_physics_process` daqui não roda:
-# quem move e anima este corpo é a `BattleStaging`. Estes dois métodos são tudo
-# o que ela precisa saber dele, e são chamados por NOME (`Node.call`), não por
-# tipo — a bancada da suíte de encenação monta a geometria com `Node3D` solto e
-# não deve ser obrigada a implementar contrato nenhum.
+# Durante o duelo o mundo está pausado: quem move, gira e escolhe a marcha
+# deste corpo é a `BattleStaging`, por isso `_physics_process` cede tudo
+# exceto a altura de nado (`_advance_swim_lift`) enquanto `_staged` — ver o
+# comentário do campo. Estes dois métodos são tudo o que a encenação precisa
+# saber dele, e são chamados por NOME (`Node.call`), não por tipo — a bancada
+# da suíte de encenação monta a geometria com `Node3D` solto e não deve ser
+# obrigada a implementar contrato nenhum.
 
 ## Quanto a origem do corpo fica acima do chão: meia cápsula, a mesma soma que
 ## `_build_body` aplica ao nascer. Derivada de `capsule_dimensions`, não
@@ -666,9 +761,20 @@ func staged_gait(speed: float) -> void:
 ## acabar, de volta por outra porta. Ligado só enquanto a encenação é dona do
 ## corpo: ligado sempre, uma criatura pega no meio do `Walk` por uma tela de
 ## loja andaria no lugar em vez de ficar parada.
+##
+## Também liga `_staged` e o `process_mode` do PRÓPRIO corpo (não só do
+## `AnimationPlayer`): é o mesmo truque de `GaitRig.animate_while_paused`,
+## necessário porque a altura de nado (`_advance_swim_lift`) mora no
+## `_physics_process` deste script, e nó pausado não processa. Sem isto ela
+## congelava no valor que tinha no instante em que o mundo pausou — às vezes
+## a meio caminho de um `move_toward` — e ficava presa ali a luta inteira,
+## enquanto o clipe de golpe (fora da escada) tocava por cima sem ninguém
+## reconciliar a altura com ele.
 func staged_animating(enabled: bool) -> void:
 	if _anim != null:
 		_anim.process_mode = Node.PROCESS_MODE_ALWAYS if enabled else Node.PROCESS_MODE_INHERIT
+	_staged = enabled
+	process_mode = Node.PROCESS_MODE_ALWAYS if enabled else Node.PROCESS_MODE_INHERIT
 
 
 
@@ -757,10 +863,32 @@ func is_awakened() -> bool:
 ## evento novo do log da batalha — mesmo contrato de `set_awakening_aura` e
 ## `staged_gait`: a bancada de `Node3D` solto das suítes não precisa
 ## implementar isto para ser encenada. Mesmo offset de chão que a aura usa
-## (`self` é o centro vertical da cápsula, não o chão).
-func play_battle_effect(kind: String, _element_code: String, variant_seed: String, _source_creature_code: String = "") -> void:
+## (`self` é o centro vertical da cápsula, não o chão). `effect_element` é o
+## elemento de quem AGIU (decidido pelo `EncounterDirector`), não
+## necessariamente o deste corpo — hoje só o buff o usa pra se colorir.
+func play_battle_effect(kind: String, effect_element: String, variant_seed: String, _source_creature_code: String = "") -> void:
 	var ground_offset := -float(capsule_dimensions(size_meters)["height"]) * 0.5
-	ElementPalette.play_battle_effect(self, ground_offset, size_meters, kind, variant_seed)
+	ElementPalette.play_battle_effect(self, ground_offset, size_meters, kind, variant_seed, effect_element)
+
+
+## Altura do peito no espaço LOCAL deste corpo — onde um efeito que liga dois
+## corpos (o feixe do Despertar) nasce e acerta. Mesma conta de apoio de
+## `play_battle_effect`, mais a flutuação de nado: submersa, a malha sobe
+## `_swim_offset` acima do ator, e sem somar isso o feixe sairia da cintura.
+func battle_effect_height() -> float:
+	return -float(capsule_dimensions(size_meters)["height"]) * 0.5 + size_meters * 0.5 + _swim_offset
+
+
+## Feixe do golpe do Despertar, deste corpo até `target` — por NOME, como o
+## resto do contrato de combate. O alvo diz a própria altura de peito pelo
+## mesmo contrato; bancada de `Node3D` solto cai na origem dele.
+func play_battle_beam(target: Node3D, effect_element: String, duration: float) -> void:
+	var target_height := 0.0
+	if target != null and is_instance_valid(target) and target.has_method("battle_effect_height"):
+		target_height = float(target.call("battle_effect_height"))
+	ElementPalette.play_battle_beam(
+		self, battle_effect_height(), capsule_radius(size_meters),
+		target, target_height, effect_element, duration)
 
 
 func _update_capsule_emission() -> void:

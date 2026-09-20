@@ -73,7 +73,12 @@ func close() -> void:
 ## `loadout` tem padrão null e as seções aguentam isso porque a janela também
 ## roda em bancada de teste sem mundo. Slot vazio, aliás, é o estado de todo
 ## jogador no primeiro minuto: as peças não vêm no boot, se fabricam.
-func refresh(db: BestiaryData, relic: PlayerRelic, loadout: PlayerLoadout = null) -> void:
+## `inventory` idem: sem bolsa, a linha de material mostra "tem 0", que é o
+## que uma bancada sem bolsa tem mesmo.
+func refresh(
+	db: BestiaryData, relic: PlayerRelic, loadout: PlayerLoadout = null,
+	inventory: PlayerInventory = null
+) -> void:
 	if _label == null:
 		return
 
@@ -84,7 +89,7 @@ func refresh(db: BestiaryData, relic: PlayerRelic, loadout: PlayerLoadout = null
 	if relic == null or db == null:
 		lines.append("[color=%s]nenhum relicario equipado[/color]" % COL_SLATE)
 	else:
-		lines.append_array(_relic_lines(db, relic))
+		lines.append_array(_relic_lines(db, relic, inventory))
 
 	lines.append("")
 	lines.append_array(_slot_lines(db, loadout, BestiaryData.SLOT_AMPLIFIER, "AMPLIFICADOR"))
@@ -133,7 +138,7 @@ func _effect_line(db: BestiaryData, code: String) -> String:
 	return "+%d%% de %s da sua criatura" % [value, stat]
 
 
-func _relic_lines(db: BestiaryData, relic: PlayerRelic) -> Array[String]:
+func _relic_lines(db: BestiaryData, relic: PlayerRelic, inventory: PlayerInventory) -> Array[String]:
 	var out: Array[String] = []
 	var cap := relic.max_level(db)
 	out.append("  [color=%s]%s[/color]   [color=%s]nivel %d%s[/color]" % [
@@ -151,6 +156,13 @@ func _relic_lines(db: BestiaryData, relic: PlayerRelic) -> Array[String]:
 		COL_SLATE, relic.xp, relic.xp_to_next(db),
 		COL_SLATE, relic.capture_rate(db),
 	])
+	# A mesma frase de progressão da janela do time, com "captura" no lugar de
+	# "vitoria": é captura que enche esta barra. O starter neutro cai em "sem
+	# classe: nao sobe de nivel" — a barra dele enche e para de propósito, e
+	# sem esta linha ela parecia uma barra cheia esperando um botão.
+	var progress := relic.progress(db)
+	out.append("  %s   %s" % [
+		ProgressText.bar(progress), ProgressText.status_line(db, progress, inventory, "captura")])
 	return out
 
 
